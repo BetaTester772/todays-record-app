@@ -15,14 +15,29 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
     func show() {
         model.refresh()
         if window == nil {
-            let window = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 460, height: 640),
-                styleMask: [.titled, .closable, .miniaturizable],
-                backing: .buffered,
-                defer: false
-            )
+            // macOS 설정 창처럼 위쪽 도구 막대 아이콘을 누르면 아래 내용이 바뀐다.
+            let tabs = NSTabViewController()
+            tabs.tabStyle = .toolbar
+            tabs.canPropagateSelectedChildViewControllerTitle = false
+            let panes: [(String, String, AnyView)] = [
+                ("General", "gearshape", AnyView(GeneralPane(model: model))),
+                ("Displays", "display.2", AnyView(DisplaysPane(model: model))),
+                ("Appearance", "paintpalette", AnyView(AppearancePane())),
+                ("Effects", "sparkles", AnyView(EffectsPane())),
+                ("Players", "music.note", AnyView(PlayersPane(model: model))),
+            ]
+            for (title, symbol, view) in panes {
+                let hosting = NSHostingController(rootView: view)
+                hosting.sizingOptions = [.preferredContentSize]   // 탭마다 창 높이를 내용에 맞춘다
+                let item = NSTabViewItem(viewController: hosting)
+                item.label = title
+                item.image = NSImage(systemSymbolName: symbol, accessibilityDescription: title)
+                tabs.addTabViewItem(item)
+            }
+            let window = NSWindow(contentViewController: tabs)
+            window.styleMask = [.titled, .closable, .miniaturizable]
+            window.toolbarStyle = .preference
             window.title = "오늘의 판 Settings"
-            window.contentViewController = NSHostingController(rootView: SettingsView(model: model))
             window.isReleasedWhenClosed = false
             window.delegate = self
             window.center()
@@ -75,38 +90,82 @@ final class SettingsModel: ObservableObject {
     }
 }
 
-private struct SettingsView: View {
-    @ObservedObject var model: SettingsModel
+// 각 탭. @AppStorage 키는 Settings.Key와 같고, 기본값은 Settings.init에서 등록한 값과 같아야 한다.
 
-    // 기본값은 Settings.init에서 등록한 값과 같아야 한다.
+private struct GeneralPane: View {
+    @ObservedObject var model: SettingsModel
     @AppStorage(Settings.Key.enabled) private var enabled = true
+    @AppStorage(Settings.Key.fps) private var fps = Settings.FrameRate.auto.rawValue
+
+    var body: some View {
+        Pane {
+            Section {
+                Toggle("Show Wallpaper", isOn: $enabled)
+                Toggle("Open at Login", isOn: Binding(get: { model.loginEnabled }, set: { model.setLogin($0) }))
+            }
+            Section {
+                Picker("Frame Rate", selection: $fps) {
+                    Text("Auto").tag(Settings.FrameRate.auto.rawValue)
+                    Text("30 fps").tag(Settings.FrameRate.fps30.rawValue)
+                    Text("60 fps").tag(Settings.FrameRate.fps60.rawValue)
+                }
+                .pickerStyle(.segmented)
+                Text("Auto uses 30 fps on battery and 60 fps when plugged in.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Section {
+                LabeledContent("Lines on the record") {
+                    Button("Clear This Record") { model.onClearRecord?() }
+                }
+            }
+        }
+    }
+}
+
+private struct DisplaysPane: View {
+    @ObservedObject var model: SettingsModel
     @AppStorage(Settings.Key.disabledDisplays) private var disabledDisplays = ""
+
+    var body: some View {
+        Pane {
+            Section {
+                ForEach(model.displays) { display in
+                    Toggle(isOn: binding(display.id)) {
+                        Text(display.isMain ? "\(display.name) (Main)" : display.name)
+                    }
+                }
+            } footer: {
+                Text("Show the record on these displays.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didChangeScreenParametersNotification)) { _ in
+            model.refresh()
+        }
+    }
+
+    private func binding(_ id: String) -> Binding<Bool> {
+        Binding(
+            get: { !disabledDisplays.split(separator: ",").contains(Substring(id)) },
+            set: { on in
+                var set = Set(disabledDisplays.split(separator: ",").map(String.init))
+                if on { set.remove(id) } else { set.insert(id) }
+                disabledDisplays = set.sorted().joined(separator: ",")
+            }
+        )
+    }
+}
+
+private struct AppearancePane: View {
     @AppStorage(Settings.Key.position) private var position = Settings.Position.right.rawValue
     @AppStorage(Settings.Key.transparent) private var transparent = false
     @AppStorage(Settings.ColorSlot.record.rawValue) private var recordColor = ""
     @AppStorage(Settings.ColorSlot.background.rawValue) private var bgColor = ""
     @AppStorage(Settings.ColorSlot.line.rawValue) private var lineColor = ""
-    @AppStorage(Settings.Key.windowLight) private var windowLight = true
-    @AppStorage(Settings.Key.trail) private var trail = Settings.Trail.afterglow.rawValue
-    @AppStorage(Settings.Key.grain) private var grain = Settings.Grain.normal.rawValue
-    @AppStorage(Settings.Key.fps) private var fps = Settings.FrameRate.auto.rawValue
 
     var body: some View {
-        Form {
-            Section("General") {
-                Toggle("Show Wallpaper", isOn: $enabled)
-                Toggle("Open at Login", isOn: Binding(get: { model.loginEnabled }, set: { model.setLogin($0) }))
-            }
-
-            Section("Displays") {
-                ForEach(model.displays) { display in
-                    Toggle(isOn: displayBinding(display.id)) {
-                        Text(display.isMain ? "\(display.name) (Main)" : display.name)
-                    }
-                }
-            }
-
-            Section("Appearance") {
+        Pane {
+            Section {
                 Picker("Record Position", selection: $position) {
                     Text("Left").tag(Settings.Position.left.rawValue)
                     Text("Center").tag(Settings.Position.center.rawValue)
@@ -118,13 +177,29 @@ private struct SettingsView: View {
                     Text("Transparent").tag(true)
                 }
                 .pickerStyle(.segmented)
+            }
+            Section {
                 ColorRow(title: "Record Color", hex: $recordColor)
                 ColorRow(title: "Background Color", hex: $bgColor)
                 ColorRow(title: "Line Color", hex: $lineColor)
             }
+        }
+    }
+}
 
-            Section("Effects") {
+private struct EffectsPane: View {
+    @AppStorage(Settings.Key.windowLight) private var windowLight = true
+    @AppStorage(Settings.Key.trail) private var trail = Settings.Trail.afterglow.rawValue
+    @AppStorage(Settings.Key.grain) private var grain = Settings.Grain.normal.rawValue
+
+    var body: some View {
+        Pane {
+            Section {
                 Toggle("Window Light", isOn: $windowLight)
+                Text("Light through a window follows the time of day.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Section {
                 Picker("Trail", selection: $trail) {
                     Text("Keep").tag(Settings.Trail.keep.rawValue)
                     Text("Afterglow").tag(Settings.Trail.afterglow.rawValue)
@@ -138,49 +213,43 @@ private struct SettingsView: View {
                 }
                 .pickerStyle(.segmented)
             }
+        }
+    }
+}
 
-            Section("Performance") {
-                Picker("Frame Rate", selection: $fps) {
-                    Text("Auto").tag(Settings.FrameRate.auto.rawValue)
-                    Text("30 fps").tag(Settings.FrameRate.fps30.rawValue)
-                    Text("60 fps").tag(Settings.FrameRate.fps60.rawValue)
-                }
-                .pickerStyle(.segmented)
-                Text("Auto uses 30 fps on battery and 60 fps when plugged in.")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
+private struct PlayersPane: View {
+    @ObservedObject var model: SettingsModel
 
-            Section("Players") {
+    var body: some View {
+        Pane {
+            Section {
                 ForEach(PlayerKind.allCases, id: \.self) { kind in
                     LabeledContent(kind.name) {
                         Text(model.deniedPlayers.contains(kind) ? "Not Allowed" : "Allowed")
                             .foregroundStyle(model.deniedPlayers.contains(kind) ? .red : .secondary)
                     }
                 }
+            } footer: {
+                Text("오늘의 판 needs permission to read what Music or Spotify is playing.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Section {
                 Button("Open Automation Settings…") { model.openAutomationSettings() }
             }
-
-            Section {
-                Button("Clear This Record") { model.onClearRecord?() }
-            }
-        }
-        .formStyle(.grouped)
-        .frame(width: 460)
-        .frame(minHeight: 560)
-        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didChangeScreenParametersNotification)) { _ in
-            model.refresh()
         }
     }
+}
 
-    private func displayBinding(_ id: String) -> Binding<Bool> {
-        Binding(
-            get: { !disabledDisplays.split(separator: ",").contains(Substring(id)) },
-            set: { on in
-                var set = Set(disabledDisplays.split(separator: ",").map(String.init))
-                if on { set.remove(id) } else { set.insert(id) }
-                disabledDisplays = set.sorted().joined(separator: ",")
-            }
-        )
+/// 탭 하나의 공통 모양: macOS 설정 창 같은 묶음 폼, 고정 너비.
+private struct Pane<Content: View>: View {
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        Form { content }
+            .formStyle(.grouped)
+            .scrollDisabled(true)
+            .frame(width: 480)
+            .fixedSize(horizontal: false, vertical: true)
     }
 }
 

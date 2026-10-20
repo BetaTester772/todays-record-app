@@ -221,17 +221,15 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
 | 제어 권한 열기 (“Allow Control of Music…” 등, 4.5) | 권한이 없는 플레이어가 있을 때만 표시 |
 | Quit | 앱 종료 (4.9가 켜져 있으면 원래 배경화면 복원 후) |
 
-나머지 설정은 **설정 창**에서 한다. SwiftUI `Form`을 `NSHostingController`로 AppKit 창에 담는다(색 고르기와 여러 항목 폼은 SwiftUI가 간단하다). 메뉴 막대 앱이라 창을 열 때만 앱을 앞으로 가져온다.
+나머지 설정은 **설정 창**에서 한다. macOS 설정 창처럼 창 위쪽 도구 막대의 아이콘 탭을 누르면 아래 내용이 바뀐다(`NSTabViewController`의 `.toolbar` 스타일, 창 `toolbarStyle = .preference`). 각 탭 내용은 SwiftUI `Form`(grouped)을 `NSHostingController`로 담고, 탭마다 창 높이를 내용에 맞춘다(`sizingOptions = .preferredContentSize`). 메뉴 막대 앱이라 창을 열 때만 앱을 앞으로 가져온다.
 
-| 구역 | 항목 |
+| 탭 | 항목 |
 |---|---|
-| General | Show Wallpaper, Open at Login (`SMAppService.mainApp` 등록/해제) |
+| General | Show Wallpaper, Open at Login (`SMAppService.mainApp` 등록/해제), Frame Rate(Auto / 30 / 60, 4.7. Auto는 배터리일 때 30), Clear This Record |
 | Displays | 연결된 화면마다 켜기/끄기 (4.3). 화면이 바뀌면 목록을 다시 읽는다 |
 | Appearance | Record Position(Left / Center / Right), Background(Default / Transparent), Record·Background·Line Color(“From Album” 체크 또는 색 고르기) |
 | Effects | Window Light(6장 19), Trail(Keep / Afterglow, 6장 20), Grain(Off / Low / Normal / High) |
-| Performance | Frame Rate(Auto / 30 / 60, 4.7). Auto는 배터리일 때 30 |
 | Players | Music·Spotify 제어 권한 상태와 자동화 설정 열기 |
-| (맨 아래) | Clear This Record |
 
 설정은 `UserDefaults`에 저장한다(키 `enabled`, `position`, `transparent`, `windowLight`, `trail`, `grain`, `recordColor`, `bgColor`, `lineColor`, `disabledDisplays`, `fps`). 설정 창은 `@AppStorage`로 같은 키(`Settings.Key`)에 바로 쓰고, 앱은 `UserDefaults.didChangeNotification`을 받아 한 번에 모아 창과 모든 웹뷰에 반영한다(`setOptions`). 앱 시작 시와 웹뷰가 준비될 때도 적용한다. 화면과 메뉴 문구는 영어로 쓴다. 로그인 항목이 사용자 승인을 기다리는 상태(`requiresApproval`)면 시스템 설정의 로그인 항목 화면을 연다. 시스템 배경화면 색 맞추기(4.9) 항목은 M5에서 기능과 함께 더한다.
 
@@ -301,7 +299,7 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
 
 14. **화면 문구 영어.** 상태 문구, 안내 문구, 오늘 들은 곡 수 등 화면의 모든 문구를 영어로 쓴다(Now Playing, Paused, Nothing Playing, Played Today 등). 곡·앨범·아티스트 이름(미리보기 데이터 포함)은 그대로 둔다. 메뉴 막대 메뉴와 권한 설명(`NSAppleEventsUsageDescription`)도 영어로 쓴다.
 
-15. **긴 이름 흐르기.** 곡 제목, 아티스트, 앨범 이름이 곡 정보 너비를 넘으면 자르지 않고 옆으로 흐르게 한다. 처음 2초 멈춤 → 끝까지 초당 30px로 이동 → 2초 멈춤 → 되돌아옴을 반복한다. 곡이 바뀌면 처음부터 다시 시작한다. 안내 문구는 지금처럼 자른다.
+15. **긴 이름 흐르기.** 곡 제목, 아티스트, 앨범 이름이 곡 정보 너비를 넘으면 자르지 않고 옆으로 흐르게 한다. 처음 2초 멈춤 → 끝까지 초당 30px로 이동 → 2초 멈춤 → 되돌아옴을 반복한다. 곡이 바뀌면 처음부터 다시 시작한다. 안내 문구(“Play something in Music or Spotify to drop the needle” 등)는 자르지 않고 단어 단위로 줄을 바꿔 여러 줄로 쓴다.
 
 16. **메뉴 막대·Dock 피하기.** `setInsets`로 받은 가장자리를 뺀 영역 안에서 `layout()`을 계산한다(배경 채우기는 화면 전체). 가로 화면의 판 크기 상한은 `0.62H`에서 `0.53H`로 낮춰, 판 앞쪽 원 위의 노브와 면 램프가 늘 보이는 영역 안에 들어오게 한다. 곡 정보는 원래 자리가 가장자리에 걸릴 때만 안쪽으로 민다.
 
