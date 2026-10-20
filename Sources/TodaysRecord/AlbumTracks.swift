@@ -30,14 +30,18 @@ final class AlbumTracks {
 
     /// 이 곡이 앨범 어디에 있는지. 곡 목록이 없거나 맞지 않으면 nil.
     func placement(for info: NowPlayingInfo) -> Placement? {
-        guard let tracks = cache[Self.key(for: info)], !tracks.isEmpty else { return nil }
+        cache[Self.key(for: info)].flatMap { Self.placement(for: info, in: $0) }
+    }
+
+    static func placement(for info: NowPlayingInfo, in tracks: [ITunesSearch.Track]) -> Placement? {
+        guard !tracks.isEmpty else { return nil }
 
         let disc: Int
         let number: Int
         if info.trackNumber > 0 {
             disc = max(1, info.discNumber)
             number = info.trackNumber
-        } else if let track = Self.find(info, in: tracks) {
+        } else if let track = find(info, in: tracks) {
             // 길이가 다르면 다른 판본(디럭스, 리마스터 등)의 목록일 수 있어 쓰지 않는다.
             if info.duration > 0, abs(track.duration - info.duration) > 3 { return nil }
             disc = track.disc
@@ -50,6 +54,9 @@ final class AlbumTracks {
         // 곡 번호가 1부터 빠짐없이 이어질 때만 쓴다.
         guard onDisc.map(\.number) == Array(1...max(1, onDisc.count)), number <= onDisc.count else { return nil }
         if info.trackCount > 0, info.trackCount != onDisc.count { return nil }
+        // Spotify처럼 곡 번호만 있고 곡 수가 없으면 판본을 곡 수로 확인할 수 없어 그 번호 곡의 길이로 확인한다.
+        if info.trackCount == 0, info.trackNumber > 0, info.duration > 0,
+           abs(onDisc[number - 1].duration - info.duration) > 3 { return nil }
         return Placement(
             trackNumber: number,
             trackCount: onDisc.count,

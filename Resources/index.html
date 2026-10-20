@@ -1203,7 +1203,8 @@
     } else {
       const hint = clipPix((media.source === 'we' && !weEnabled) ? 'Turn on Media Integration in Wallpaper Engine settings'
         : (media.source === 'local' && !localOk) ? 'The helper (nowplaying.py) is not running'
-        : (media.source === 'local' || media.source === 'native') ? 'Play something in Apple Music to drop the needle'
+        : media.source === 'native' ? 'Play something in Music or Spotify to drop the needle'
+        : media.source === 'local' ? 'Play something in Apple Music to drop the needle'
         : 'Play some music to drop the needle', sSmall, 600, maxCss / ps);
       y += drawPix(hint, ax(pw(hint, sSmall, 600)), y, sSmall, ps, T.soft, 600).h + ps * 6;
     }

@@ -38,6 +38,7 @@ Apple Music 또는 Spotify에서 재생 중인 곡을 레코드 턴테이블 그
 
 ```bash
 swift build                     # 빌드
+swift test                      # 단위 테스트 (고르기 규칙, 상태 해석, 곡 위치)
 scripts/run.sh                  # .app 조립, 애드혹 서명, 실행
 scripts/run.sh --demo           # Music 없이 미리보기 데이터로 실행
 scripts/run.sh --windowed       # 일반 창으로 띄워 디버깅 (Safari 웹 속성 검사기 연결 가능)

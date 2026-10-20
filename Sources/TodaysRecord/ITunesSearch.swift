@@ -98,7 +98,7 @@ enum ITunesSearch {
         request.timeoutInterval = 6
         URLSession.shared.dataTask(with: request) { data, response, error in
             if let error {
-                Log.nowPlaying.error("iTunes 요청 실패 \(error.localizedDescription, privacy: .public)")
+                Log.nowPlaying.error("요청 실패 \(url.host ?? "", privacy: .public) \(error.localizedDescription, privacy: .public)")
             }
             let ok = (response as? HTTPURLResponse)?.statusCode == 200
             completion(ok ? data : nil)

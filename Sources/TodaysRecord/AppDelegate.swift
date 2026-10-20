@@ -28,7 +28,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         volume.start()
 
-        // --demo면 index.html의 미리보기 데이터를 쓰므로 Music을 보지 않는다.
+        // --demo면 index.html의 미리보기 데이터를 쓰므로 Music, Spotify를 보지 않는다.
         guard !options.demo else { return }
         let nowPlaying = NowPlaying(logToStdout: options.logNowPlaying)
         nowPlaying.onUpdate = { [weak self] info in
@@ -39,7 +39,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.wallpaper?.webViews.forEach { $0.sendArt(dataURL: dataURL, version: version) }
         }
         nowPlaying.onPermissionChange = { [weak self] denied in
-            self?.statusMenu?.setPermissionNeeded(denied)
+            self?.statusMenu?.setPermissionNeeded(for: denied)
+        }
+        statusMenu?.playerChoice = { [weak nowPlaying] in
+            (PlayerKind.allCases.filter(\.isRunning), nowPlaying?.shownPlayer)
+        }
+        statusMenu?.onChoosePlayer = { [weak nowPlaying] kind in
+            nowPlaying?.choose(kind)
         }
         self.nowPlaying = nowPlaying
         nowPlaying.start()

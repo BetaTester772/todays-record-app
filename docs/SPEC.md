@@ -48,6 +48,8 @@ Sources/TodaysRecord/
 ├─ WallpaperWindow.swift   바탕화면 층 창
 ├─ RecordWebView.swift     WKWebView 설정과 브리지
 ├─ NowPlaying.swift        보여줄 플레이어 고르기, 곡 목록·커버 연결
+├─ Player.swift            플레이어 종류(번들 ID, 알림), AppleScript 실행
+├─ PlayerChooser.swift     보여줄 플레이어 고르기 규칙 (4.5.2)
 ├─ MusicPlayer.swift       Music 상태 묻기와 해석
 ├─ SpotifyPlayer.swift     Spotify 상태 묻기와 해석
 ├─ Artwork.swift           앨범 커버 가져오기 (플레이어 → 검색 대체)
@@ -60,6 +62,7 @@ Resources/
 ├─ index.html              레코드 화면 (기존 파일, 6장에 따라 일부 수정)
 ├─ Info.plist              번들 정보
 └─ AppIcon.icns            (선택)
+Tests/TodaysRecordTests/    고르기 규칙, 상태 해석, 곡 위치 단위 테스트 (`swift test`)
 scripts/
 ├─ bundle.sh               .app 번들 조립과 애드혹 서명
 └─ run.sh                  빌드 후 실행
@@ -153,10 +156,10 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
 ### 4.5.1 Spotify (`SpotifyPlayer`)
 
 - 번들 ID `com.spotify.client`. 실행 중이 아니면 묻지 않고, 절대 실행시키지 않는다. 스크립트도 `if application "Spotify" is running`으로 감싼다.
-- 분산 알림 `com.spotify.client.PlaybackStateChanged`를 구독한다. 정확한 키 이름은 `--log-nowplaying`으로 실제 값을 찍어 확인한 뒤 확정한다.
-- AppleScript로 `player state`, `player position`(초)과 `current track`의 `name`, `artist`, `album`, `album artist`, `duration`, `track number`, `disc number`, `id`(`spotify:track:…`), `artwork url`을 묻는다. `duration`은 사전에 초로 적혀 있지만 밀리초라는 보고가 있어, 실제 값으로 단위를 확인한 뒤 확정한다.
+- 분산 알림 `com.spotify.client.PlaybackStateChanged`를 구독한다. 재생, 일시정지, 곡 변경 때 바로 온다. `userInfo` 키는 `Name`, `Artist`, `Album`, `Album Artist`, `Track ID`, `Track Number`, `Disc Number`, `Duration`(밀리초), `Playback Position`(초), `Player State`(`Playing`/`Paused`/…), `Has Artwork`, `Play Count`, `Popularity`다(2026-10 확인). Music과 같이 알림은 묻는 계기로만 쓰고 값은 AppleScript로 읽는다.
+- AppleScript로 `player state`, `player position`(초)과 `current track`의 `name`, `artist`, `album`, `album artist`, `duration`, `track number`, `disc number`, `id`(`spotify:track:…`), `artwork url`을 묻는다. `duration`은 사전에 초로 적혀 있지만 실제로는 밀리초다(2026-10 확인, Spotify 1.3.5).
 - 곡 수, 디스크 수, BPM은 주지 않는다(0). 곡 번호와 디스크는 Spotify 값을 쓰고, 곡 수와 곡 길이는 4.5 (3)의 곡 목록에서 얻는다. 곡 수로 판본을 확인할 수 없으므로, 목록에서 그 번호 곡의 길이가 Spotify 값과 3초 넘게 다르면 목록을 쓰지 않는다.
-- 광고(`id`가 `spotify:ad:`로 시작)는 곡으로 치지 않고 `stopped`로 본다. 판 기록과 오늘 들은 곡 수에 들어가지 않는다.
+- 광고(`id`가 `spotify:ad:`로 시작)는 곡으로 치지 않고 화면과 메뉴에 `stopped`로 보낸다. 판 기록과 오늘 들은 곡 수에 들어가지 않는다. 플레이어 고르기(4.5.2)에서는 재생 중으로 보아, 광고 때문에 다른 플레이어로 넘어갔다 돌아오지 않게 한다.
 - 팟캐스트 에피소드는 일반 곡처럼 다룬다(앨범 자리에 프로그램 이름).
 
 ### 4.5.2 보여줄 플레이어 고르기
