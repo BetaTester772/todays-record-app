@@ -8,6 +8,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let volume = SystemVolume()
     private let settings = Settings()
     private let power = PowerWatcher()
+    private let settingsModel = SettingsModel()
+    private lazy var settingsWindow = SettingsWindowController(model: settingsModel)
+    private var defaultsObserver: NSObjectProtocol?
+    private var applyScheduled = false
 
     init(options: LaunchOptions) {
         self.options = options
@@ -15,13 +19,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let menu = StatusMenu(settings: settings)
-        menu.onSettingsChange = { [weak self] in
-            guard let self else { return }
-            self.wallpaper?.fps = self.frameRate
-            self.wallpaper?.applySettings()
-        }
-        menu.onClearRecord = { [weak self] in self?.wallpaper?.webViews.forEach { $0.clearRecord() } }
+        let clearRecord: () -> Void = { [weak self] in self?.wallpaper?.webViews.forEach { $0.clearRecord() } }
+        menu.onClearRecord = clearRecord
+        menu.onOpenSettings = { [weak self] in self?.settingsWindow.show() }
+        settingsModel.onClearRecord = clearRecord
         statusMenu = menu
+
+        // 메뉴와 설정 창은 UserDefaults에 바로 쓴다. 바뀌면 한 번에 모아 화면에 반영한다.
+        defaultsObserver = NotificationCenter.default.addObserver(
+            forName: UserDefaults.didChangeNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            self?.scheduleApplySettings()
+        }
 
         wallpaper = WallpaperController(options: options, settings: settings) { [weak self] webView in
             self?.sendCurrentState(to: webView)
@@ -43,6 +52,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         volume.start()
 
+        if options.openSettings { settingsWindow.show() }
+
         // --demo면 index.html의 미리보기 데이터를 쓰므로 Music, Spotify를 보지 않는다.
         guard !options.demo else { return }
         let nowPlaying = NowPlaying(logToStdout: options.logNowPlaying)
@@ -55,6 +66,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         nowPlaying.onPermissionChange = { [weak self] denied in
             self?.statusMenu?.setPermissionNeeded(for: denied)
+            self?.settingsModel.deniedPlayers = denied
         }
         statusMenu?.playerChoice = { [weak nowPlaying] in
             (PlayerKind.allCases.filter(\.isRunning), nowPlaying?.shownPlayer)
@@ -64,6 +76,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         self.nowPlaying = nowPlaying
         nowPlaying.start()
+    }
+
+    private func scheduleApplySettings() {
+        guard !applyScheduled else { return }
+        applyScheduled = true
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.applyScheduled = false
+            self.wallpaper?.fps = self.frameRate
+            self.wallpaper?.applySettings()
+        }
     }
 
     /// 설정 fps가 auto면 배터리일 때 30, 아니면 60. 명세 4.7.

@@ -1,7 +1,8 @@
 import AppKit
 
 /// 화면별 창 생성과 모니터 변경 대응. 명세 4.3.
-/// 주 화면은 메뉴 막대가 있는 화면(NSScreen.screens[0])이다. NSScreen.main은 키 창이 있는 화면이라 쓰지 않는다.
+/// 설정에서 끄지 않은 모든 화면에 띄운다. 기록을 저장하는 primary는 띄우는 화면 중 첫 번째이고,
+/// 화면 순서는 메뉴 막대가 있는 화면(NSScreen.screens[0])부터다. NSScreen.main은 키 창이 있는 화면이라 쓰지 않는다.
 final class WallpaperController {
     private struct Entry {
         let window: WallpaperWindow
@@ -86,13 +87,14 @@ final class WallpaperController {
     /// 지금 연결된 화면과 설정에 맞게 창을 만들거나 닫고, 남은 창은 크기와 여백을 맞춘다.
     private func syncScreens() {
         let screens = NSScreen.screens
-        guard let primary = screens.first else {
+        guard let first = screens.first else {
             Log.window.error("화면을 찾지 못함")
             return
         }
-        let primaryID = Self.identifier(for: primary)
         // 일반 창(--windowed)은 디버깅용이라 주 화면에 하나만 띄운다.
-        let targets = (settings.displays == .all && !options.windowed) ? screens : [primary]
+        let disabled = settings.disabledDisplays
+        let targets = options.windowed ? [first] : screens.filter { !disabled.contains(Self.uuid(for: $0)) }
+        let primaryID = targets.first.map(Self.identifier(for:)) ?? ""
         let wanted = Dictionary(targets.map { (Self.identifier(for: $0), $0) }, uniquingKeysWith: { first, _ in first })
 
         for (id, entry) in entries {
@@ -158,6 +160,15 @@ final class WallpaperController {
         )
         Log.window.info("여백 top=\(insets.top) left=\(insets.left) bottom=\(insets.bottom) right=\(insets.right)")
         return insets
+    }
+
+    /// 다시 연결해도 바뀌지 않는 화면 UUID. 화면별 켜기/끄기 설정에 쓴다.
+    static func uuid(for screen: NSScreen) -> String {
+        guard let number = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber,
+              let uuid = CGDisplayCreateUUIDFromDisplayID(number.uint32Value)?.takeRetainedValue() else {
+            return identifier(for: screen)
+        }
+        return CFUUIDCreateString(nil, uuid) as String
     }
 
     static func identifier(for screen: NSScreen) -> String {
