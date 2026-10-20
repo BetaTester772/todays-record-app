@@ -15,6 +15,11 @@ final class Settings {
         case auto, fps30 = "30", fps60 = "60"
     }
 
+    /// 같은 판의 다른 면으로 넘어갈 때의 동작. 명세 6장 23.
+    enum SideChange: String, CaseIterable {
+        case turn, swap, needle
+    }
+
     /// 화면 그레인(잡음 무늬) 세기.
     enum Grain: String, CaseIterable {
         case off, low, normal, high
@@ -55,6 +60,7 @@ final class Settings {
         static let windowLight = "windowLight"
         static let trail = "trail"
         static let grain = "grain"
+        static let sideChange = "sideChange"
         static let disabledDisplays = "disabledDisplays"
         static let fps = "fps"
     }
@@ -70,6 +76,7 @@ final class Settings {
             Key.windowLight: true,
             Key.trail: Trail.afterglow.rawValue,
             Key.grain: Grain.normal.rawValue,
+            Key.sideChange: SideChange.turn.rawValue,
             Key.disabledDisplays: "",
             Key.fps: FrameRate.auto.rawValue,
         ])
@@ -118,6 +125,11 @@ final class Settings {
         set { defaults.set(newValue.rawValue, forKey: Key.fps) }
     }
 
+    var sideChange: SideChange {
+        get { SideChange(rawValue: defaults.string(forKey: Key.sideChange) ?? "") ?? .turn }
+        set { defaults.set(newValue.rawValue, forKey: Key.sideChange) }
+    }
+
     /// "#RRGGBB" 또는 빈 문자열(앨범 색).
     func color(_ slot: ColorSlot) -> String {
         defaults.string(forKey: slot.rawValue) ?? ""
@@ -135,6 +147,7 @@ final class Settings {
             "windowLight": windowLight,
             "trail": trail.rawValue,
             "grain": grain.rawValue,
+            "sideChange": sideChange.rawValue,
             "recordColor": color(.record),
             "bgColor": color(.background),
             "lineColor": color(.line),

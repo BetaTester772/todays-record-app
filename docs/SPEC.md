@@ -1,6 +1,6 @@
 # 오늘의 판 — macOS 앱 명세서
 
-버전 0.17 · 2026-10-20 (0.2: LP 면 나누기, iTunes 검색 국가 대체 · 0.3: 음량 노브, 면 램프 · 0.4: 색 섞기 전환, 곡 안 위치 이동 · 0.5: 화면 문구 영어 · 0.6: 긴 이름 흐르기 · 0.7: 메뉴 막대·Dock 피하기 · 0.8: 오늘 들은 곡 수만, 노란 강조색 피하기 · 0.9: M2 설정 메뉴, 창문 빛, 잔상 · 0.10: 판 색 고르기, 시간대 색감 · 0.11: 배경색, 선 색 고르기 · 0.12: 그레인 세기 · 0.13: M4 절전, 여러 화면, 그리기 최적화 · 0.14: Spotify 지원 · 0.15: 설정 창, 화면별 켜기, 앱 아이콘 · 0.16: 배포 zip, README · 0.17: M5 뺌)
+버전 0.19 · 2026-10-20 (0.2: LP 면 나누기, iTunes 검색 국가 대체 · 0.3: 음량 노브, 면 램프 · 0.4: 색 섞기 전환, 곡 안 위치 이동 · 0.5: 화면 문구 영어 · 0.6: 긴 이름 흐르기 · 0.7: 메뉴 막대·Dock 피하기 · 0.8: 오늘 들은 곡 수만, 노란 강조색 피하기 · 0.9: M2 설정 메뉴, 창문 빛, 잔상 · 0.10: 판 색 고르기, 시간대 색감 · 0.11: 배경색, 선 색 고르기 · 0.12: 그레인 세기 · 0.13: M4 절전, 여러 화면, 그리기 최적화 · 0.14: Spotify 지원 · 0.15: 설정 창, 화면별 켜기, 앱 아이콘 · 0.16: 배포 zip, README · 0.17: M5 뺌 · 0.18: 긴 앨범 LP 세트 · 0.19: 면 바꾸기 동작)
 
 ## 1. 개요
 
@@ -228,10 +228,10 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
 | General | Show Wallpaper, Open at Login (`SMAppService.mainApp` 등록/해제), Frame Rate(Auto / 30 / 60, 4.7. Auto는 배터리일 때 30), Clear This Record |
 | Displays | 연결된 화면마다 켜기/끄기 (4.3). 화면이 바뀌면 목록을 다시 읽는다 |
 | Appearance | Record Position(Left / Center / Right), Background(Default / Transparent), Record·Background·Line Color(“From Album” 체크 또는 색 고르기) |
-| Effects | Window Light(6장 19), Trail(Keep / Afterglow, 6장 20), Grain(Off / Low / Normal / High) |
+| Effects | Window Light(6장 19), Trail(Keep / Afterglow, 6장 20), Grain(Off / Low / Normal / High), Side Change(Lift & Turn / Swap Record / Needle Only, 6장 23) |
 | Players | Music·Spotify 제어 권한 상태와 자동화 설정 열기 |
 
-설정은 `UserDefaults`에 저장한다(키 `enabled`, `position`, `transparent`, `windowLight`, `trail`, `grain`, `recordColor`, `bgColor`, `lineColor`, `disabledDisplays`, `fps`). 설정 창은 `@AppStorage`로 같은 키(`Settings.Key`)에 바로 쓰고, 앱은 `UserDefaults.didChangeNotification`을 받아 한 번에 모아 창과 모든 웹뷰에 반영한다(`setOptions`). 앱 시작 시와 웹뷰가 준비될 때도 적용한다. 화면과 메뉴 문구는 영어로 쓴다. 로그인 항목이 사용자 승인을 기다리는 상태(`requiresApproval`)면 시스템 설정의 로그인 항목 화면을 연다.
+설정은 `UserDefaults`에 저장한다(키 `enabled`, `position`, `transparent`, `windowLight`, `trail`, `grain`, `sideChange`, `recordColor`, `bgColor`, `lineColor`, `disabledDisplays`, `fps`). 설정 창은 `@AppStorage`로 같은 키(`Settings.Key`)에 바로 쓰고, 앱은 `UserDefaults.didChangeNotification`을 받아 한 번에 모아 창과 모든 웹뷰에 반영한다(`setOptions`). 앱 시작 시와 웹뷰가 준비될 때도 적용한다. 화면과 메뉴 문구는 영어로 쓴다. 로그인 항목이 사용자 승인을 기다리는 상태(`requiresApproval`)면 시스템 설정의 로그인 항목 화면을 연다.
 
 **앱 아이콘.** `scripts/make-icon.swift`가 앱 화면과 같은 색(분홍 배경, 초록 받침, 크림색 판, 초록 라벨, 주황 바늘)으로 macOS 아이콘 격자(1024 안 824 둥근 사각형)에 그려 `iconutil`로 `Resources/AppIcon.icns`를 만든다. `Info.plist`의 `CFBundleIconFile`이 가리킨다.
 
@@ -250,7 +250,7 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
 | `TodaysRecord.nowPlaying(payload)` | 4.5의 JSON |
 | `TodaysRecord.art(dataURL, version)` | 앨범 커버 |
 | `TodaysRecord.setPaused(bool)` | 그리기 멈춤/재개 |
-| `TodaysRecord.setOptions({position, transparent, windowLight, trail, fps})` | position: `"left"`, `"center"`, `"right"` · transparent: bool · windowLight: bool · trail: `"keep"` 또는 `"afterglow"` · grain: `"off"`, `"low"`, `"normal"`, `"high"`(기존 세기의 0, 0.45, 1, 1.45배) · recordColor, bgColor, lineColor: `"#RRGGBB"` 또는 `""`(앨범 색) · fps: 30 또는 60(앱이 설정과 전원에 따라 정해 보낸다) |
+| `TodaysRecord.setOptions({position, transparent, windowLight, trail, fps})` | position: `"left"`, `"center"`, `"right"` · transparent: bool · windowLight: bool · trail: `"keep"` 또는 `"afterglow"` · grain: `"off"`, `"low"`, `"normal"`, `"high"`(기존 세기의 0, 0.45, 1, 1.45배) · sideChange: `"turn"`, `"swap"`, `"needle"`(6장 23) · recordColor, bgColor, lineColor: `"#RRGGBB"` 또는 `""`(앨범 색) · fps: 30 또는 60(앱이 설정과 전원에 따라 정해 보낸다) |
 | `TodaysRecord.clearRecord()` | 지금 판의 선 지우기 |
 | `TodaysRecord.setInsets({top, right, bottom, left})` | 메뉴 막대와 Dock이 덮는 화면 가장자리(4.3) |
 | `TodaysRecord.setVolume({level, muted})` | 시스템 음량. level: 0~1(모르면 생략), muted: bool (4.6.1) |
@@ -286,8 +286,8 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
 11. **음량 노브와 면 표시.** 기존 속도 노브, 전원 램프와 같은 모양과 색을 쓴다.
     - 배치: 받침 위 조작부를 모두 판과 같은 중심의 원(반지름 1.22R) 위에 놓는다. 톤암 쪽에서 앞쪽으로 음량 노브(각도 0.78rad) → 속도 노브(1.04) → 전원 램프(1.19) → 면 램프(1.31부터 0.085 간격) 순서다. 기존 속도 노브와 전원 램프의 자리도 이 원으로 옮겼다(사용자 요청).
     - 음량 노브: 속도 노브와 같은 금속 노브. 바늘이 0~100%를 왼쪽 아래에서 오른쪽 아래까지 270도로 가리키고, 둘레의 눈금 점 10개 중 음량만큼을 앨범 색(accent)으로 켠다. 음소거면 눈금을 모두 끈다. 값이 바뀌면 바늘이 부드럽게 따라간다. 미리보기에서는 60%로 보인다.
-    - 면 램프: 이 디스크의 면 수만큼(최대 4개) 작은 램프를 두고 지금 면만 앨범 색으로 켠다. A·B·C… 픽셀 글자는 각 램프 바로 바깥(같은 반지름 방향)에 똑바로 세워 쓴다. 정지 중이거나 면을 모르면 그리지 않는다.
-    - 곡 정보: 진행 막대 아래에 `Side B · 6/9`(면 글자, 디스크 안의 곡 번호/곡 수. Music의 곡 번호와 같음)을 기존 픽셀 글씨로 쓴다.
+    - 면 램프: 실제 LP 세트처럼 판 한 장이 앞뒤 두 면이다(A·B, C·D, E·F…). 지금 판의 두 면(면이 홀수면 마지막 판은 하나)만 작은 램프로 두고 지금 면을 앨범 색으로 켠다. A·B·C… 픽셀 글자는 각 램프 바로 바깥(같은 반지름 방향)에 똑바로 세워 쓴다. 판이 두 장 이상이면 램프 뒤에 판 수만큼(최대 6개) 작은 점을 이어 찍고 지금 판의 점을 켠다. Music의 디스크마다 따로 판을 나누고, 다른 디스크도 같은 판 수라고 본다. 정지 중이거나 면을 모르면 그리지 않는다. (0.18: 예전에는 면 수만큼 최대 4개만 그려서 25곡 이상 앨범의 E면부터 램프가 켜지지 않았다.)
+    - 곡 정보: 진행 막대 아래에 `Side B · 6/9`(면 글자, 디스크 안의 곡 번호/곡 수. Music의 곡 번호와 같음)을 기존 픽셀 글씨로 쓴다. 판이 두 장 이상이면 ` · LP 3/3`(몇 번째 판/판 수)을 붙인다.
 12. **앨범 색 전환.** 판을 바꿀 때 색(배경, 받침, 라벨 등)을 한 번에 바꾸지 않고, 커버가 늦게 왔을 때와 같은 기존 섞기(`targetPal`로 서서히 이동)로 새 앨범 색이 되게 한다. 섞는 속도는 약 1.7초에 거의 다 바뀌도록 늦춘다(`1 - exp(-1.8·dt)`).
 13. **곡 안 위치 이동.** 같은 곡에서 위치가 3초 넘게 달라지면(처음으로, 건너뛰기) 바늘을 들어 새 위치로 옮긴다. Music은 위치 이동에 알림을 보내지 않으므로(2026-10 확인) 다음 정기 확인 때 반영된다.
 
@@ -313,6 +313,11 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
     - 판의 회전과 무관한 부분: 그림자, 테두리, 판 바탕, 홈 무늬. 판이 들려 움직이는 동안(판 바꾸기)은 직접 그린다. 트랙 사이 띠는 화면 밖 캔버스에서 굵은 선이 끊겨 그려져(macOS 27 WebKit에서 확인) 매 프레임 직접 그린다.
     - 곡 정보: 글자, 진행 칸, 시간, 흐르는 위치, 색, 배치가 바뀔 때만 다시 그린다. 색을 입힌 픽셀 글자도 따로 기억한다.
     - 최적화 전후 같은 시점 그림을 비교해, 정적인 영역의 차이가 없음을 확인했다.
+
+23. **같은 판의 다른 면으로.** 다음 곡이 같은 판의 반대 면(A↔B, C↔D…, 6장 10·11)이면 설정 `sideChange`에 따라 움직인다. 다른 판이나 다른 앨범은 지금처럼 판을 빼고 갈아 끼운다.
+    - `turn`(기본, Lift & Turn): 바늘이 쉬는 자리로 가고, 판이 살짝 떠올라(그림자가 커짐) 제자리에서 반 바퀴 더 돌며 판 위의 선과 띠가 새 면 것으로 서서히 섞여 바뀐 뒤, 부드럽게 내려앉고 바늘이 새 곡의 띠로 내려간다(약 2.6초). 반 바퀴는 회전 각도에 직접 더해 끝난 뒤에도 끊기지 않는다. 판을 옆으로 세우는(납작해지는) 뒤집기와 내려앉을 때 튀는 동작은 써 보고 뺐다(사용자 판단).
+    - `swap`(Swap Record): 다른 앨범과 같은 판 바꾸기.
+    - `needle`(Needle Only): 판은 그대로 두고 바늘만 새 곡의 띠로 옮긴다.
 
 ## 7. 성능 목표
 
