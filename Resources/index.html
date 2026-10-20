@@ -180,7 +180,7 @@
   const stylus = { x: 0, y: 0 };
   let weBass = 0, bassAvg = 0, lastOnset = 0, weEnabled = true;
   const media = { source: 'demo', state: 'stopped', title: '', artist: '', album: '', position: 0, duration: 1, bpm: 96, posAt: 0, key: '' };
-  let side = null;                                    // LP side of the track: { first, sides, index, count }
+  let side = null;                                    // LP side of the track: { first, sides, index, number, total }
   const vol = { level: null, muted: false, shown: 0.6 };  // output volume 0..1 from the app (null = unknown)
 
   const grooves = makeGrooves();
@@ -396,7 +396,7 @@
     // the simulated listener sometimes skips ahead or pauses for a moment
     preview.skipAt = Math.random() < 0.2 ? T[1] * rand(0.35, 0.7) : Infinity;
     preview.pauseAt = Math.random() < 0.25 ? T[1] * rand(0.2, 0.6) : Infinity;
-    side = { first: 0, sides: 1, index: 0, track: demo.t, count: A.tracks.length };
+    side = { first: 0, sides: 1, index: 0, number: demo.t + 1, total: A.tracks.length };
     const P = palFromHex(A.pal);
     const key = 'demo:' + demo.a;
     beginTrack({
@@ -501,7 +501,7 @@
     const equal = lens.some(l => !(l > 0));
     const bands = bandsFor({ tracks: lens.map(l => ['', equal ? 1 : l]) });
     const disc = Math.max(1, d.discNumber | 0);
-    return { disc, side, sides, first: (disc - 1) * sides, index: k - first, count, band: bands[k - first], gaps: bands.slice(1).map(b => b.start + GAP / 2) };
+    return { disc, side, sides, first: (disc - 1) * sides, index: k - first, count, number: k, total: n, band: bands[k - first], gaps: bands.slice(1).map(b => b.start + GAP / 2) };
   }
   function sideSibling(base) {
     for (const a of albums.values()) if (sideBase(a.key) === base && a.key !== base) return a;
@@ -518,7 +518,7 @@
       const albumArtist = d.albumArtist || d.artist || '';
       const baseKey = 'am:' + (d.album || albumArtist || 'unknown') + '|' + albumArtist;
       const lp = lpSide(d);
-      side = lp && { first: lp.first, sides: lp.sides, index: lp.side, track: lp.index, count: lp.count };
+      side = lp && { first: lp.first, sides: lp.sides, index: lp.side, number: lp.number, total: lp.total };
       const albumKey = lp ? sideKey(baseKey, lp) : baseKey;
       const known = albums.get(albumKey) || (lp && sideSibling(baseKey));
       const P = known ? known.pal : clonePal(targetPal);
@@ -1093,7 +1093,7 @@
       for (let i = 0; i < n; i++) { ctx.fillStyle = i < filled ? ink : faint; ctx.fillRect(x0 + i * (bw + gap), y, bw, bw); }
       drawPix(fmt(posNow) + ' / ' + fmt(media.duration), x0 + n * (bw + gap) + ps * 3, y + bw / 2 - rowSmall / 2, sSmall, ps, soft, 600);
       y += bw + ps * 4;
-      if (side) y += drawPix(`Side ${String.fromCharCode(65 + side.first + side.index)} · ${side.track + 1}/${side.count}`, x0, y, sSmall, ps, soft, 600).h;
+      if (side) y += drawPix(`Side ${String.fromCharCode(65 + side.first + side.index)} · ${side.number}/${side.total}`, x0, y, sSmall, ps, soft, 600).h;
       y += ps * 5;
     } else {
       const hint = (media.source === 'we' && !weEnabled) ? 'Turn on Media Integration in Wallpaper Engine settings'
