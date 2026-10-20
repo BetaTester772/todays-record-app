@@ -808,7 +808,7 @@
 
     for (const p of particles) { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 170 * dt; p.life -= dt; }
     particles = particles.filter(p => p.life > 0);
-    if (crowd) crowd.update(dt, now);
+    if (crowd) crowd.update(dt);
 
     if (now - lastDayCheck > 3000) {
       lastDayCheck = now;
@@ -1533,7 +1533,7 @@
     drawDeck(L, C);
     drawRecord(L, C);
     // the crowd stands below the tonearm and needle (the arm's base plate is part of the deck, under everyone)
-    if (crowd) crowd.draw(L, C, now);
+    if (crowd) crowd.draw(L, C);
     drawArm(L, C, now);
     drawParticles(C);
     if (opts.windowLight && !opts.transparent) drawLight(L);

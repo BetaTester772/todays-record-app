@@ -5,8 +5,8 @@
 // dance, headbang, breakdance, read, doze off, take phone calls, play together and run on the spinning record.
 // When the music stops they go home one by one, every 30-60 seconds; whoever is still there when it starts again stays.
 //
-// index.html creates it with TodaysRecordCrowd(scene) and calls update(dt, now) and draw(L, C, now) every frame.
-// `scene` gives read access to the page's state and drawing helpers (see makeCrowd in index.html).
+// index.html creates it with TodaysRecordCrowd(scene) and calls update(dt) and draw(L, C) every frame.
+// `scene` gives read access to the page's state and drawing helpers (see where index.html creates it, at boot).
 // Without this file the page works as before, just without the crowd.
 (() => {
   'use strict';
@@ -19,9 +19,12 @@
     const MAX = 6;
     const WALK = 20;   // walking speed in u per second: an easy stroll
     const PLINTH = { x0: -1.22, y0: -1.18, x1: 5.78, y1: 5.82 };   // in record radii, record-plane coordinates
-    const crowd = { people: [], play: 0, idle: 0, nextAt: rand(180, 420), leaveAt: rand(30, 60), stopped: false, beat: 0, spots: null, spotsKey: '', hud: null, fx: [], prot: [], trackKey: '' };
-    // Crowd Pace in the settings (1, 2, 5 or 10 times as fast); test copies can speed it up further
-    const speed = () => (S.opts.crowdPace || 1) * ((S.NATIVE && S.NATIVE.crowdSpeed) || 1);
+    const crowd = { people: [], play: 0, idle: 0, nextAt: rand(180, 420), leaveAt: rand(30, 60), stopped: false, beat: 0, spots: null, spotsKey: '', hud: null, fx: [], prot: [], trackKey: '', clock: 0 };
+    // Crowd Pace (1, 2, 5 or 10) runs the whole crowd faster: arrivals, walking, how long things last, little motions.
+    // The dance beat stays with the music and a runner's legs keep pace with the record. The crowd keeps its own
+    // clock (crowd.clock, ms) for that. Test copies can also speed up just the arrivals (NATIVE.crowdSpeed).
+    const pace = () => S.opts.crowdPace || 1;
+    const speed = () => (S.NATIVE && S.NATIVE.crowdSpeed) || 1;
 
     // ---------- looks ----------
     const LOOKS = {
@@ -289,12 +292,14 @@
     }
 
     // ---------- every frame ----------
-    function update(dt, now) {
+    function update(realDt) {
+      const dt = realDt * pace(); crowd.clock += dt * 1000;
+      const now = crowd.clock;
       const L = layout(), u = unitOf(L), people = crowd.people, media = S.media, opts = S.opts;
       const playing = media.state === 'playing', k = speed();
       // test copies only: the state, and a way to send someone to a given action through the normal path
       if (S.NATIVE && S.NATIVE.crowdSpeed) { window.__crowd = crowd; window.__crowdDo = (p, act) => nextAct(layout(), p, act); }
-      if (playing) crowd.beat += dt * (media.bpm || 100) / 60;
+      if (playing) crowd.beat += realDt * (media.bpm || 100) / 60;
       if (!opts.crowd || opts.transparent) {
         for (const p of people) if (!p.leaving) sendHome(L, p);
       } else if (playing) {
@@ -347,7 +352,7 @@
         if (p.kind === 'edge' && !p.leaving) p.face = -1;   // edge-sitters look out over the side
 
         // on the record: walk on, run against the turn like on a treadmill, walk off (or get flung off by a record swap)
-        if (p.runs) { updateRunner(L, p, dt, u); continue; }
+        if (p.runs) { updateRunner(L, p, dt, u, realDt); continue; }
 
         if (p.act === 'wait') { if (!p.partner) startAct(L, p, 'idle', 1); continue; }
         if (p.act === 'play' && p.game === 'tag' && p.home) {
@@ -378,7 +383,7 @@
       crowd.fx = crowd.fx.filter(f => f.t < f.life);
     }
 
-    function updateRunner(L, p, dt, u) {
+    function updateRunner(L, p, dt, u, realDt) {
       // walking onto the record from just outside it; the record already carries them a little
       if (p.act === 'stepon') {
         const e = clamp(p.t / p.dur), q = recordPoint(L, p.ra, lerp(1.3, RUN_R, e));
@@ -390,7 +395,7 @@
       if (p.act === 'run') {
         // like a treadmill: they stay in place and the legs keep pace with the record's surface under them
         const surface = S.spinVel * RUN_R * L.R * Math.hypot(surfaceDir(p.ra).x, surfaceDir(p.ra).y);   // px/s on screen
-        p.walkPhase += dt * Math.min(28, surface / (5.5 * u));
+        p.walkPhase += realDt * Math.min(28, surface / (5.5 * u));
         const q = recordPoint(L, p.ra, RUN_R); p.x = q.x; p.y = q.y; p.face = runFace(p.ra);
         if (chance(dt * 0.25)) crowd.fx.push({ type: 'drop', x: p.x - p.face * 5 * u * p.k, y: p.y - 30 * u * p.k, t: 0, life: 0.8 });
         // the record is lifted off for a swap: flung off. It slowed down or the time is up: walk off.
@@ -910,7 +915,8 @@
       ctx.globalAlpha = 1;
     }
 
-    function draw(L, C, now) {
+    function draw(L, C) {
+      const now = crowd.clock;
       if (S.opts.transparent || !crowd.people.length && !crowd.fx.length) return;
       ctx = S.ctx;
       const order = crowd.people.slice().sort((a, b) => a.y - b.y);
