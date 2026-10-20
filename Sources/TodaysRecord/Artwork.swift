@@ -9,9 +9,6 @@ final class Artwork {
         let isNew: Bool
     }
 
-    static let countryKey = "artworkCountry"
-    static let defaultCountry = "KR"
-
     private let queue: DispatchQueue
     private let logToStdout: Bool
     private var artScript: NSAppleScript?
@@ -27,7 +24,7 @@ final class Artwork {
 
     /// 결과는 메인 스레드에서 받는다. 찾지 못하면 nil.
     func fetch(artist: String, album: String, title: String, completion: @escaping (Result?) -> Void) {
-        let country = UserDefaults.standard.string(forKey: Self.countryKey) ?? Self.defaultCountry
+        let countries = ITunesSearch.countries
         queue.async { [weak self] in
             guard let self else { return }
             if let data = self.runArtScript(), Self.mimeType(of: data) != nil {
@@ -35,7 +32,7 @@ final class Artwork {
                 self.finish(data, completion)
                 return
             }
-            Self.search(artist: artist, album: album, title: title, country: country) { data in
+            Self.search(artist: artist, album: album, title: title, countries: countries) { data in
                 if self.logToStdout { stdout("[커버] 검색 결과 \(data.map { "\($0.count)바이트" } ?? "없음")") }
                 self.finish(data, completion)
             }
@@ -75,44 +72,14 @@ final class Artwork {
         return result.data
     }
 
-    private static func search(artist: String, album: String, title: String, country: String, completion: @escaping (Data?) -> Void) {
-        let term = "\(artist) \(album.isEmpty ? title : album)".trimmingCharacters(in: .whitespaces)
-        var components = URLComponents(string: "https://itunes.apple.com/search")!
-        components.queryItems = [
-            URLQueryItem(name: "term", value: term),
-            URLQueryItem(name: "entity", value: "album"),
-            URLQueryItem(name: "limit", value: "1"),
-            URLQueryItem(name: "country", value: country),
-        ]
-        guard !term.isEmpty, let url = components.url else {
-            completion(nil)
-            return
-        }
-        get(url) { data in
-            guard
-                let data,
-                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                let first = (json["results"] as? [[String: Any]])?.first,
-                let small = first["artworkUrl100"] as? String,
-                let artURL = URL(string: small.replacingOccurrences(of: "100x100bb", with: "600x600bb"))
-            else {
+    private static func search(artist: String, album: String, title: String, countries: [String], completion: @escaping (Data?) -> Void) {
+        ITunesSearch.findAlbum(artist: artist, album: album, title: title, countries: countries) { found in
+            guard let url = found?.artworkURL else {
                 completion(nil)
                 return
             }
-            get(artURL, completion: completion)
+            ITunesSearch.download(url, completion: completion)
         }
-    }
-
-    private static func get(_ url: URL, completion: @escaping (Data?) -> Void) {
-        var request = URLRequest(url: url)
-        request.timeoutInterval = 6
-        URLSession.shared.dataTask(with: request) { data, response, error in
-            if let error {
-                Log.nowPlaying.error("커버 검색 실패 \(error.localizedDescription, privacy: .public)")
-            }
-            let ok = (response as? HTTPURLResponse)?.statusCode == 200
-            completion(ok ? data : nil)
-        }.resume()
     }
 
     static func mimeType(of data: Data) -> String? {

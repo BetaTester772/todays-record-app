@@ -15,6 +15,12 @@ struct NowPlayingInfo: Equatable {
     var position = 0.0
     var bpm = 0.0
     var id = ""
+    var trackNumber = 0
+    var trackCount = 0
+    var discNumber = 0
+    var discCount = 0
+    /// 이 디스크의 곡 길이(초), 곡 번호 순서. 모르면 nil.
+    var trackDurations: [Double]?
     var art: String?
 
     static let stopped = NowPlayingInfo()
@@ -31,7 +37,12 @@ struct NowPlayingInfo: Equatable {
             "position": position,
             "bpm": bpm,
             "id": id,
+            "trackNumber": trackNumber,
+            "trackCount": trackCount,
+            "discNumber": discNumber,
+            "discCount": discCount,
         ]
+        if let trackDurations { dict["trackDurations"] = trackDurations }
         if let art { dict["art"] = art }
         return dict
     }
@@ -58,6 +69,9 @@ final class NowPlaying {
     private let logToStdout: Bool
     private let queue = DispatchQueue(label: "com.todaysrecord.applescript", qos: .utility)
     private let artwork: Artwork
+    private let albumTracks = AlbumTracks()
+    /// 곡 길이를 기다리는 동안 더 새로운 결과가 오면 이전 결과를 버리기 위한 번호.
+    private var resultGeneration = 0
     private var statusScript: NSAppleScript?
     private var pollTimer: Timer?
     private var pendingQuery: DispatchWorkItem?
@@ -89,6 +103,7 @@ final class NowPlaying {
             let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
             guard app?.bundleIdentifier == Self.musicBundleID else { return }
             Log.nowPlaying.info("Music 종료")
+            self?.resultGeneration += 1
             self?.apply(.stopped)
         }))
 
@@ -159,11 +174,26 @@ final class NowPlaying {
         switch result {
         case .info(let info):
             setPermissionDenied(false)
-            apply(info)
+            resultGeneration += 1
+            let generation = resultGeneration
+            // 새 곡의 앨범 곡 목록을 아직 모르면 찾을 때까지(최대 3초) 기다렸다 보낸다.
+            guard info.id != current.id, info.state != .stopped, !info.album.isEmpty, !albumTracks.isSettled(info) else {
+                apply(info)
+                return
+            }
+            let asked = Date()
+            albumTracks.load(for: info) { [weak self] in
+                guard let self, generation == self.resultGeneration else { return }
+                var info = info
+                if info.state == .playing { info.position += Date().timeIntervalSince(asked) }
+                self.apply(info)
+            }
         case .notAuthorized:
+            resultGeneration += 1
             setPermissionDenied(true)
             apply(.stopped)
         case .failed:
+            resultGeneration += 1
             apply(.stopped)
         }
     }
@@ -180,6 +210,17 @@ final class NowPlaying {
     private func apply(_ newInfo: NowPlayingInfo) {
         var info = newInfo
         let trackChanged = info.id != current.id
+        if info.state != .stopped, let place = albumTracks.placement(for: info) {
+            info.trackNumber = place.trackNumber
+            info.trackCount = place.trackCount
+            info.discNumber = place.discNumber
+            info.discCount = place.discCount
+            info.trackDurations = place.durations
+        }
+        if logToStdout, trackChanged, info.state != .stopped {
+            let durations = info.trackDurations.map { "\($0.count)곡 길이 있음" } ?? "길이 없음"
+            stdout("[곡 위치] 디스크 \(info.discNumber)/\(info.discCount), \(info.trackNumber)/\(info.trackCount)번, \(durations)")
+        }
         if trackChanged {
             currentArt = nil
         } else {
@@ -227,7 +268,7 @@ final class NowPlaying {
     static func parse(_ output: String) -> NowPlayingInfo {
         guard !output.isEmpty, output != "notrunning", output != "stopped" else { return .stopped }
         var fields = output.components(separatedBy: separator)
-        fields += Array(repeating: "", count: max(0, 9 - fields.count))
+        fields += Array(repeating: "", count: max(0, 13 - fields.count))
         let (st, name, artist, album, albumArtist, dur, pos, pid, bpm) =
             (fields[0], fields[1], fields[2], fields[3], fields[4], fields[5], fields[6], fields[7], fields[8])
 
@@ -241,6 +282,10 @@ final class NowPlaying {
         info.position = number(pos)
         info.bpm = number(bpm)
         info.id = pid.isEmpty ? "\(name)|\(artist)|\(album)" : pid
+        info.trackNumber = Int(number(fields[9]))
+        info.trackCount = Int(number(fields[10]))
+        info.discNumber = Int(number(fields[11]))
+        info.discCount = Int(number(fields[12]))
         return info
     }
 
@@ -249,8 +294,9 @@ final class NowPlaying {
         Double(text.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: ",", with: ".")) ?? 0
     }
 
-    // reference/nowplaying.py의 STATUS_SCRIPT와 같다. Music을 스스로 실행시키지 않는다.
-    // 단, macOS 27의 Music 사전에서는 tell 블록 안의 변수 이름 st가 컴파일되지 않아 pstate로 바꿨다.
+    // reference/nowplaying.py의 STATUS_SCRIPT를 바탕으로 한다. Music을 스스로 실행시키지 않는다.
+    // macOS 27의 Music 사전에서는 tell 블록 안의 변수 이름 st가 컴파일되지 않아 pstate로 바꿨다.
+    // LP 면 나누기를 위해 곡 번호, 곡 수, 디스크 번호, 디스크 수를 더 읽는다.
     private static let statusSource = """
     if application "Music" is running then
       tell application "Music"
@@ -270,6 +316,10 @@ final class NowPlaying {
         set po to 0
         set pid to ""
         set bp to 0
+        set tn to 0
+        set tc to 0
+        set dn to 0
+        set dc to 0
         try
           set nm to name of t
         end try
@@ -294,7 +344,19 @@ final class NowPlaying {
         try
           set bp to bpm of t
         end try
-        return pstate & sep & nm & sep & ar & sep & al & sep & aa & sep & (du as string) & sep & (po as string) & sep & pid & sep & (bp as string)
+        try
+          set tn to track number of t
+        end try
+        try
+          set tc to track count of t
+        end try
+        try
+          set dn to disc number of t
+        end try
+        try
+          set dc to disc count of t
+        end try
+        return pstate & sep & nm & sep & ar & sep & al & sep & aa & sep & (du as string) & sep & (po as string) & sep & pid & sep & (bp as string) & sep & (tn as string) & sep & (tc as string) & sep & (dn as string) & sep & (dc as string)
       end tell
     else
       return "notrunning"

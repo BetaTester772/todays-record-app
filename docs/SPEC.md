@@ -1,6 +1,6 @@
 # 오늘의 판 — macOS 앱 명세서
 
-버전 0.1 · 2026-10-20
+버전 0.2 · 2026-10-20 (0.2: LP 면 나누기, iTunes 검색 국가 대체 추가)
 
 ## 1. 개요
 
@@ -49,6 +49,8 @@ Sources/TodaysRecord/
 ├─ RecordWebView.swift     WKWebView 설정과 브리지
 ├─ NowPlaying.swift        Music 재생 정보 읽기
 ├─ Artwork.swift           앨범 커버 가져오기 (Music → 검색 대체)
+├─ ITunesSearch.swift      iTunes Search API (커버 검색, 앨범 곡 목록)
+├─ AlbumTracks.swift       앨범 디스크별 곡 길이 (LP 면 나누기용)
 ├─ PowerWatcher.swift      잠금, 잠자기, 가려짐 감지
 └─ WallpaperSync.swift     시스템 배경화면 색 맞추기 (선택 기능)
 Resources/
@@ -107,11 +109,16 @@ Music 앱의 재생 정보를 다음 두 가지 방법을 합쳐서 얻는다.
 
 **(1) 분산 알림.** `DistributedNotificationCenter`에서 이름 `com.apple.Music.playerInfo`를 구독한다. 곡 변경, 재생, 일시정지, 정지 때 온다. `userInfo`에 곡 이름, 아티스트, 앨범, 재생 상태, 전체 시간, 영구 ID 등이 들어 있다. 정확한 키 이름은 `--log-nowplaying`으로 실제 값을 찍어 확인한 뒤 확정한다.
 
-**(2) AppleScript.** 알림에 없는 정보(현재 재생 위치, 앨범 아티스트, BPM, 앨범 커버)와 앱 시작 시점의 상태는 `NSAppleScript`로 묻는다. 참고 구현은 `reference/nowplaying.py`의 `STATUS_SCRIPT`, `ART_SCRIPT`에 있다.
+**(2) AppleScript.** 알림에 없는 정보(현재 재생 위치, 앨범 아티스트, BPM, 곡 번호·곡 수·디스크 번호·디스크 수, 앨범 커버)와 앱 시작 시점의 상태는 `NSAppleScript`로 묻는다. 참고 구현은 `reference/nowplaying.py`의 `STATUS_SCRIPT`, `ART_SCRIPT`에 있다.
 - Music이 실행 중이 아니면 절대 실행시키지 않는다. `NSRunningApplication`으로 번들 ID `com.apple.Music`이 떠 있을 때만 묻는다.
 - AppleScript는 메인 스레드를 막지 않도록 별도 직렬 큐에서 실행한다.
 - 언제 묻는가: 앱 시작 시 1번, 알림을 받을 때마다 1번, 재생 중에는 위치 보정을 위해 10초마다 1번. 1초마다 묻지 않는다.
 - 숫자는 지역 설정에 따라 소수점이 쉼표일 수 있으니 문자열로 받으면 `,`를 `.`로 바꿔 해석한다.
+- macOS 27의 Music 사전에서는 `tell application "Music"` 안에서 변수 이름 `st`가 컴파일되지 않는다. 참고 구현의 `st`는 `pstate`로 바꿔 쓴다.
+
+**(3) 앨범 곡 목록.** 곡이 바뀌어 새 앨범이 나오면 iTunes Search API로 그 앨범의 곡 목록(디스크, 곡 번호, 제목, 길이)을 한 번 받아 앨범별로 기억한다(`AlbumTracks`). 찾는 동안 최대 3초까지 새 곡 상태를 보내지 않고 기다리며, 시간이 넘거나 찾지 못하면 목록 없이 보낸다.
+- 라이브러리에 없는 스트리밍 곡은 AppleScript의 `track number`, `track count`, `disc number`, `disc count`가 모두 0이다(2026-10 확인). 이때는 곡 목록에서 제목이 같은 곡(없으면 길이가 1초 이내로 같은 곡이 하나뿐일 때 그 곡)으로 곡 번호와 디스크를 정한다.
+- 디스크의 곡 번호가 1부터 빠짐없이 이어지지 않거나, Music이 준 곡 수와 다르면 목록을 쓰지 않는다.
 
 **출력 형식.** 상태가 바뀔 때마다 아래 JSON을 만들어 모든 웹뷰에 보낸다. `/now` 엔드포인트(참고 구현)와 같은 모양이다.
 
@@ -126,6 +133,11 @@ Music 앱의 재생 정보를 다음 두 가지 방법을 합쳐서 얻는다.
   "position": 12.0,              // 초, 이 값을 보낸 시점 기준
   "bpm": 0,                      // 없으면 0
   "id": "영구 ID 또는 제목|아티스트|앨범",
+  "trackNumber": 3,              // 디스크 안 곡 번호, 없으면 0
+  "trackCount": 12,              // 디스크 안 곡 수, 없으면 0
+  "discNumber": 1,               // 없으면 0
+  "discCount": 1,                // 없으면 0
+  "trackDurations": [184.0, ...],// 이 디스크의 곡 길이(초), 곡 번호 순서. 모르면 생략
   "art": "3"                     // 이 곡의 커버가 준비됐을 때만. 커버 버전 문자열
 }
 ```
@@ -138,7 +150,9 @@ Music 앱의 재생 정보를 다음 두 가지 방법을 합쳐서 얻는다.
 
 - 곡 ID가 바뀔 때만 가져온다.
 - 1순위: AppleScript로 `artwork 1 of current track`의 `raw data`.
-- 2순위(커버가 없거나 실패): iTunes Search API `https://itunes.apple.com/search?term=<아티스트 앨범>&entity=album&limit=1&country=<국가>`의 `artworkUrl100`에서 `100x100bb`를 `600x600bb`로 바꿔 받는다. 국가 기본값 `KR`, 설정으로 변경 가능.
+- 2순위(커버가 없거나 실패): iTunes Search API `https://itunes.apple.com/search?term=<아티스트 앨범>&entity=album&limit=5&country=<국가>`에서 앨범 이름이 같은 결과(없으면 첫 결과)의 `artworkUrl100`에서 `100x100bb`를 `600x600bb`로 바꿔 받는다. 국가 기본값 `KR`, 설정으로 변경 가능.
+- 앨범 찾기는 먼저 `entity=song`, `term=<아티스트 제목>`으로 하고(스트리밍 곡의 앨범은 앨범 검색에 잘 걸리지 않음), 못 찾으면 위의 앨범 검색을 쓴다. 앨범 이름과 곡 제목이 같은 결과를 먼저 고른다.
+- 2026-10 확인 결과 `country=KR`은 search, lookup 모두 결과가 0건이다(한국 iTunes Store는 음악을 팔지 않음). 그래서 설정 국가로 찾지 못하면 `US`로 한 번 더 찾는다. 찾은 앨범의 `collectionId`로 `lookup?id=<id>&entity=song`을 불러 곡 목록과 길이(`trackTimeMillis`)도 얻는다(4.5의 (3)).
 - PNG/JPEG 바이트를 base64 data URL로 바꿔 `TodaysRecord.art(dataURL, version)`으로 보낸다. 같은 커버를 다시 보내지 않는다.
 
 ### 4.7 절전 (`PowerWatcher`)
@@ -218,6 +232,12 @@ Music 앱의 재생 정보를 다음 두 가지 방법을 합쳐서 얻는다.
 7. **역할.** `role`이 `mirror`면 localStorage에 쓰지 않는다(읽기만).
 8. **palette 메시지.** 앨범 색이 바뀔 때 `bg`, `plinth`, `accent`를 보낸다.
 9. 상태 문구: native에서 권한 오류 등으로 stopped일 때 “Apple Music에서 음악을 틀면 바늘이 내려가요”를 보여준다.
+10. **LP 면 나누기.** `trackNumber`, `trackCount`가 있으면 실제 LP처럼 디스크를 면으로 나눈다.
+    - 한 면에 최대 6곡. 면 수는 `ceil(곡 수 / 6)`, 곡은 앞면부터 고르게 나눈다(2곡 → 1면, 12곡 → 6+6, 13곡 → 5+4+4).
+    - 면 하나가 판 하나다(판 키 = 앨범 키 + 디스크 + 면). 면 안에서 곡마다 띠를 나누고, 띠 폭은 `trackDurations`가 있으면 곡 길이 비율, 없으면 같은 폭. 기존 미리보기 데이터의 `bandsFor`와 `beginTrack({band, gaps})`를 그대로 쓴다.
+    - 같은 면의 다른 곡이면 바늘만 그 곡의 띠로 옮기고, 같은 앨범의 다른 면이나 다른 앨범이면 기존 판 바꾸기 동작을 쓴다.
+    - 같은 앨범의 다른 면은 커버(라벨, 색)를 함께 쓴다.
+    - 곡 번호나 곡 수가 없으면 기존 동작(곡 길이를 `SIDE_LEN` 기준으로 이어 그림)을 쓴다.
 
 ## 7. 성능 목표
 
@@ -242,7 +262,7 @@ Music 앱의 재생 정보를 다음 두 가지 방법을 합쳐서 얻는다.
 
 **M3. Apple Music 연결**
 - Music에서 곡을 틀면 제목, 아티스트, 앨범, 진행 시간, 커버가 반영된다.
-- 같은 앨범의 다음 곡은 같은 판에서 바늘만 옮겨가고, 다른 앨범이면 판을 바꾼다.
+- 같은 면의 다음 곡은 같은 판에서 바늘만 그 곡의 띠로 옮겨가고, 다른 면이나 다른 앨범이면 판을 바꾼다(6장 10).
 - 일시정지, 정지, Music 종료가 각각 맞게 표시된다.
 - Music이 꺼져 있을 때 앱이 Music을 실행시키지 않는다.
 - 권한을 거부하면 메뉴에 권한 열기 항목이 보인다.

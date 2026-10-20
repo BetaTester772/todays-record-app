@@ -483,6 +483,26 @@
     shown = createAlbum('idle', { albumTitle: '', artist: '', pal: P0, label: makeLabel({ motif: 'sun' }, P0) });
     pal = clonePal(P0); targetPal = clonePal(P0);
   }
+  // Splits a native album into LP sides of up to SIDE_MAX tracks and returns this track's band.
+  const SIDE_MAX = 6;
+  const sideKey = (base, lp) => base + '#side:' + lp.disc + '-' + lp.side;
+  const sideBase = key => key.replace(/#side:\d+-\d+$/, '');
+  function lpSide(d) {
+    const n = d.trackCount | 0, k = d.trackNumber | 0;
+    if (n < 1 || k < 1 || k > n) return null;
+    const sides = Math.ceil(n / SIDE_MAX), base = Math.floor(n / sides), extra = n % sides;
+    let first = 1, side = 0, count = base + (extra > 0 ? 1 : 0);
+    while (k >= first + count) { first += count; side++; count = base + (side < extra ? 1 : 0); }
+    const durs = Array.isArray(d.trackDurations) && d.trackDurations.length === n ? d.trackDurations : null;
+    const lens = Array.from({ length: count }, (_, i) => (durs && +durs[first - 1 + i]) || 0);
+    const equal = lens.some(l => !(l > 0));
+    const bands = bandsFor({ tracks: lens.map(l => ['', equal ? 1 : l]) });
+    return { disc: Math.max(1, d.discNumber | 0), side, band: bands[k - first], gaps: bands.slice(1).map(b => b.start + GAP / 2) };
+  }
+  function sideSibling(base) {
+    for (const a of albums.values()) if (sideBase(a.key) === base && a.key !== base) return a;
+    return null;
+  }
   function applyNowPlaying(d) {
     if (!d || d.state === 'stopped' || !d.title) { setState('stopped'); return; }
     const now = performance.now();
@@ -491,12 +511,15 @@
       media.bpm = d.bpm > 0 ? d.bpm : 0;
       media.position = d.position || 0; media.duration = Math.max(1, d.duration || 1); media.posAt = now;
       const albumArtist = d.albumArtist || d.artist || '';
-      const albumKey = 'am:' + (d.album || albumArtist || 'unknown') + '|' + albumArtist;
-      const known = albums.get(albumKey);
+      const baseKey = 'am:' + (d.album || albumArtist || 'unknown') + '|' + albumArtist;
+      const lp = lpSide(d);
+      const albumKey = lp ? sideKey(baseKey, lp) : baseKey;
+      const known = albums.get(albumKey) || (lp && sideSibling(baseKey));
       const P = known ? known.pal : clonePal(targetPal);
       beginTrack({
         albumKey, albumTitle: d.album || '', artist: albumArtist, pal: P,
-        label: known ? null : makeLabel({ title: d.album || d.title, artist: albumArtist, motif: 'none' }, P),
+        label: known ? known.label : makeLabel({ title: d.album || d.title, artist: albumArtist, motif: 'none' }, P),
+        band: lp ? lp.band : undefined, gaps: lp ? lp.gaps : undefined,
       });
     }
     const next = d.state === 'playing' ? 'playing' : 'paused';
@@ -542,7 +565,13 @@
         if (media.source !== 'native' || !dataURL || version === nativeArt) return;
         nativeArt = version;
         const img = new Image();
-        img.onload = () => applyArt(labelFromImage(img), paletteFromImage(img));
+        img.onload = () => {
+          const label = labelFromImage(img), palette = paletteFromImage(img);
+          applyArt(label, palette);
+          // the other sides of the same album share the cover
+          const base = album && sideBase(album.key);
+          if (base) for (const a of albums.values()) if (a !== album && sideBase(a.key) === base) { a.label = label; a.pal = clonePal(palette); }
+        };
         img.src = dataURL;
       },
     };
