@@ -34,7 +34,7 @@ After that, updates come through the app (**Check for Updates…** in the menu, 
 - Volume knob follows the system volume, side lamps show which side you're on
 - Light from a window moves across the desk with the time of day
 - A small character sits on the needle. The longer you keep listening, the more people show up around the turntable (up to 6). They dance, read, doze off, talk on the phone, breakdance, play tag and run on the record. They leave one by one after the music stops
-- Colors can be left to follow the album or set yourself: record, background, line, text, tonearm, the character's clothes, or colored vinyl in the album's color
+- Colors can be left to follow the album or set yourself: record, background, line, text, tonearm, the character's clothes, or colored vinyl in the album's color (or its opposite color)
 - Record on the left, center or right, or a transparent background over your own wallpaper
 - Works on multiple displays, avoids the menu bar and Dock, and clicks go through to the desktop
 - Stops drawing when the screen is locked, asleep or covered; 30 fps on battery

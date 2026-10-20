@@ -191,6 +191,7 @@ private struct AppearancePane: View {
     @AppStorage(Settings.Key.position) private var position = Settings.Position.right.rawValue
     @AppStorage(Settings.Key.transparent) private var transparent = false
     @AppStorage(Settings.Key.coloredVinyl) private var coloredVinyl = false
+    @AppStorage(Settings.Key.vinylStyle) private var vinylStyle = "match"
     @AppStorage(Settings.ColorSlot.record.rawValue) private var recordColor = ""
     @AppStorage(Settings.ColorSlot.background.rawValue) private var bgColor = ""
     @AppStorage(Settings.ColorSlot.line.rawValue) private var lineColor = ""
@@ -218,7 +219,7 @@ private struct AppearancePane: View {
                 .pickerStyle(.segmented)
             }
             Section {
-                ColorRow(slot: .record, title: "Record", hex: $recordColor, vinyl: $coloredVinyl)
+                ColorRow(slot: .record, title: "Record", hex: $recordColor, vinyl: $coloredVinyl, vinylStyle: $vinylStyle)
                 ColorRow(slot: .background, title: "Background", hex: $bgColor)
                 ColorRow(slot: .line, title: "Line", hex: $lineColor)
                 ColorRow(slot: .text, title: "Text", hex: $textColor)
@@ -227,7 +228,7 @@ private struct AppearancePane: View {
                 HStack {
                     Spacer()
                     Button("Reset Colors") {
-                        coloredVinyl = false
+                        coloredVinyl = false; vinylStyle = "match"
                         for slot in [Settings.ColorSlot.record, .background, .line, .text, .arm, .armBase] { UserDefaults.standard.set("", forKey: slot.rawValue) }
                     }
                     .disabled(!colorsChanged)
@@ -235,7 +236,7 @@ private struct AppearancePane: View {
             } header: {
                 Text("Colors")
             } footer: {
-                Text("Album colors come from the cover. Colored Vinyl paints the record in the album's main color. Custom colors stay the same for every album.")
+                Text("Album colors come from the cover. Colored Vinyl paints the record in the album's main color, Contrast Vinyl in the opposite color. Custom colors stay the same for every album.")
                     .font(.caption).foregroundStyle(.secondary)
                     .multilineTextAlignment(.leading)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -388,16 +389,22 @@ private struct ColorRow: View {
     let title: String
     @Binding var hex: String
     var vinyl: Binding<Bool>?
+    var vinylStyle: Binding<String>?
 
-    private enum Choice: Hashable { case automatic, vinyl, custom }
+    private enum Choice: Hashable { case automatic, vinyl, contrast, custom }
 
     private var automaticTitle: String { [.arm, .armBase, .hat].contains(slot) ? "Default" : "Album" }
 
     private var choice: Binding<Choice> {
         Binding(
-            get: { !hex.isEmpty ? .custom : (vinyl?.wrappedValue == true ? .vinyl : .automatic) },
+            get: {
+                if !hex.isEmpty { return .custom }
+                guard vinyl?.wrappedValue == true else { return .automatic }
+                return vinylStyle?.wrappedValue == "contrast" ? .contrast : .vinyl
+            },
             set: { new in
-                vinyl?.wrappedValue = new == .vinyl
+                vinyl?.wrappedValue = new == .vinyl || new == .contrast
+                if new == .vinyl || new == .contrast { vinylStyle?.wrappedValue = new == .contrast ? "contrast" : "match" }
                 if new == .custom {
                     if hex.isEmpty { hex = slot.presets.dropFirst().first?.hex ?? "#808080" }
                 } else {
@@ -412,7 +419,10 @@ private struct ColorRow: View {
             HStack(spacing: 8) {
                 Picker(title, selection: choice) {
                     Text(automaticTitle).tag(Choice.automatic)
-                    if vinyl != nil { Text("Colored Vinyl").tag(Choice.vinyl) }
+                    if vinyl != nil {
+                        Text("Colored Vinyl").tag(Choice.vinyl)
+                        Text("Contrast Vinyl").tag(Choice.contrast)
+                    }
                     Text("Custom").tag(Choice.custom)
                 }
                 .labelsHidden()

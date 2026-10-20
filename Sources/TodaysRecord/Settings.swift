@@ -86,6 +86,7 @@ final class Settings {
         static let grain = "grain"
         static let sideChange = "sideChange"
         static let coloredVinyl = "coloredVinyl"
+        static let vinylStyle = "vinylStyle"
         static let crowd = "crowd"
         static let crowdPace = "crowdPace"
         static let riderPose = "riderPose"
@@ -108,6 +109,7 @@ final class Settings {
             Key.grain: Grain.normal.rawValue,
             Key.sideChange: SideChange.turn.rawValue,
             Key.coloredVinyl: false,
+            Key.vinylStyle: "match",
             Key.crowd: true,
             Key.crowdPace: 1,
             Key.riderPose: RiderPose.auto.rawValue,
@@ -182,6 +184,12 @@ final class Settings {
         set { defaults.set(newValue, forKey: Key.coloredVinyl) }
     }
 
+    /// 컬러 바이닐의 색: match(앨범 색) 또는 contrast(앨범 색의 반대 색상).
+    var vinylStyle: String {
+        get { defaults.string(forKey: Key.vinylStyle) == "contrast" ? "contrast" : "match" }
+        set { defaults.set(newValue, forKey: Key.vinylStyle) }
+    }
+
     /// 오래 들을수록 사람들이 모여드는지. 명세 6장 25.
     var crowd: Bool {
         get { defaults.bool(forKey: Key.crowd) }
@@ -220,6 +228,7 @@ final class Settings {
             "grain": grain.rawValue,
             "sideChange": sideChange.rawValue,
             "coloredVinyl": coloredVinyl,
+            "vinylStyle": vinylStyle,
             "crowd": crowd,
             "crowdPace": crowdPace,
             "recordColor": color(.record),

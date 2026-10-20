@@ -165,7 +165,7 @@
   // options the app can change from its menu (setOptions)
   // colors '' = taken from the album
   // sideChange: how turning to the other side of the same record looks: 'turn' (lift and turn), 'swap' (like a new album), 'needle' (needle only)
-  const opts = { position: 'right', transparent: false, windowLight: true, trail: 'afterglow', grain: 'normal', fps: 60, sideChange: 'turn', coloredVinyl: false, recordColor: '', bgColor: '', lineColor: '', textColor: '', armColor: '', armBaseColor: '', shirtColor: '', pantsColor: '', hatColor: '', riderPose: 'auto', crowd: true, crowdPace: 1 };
+  const opts = { position: 'right', transparent: false, windowLight: true, trail: 'afterglow', grain: 'normal', fps: 60, sideChange: 'turn', coloredVinyl: false, vinylStyle: 'match', recordColor: '', bgColor: '', lineColor: '', textColor: '', armColor: '', armBaseColor: '', shirtColor: '', pantsColor: '', hatColor: '', riderPose: 'auto', crowd: true, crowdPace: 1 };
   const GRAIN = { off: 0, low: 0.45, normal: 1, high: 1.45 };   // multiplier on the original grain strength
   const glowPts = [];   // recent stylus points for the afterglow trail: { fr, a, t, c } or null for a lift
   let pal = palFromHex(DEMO[0].pal), targetPal = clonePal(pal);
@@ -617,6 +617,7 @@
         if (o.fps === 30 || o.fps === 60) opts.fps = o.fps;
         if (['turn', 'swap', 'needle'].includes(o.sideChange)) opts.sideChange = o.sideChange;
         if (typeof o.coloredVinyl === 'boolean') opts.coloredVinyl = o.coloredVinyl;
+        if (o.vinylStyle === 'match' || o.vinylStyle === 'contrast') opts.vinylStyle = o.vinylStyle;
         if (typeof o.crowd === 'boolean') opts.crowd = o.crowd;
         if ([1, 2, 5, 10].includes(o.crowdPace)) opts.crowdPace = o.crowdPace;
         if (o.riderPose === 'auto' || o.riderPose in RIDER_POSES) opts.riderPose = o.riderPose;
@@ -853,8 +854,9 @@
     ctx.globalAlpha = 1;
   }
 
-  // on colored vinyl the accent can be the record's own color, so the line is a pale (or, on a light record, deep) shade of it
-  const lineColor = () => opts.lineColor || (opts.coloredVinyl && !opts.recordColor
+  // on colored vinyl the accent can be the record's own color, so the line is a pale (or, on a light record, deep) shade of it;
+  // contrast vinyl is the opposite hue, so the accent already stands out on it
+  const lineColor = () => opts.lineColor || (opts.coloredVinyl && opts.vinylStyle !== 'contrast' && !opts.recordColor
     ? css(rgb2hsl(targetPal.vinyl)[2] < 0.6 ? mix(targetPal.vinyl, [255, 255, 255], 0.72) : mix(targetPal.vinyl, [0, 0, 0], 0.5))
     : css(targetPal.accent));
 
@@ -900,7 +902,11 @@
       const h = rgb2hsl(pal.bg); c.ink = hsl2rgb([h[0], Math.min(0.4, h[1]), 0.86]);
     }
     // colors chosen in the app's settings
-    if (opts.coloredVinyl) c.record = c.vinyl;
+    // colored vinyl in the album's main color, or in the opposite hue for contrast (same saturation and lightness)
+    if (opts.coloredVinyl) {
+      if (opts.vinylStyle === 'contrast') { const v = rgb2hsl(c.vinyl); c.record = hsl2rgb([(v[0] + 0.5) % 1, v[1], v[2]]); }
+      else c.record = c.vinyl;
+    }
     if (opts.recordColor) c.record = hex(opts.recordColor);
     if (opts.bgColor) {
       c.bg = hex(opts.bgColor);
