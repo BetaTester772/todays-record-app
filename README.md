@@ -73,8 +73,9 @@ Click the record icon in the menu bar:
 
 - **General**: Show Wallpaper, Open at Login, Frame Rate (Auto uses 30 fps on battery), Clear This Record, automatic update checks
 - **Displays**: choose which displays show the record
-- **Appearance**: record position, transparent background, **Colored Vinyl** (the record takes the album's main color), record / background / line / text colors (from the album or your own), tonearm and arm base colors, and the rider's shirt and pants. Each color is **Album** (or **Default**) until you pick **Custom**; **Reset Colors** puts them all back.
-- **Effects**: window light that follows the time of day, line trail (keep or afterglow), grain, side change, and **Crowd**: the longer the music plays, the more little friends drop by to dance, read, doze, take calls, play and run on the record (**Crowd Pace** speeds it up)
+- **Appearance**: record position, transparent background, **Colored Vinyl** (the record takes the album's main color), record / background / line / text colors (from the album or your own), tonearm and arm base colors. Each color is **Album** (or **Default**) until you pick **Custom**; **Reset Colors** puts them all back.
+- **Effects**: window light that follows the time of day, line trail (keep or afterglow), grain, side change
+- **Characters**: the rider on the needle (pose, shirt, pants and hat colors) and the **Crowd**: the longer the music plays, the more little friends drop by to dance, read, doze, take calls, play and run on the record (**Crowd Pace** speeds it up)
 - **Players**: permission status for Music and Spotify
 
 ## Troubleshooting

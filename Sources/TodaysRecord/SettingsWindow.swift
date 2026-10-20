@@ -25,6 +25,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
                 ("Displays", "display.2", AnyView(DisplaysPane(model: model))),
                 ("Appearance", "paintpalette", AnyView(AppearancePane())),
                 ("Effects", "sparkles", AnyView(EffectsPane())),
+                ("Characters", "person.2", AnyView(CharactersPane())),
                 ("Players", "music.note", AnyView(PlayersPane(model: model))),
             ]
             for (title, symbol, view) in panes {
@@ -196,11 +197,9 @@ private struct AppearancePane: View {
     @AppStorage(Settings.ColorSlot.text.rawValue) private var textColor = ""
     @AppStorage(Settings.ColorSlot.arm.rawValue) private var armColor = ""
     @AppStorage(Settings.ColorSlot.armBase.rawValue) private var armBaseColor = ""
-    @AppStorage(Settings.ColorSlot.shirt.rawValue) private var shirtColor = ""
-    @AppStorage(Settings.ColorSlot.pants.rawValue) private var pantsColor = ""
 
     private var colorsChanged: Bool {
-        coloredVinyl || ![recordColor, bgColor, lineColor, textColor, armColor, armBaseColor, shirtColor, pantsColor].allSatisfy(\.isEmpty)
+        coloredVinyl || ![recordColor, bgColor, lineColor, textColor, armColor, armBaseColor].allSatisfy(\.isEmpty)
     }
 
     var body: some View {
@@ -225,13 +224,11 @@ private struct AppearancePane: View {
                 ColorRow(slot: .text, title: "Text", hex: $textColor)
                 ColorRow(slot: .arm, title: "Tonearm", hex: $armColor)
                 ColorRow(slot: .armBase, title: "Arm Base", hex: $armBaseColor)
-                ColorRow(slot: .shirt, title: "Shirt", hex: $shirtColor)
-                ColorRow(slot: .pants, title: "Pants", hex: $pantsColor)
                 HStack {
                     Spacer()
                     Button("Reset Colors") {
                         coloredVinyl = false
-                        for slot in Settings.ColorSlot.allCases { UserDefaults.standard.set("", forKey: slot.rawValue) }
+                        for slot in [Settings.ColorSlot.record, .background, .line, .text, .arm, .armBase] { UserDefaults.standard.set("", forKey: slot.rawValue) }
                     }
                     .disabled(!colorsChanged)
                 }
@@ -252,27 +249,12 @@ private struct EffectsPane: View {
     @AppStorage(Settings.Key.trail) private var trail = Settings.Trail.afterglow.rawValue
     @AppStorage(Settings.Key.grain) private var grain = Settings.Grain.normal.rawValue
     @AppStorage(Settings.Key.sideChange) private var sideChange = Settings.SideChange.turn.rawValue
-    @AppStorage(Settings.Key.crowd) private var crowd = true
-    @AppStorage(Settings.Key.crowdPace) private var crowdPace = 1
 
     var body: some View {
         Pane {
             Section {
                 Toggle("Window Light", isOn: $windowLight)
                 Text("Light through a window follows the time of day.")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
-            Section {
-                Toggle("Crowd", isOn: $crowd)
-                Picker("Crowd Pace", selection: $crowdPace) {
-                    Text("1×").tag(1)
-                    Text("2×").tag(2)
-                    Text("5×").tag(5)
-                    Text("10×").tag(10)
-                }
-                .pickerStyle(.segmented)
-                .disabled(!crowd)
-                Text("The longer the music plays, the more friends drop by. They leave after a long break. Crowd Pace makes them come and go faster.")
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section {
@@ -297,6 +279,66 @@ private struct EffectsPane: View {
                 }
                 Text("How the record moves when the next song is on the other side of the same record.")
                     .font(.caption).foregroundStyle(.secondary)
+            }
+        }
+    }
+}
+
+/// 바늘 위 캐릭터(포즈, 옷 색)와 모여드는 사람들. 명세 4.8, 6장 25·27.
+private struct CharactersPane: View {
+    @AppStorage(Settings.Key.riderPose) private var riderPose = Settings.RiderPose.auto.rawValue
+    @AppStorage(Settings.ColorSlot.shirt.rawValue) private var shirtColor = ""
+    @AppStorage(Settings.ColorSlot.pants.rawValue) private var pantsColor = ""
+    @AppStorage(Settings.ColorSlot.hat.rawValue) private var hatColor = ""
+    @AppStorage(Settings.Key.crowd) private var crowd = true
+    @AppStorage(Settings.Key.crowdPace) private var crowdPace = 1
+
+    var body: some View {
+        Pane {
+            Section {
+                Picker("Pose", selection: $riderPose) {
+                    Text("Auto").tag(Settings.RiderPose.auto.rawValue)
+                    Text("Sit").tag(Settings.RiderPose.sit.rawValue)
+                    Text("Lean Back").tag(Settings.RiderPose.lean.rawValue)
+                    Text("Cross-Legged").tag(Settings.RiderPose.cross.rawValue)
+                    Text("Hug Knees").tag(Settings.RiderPose.hug.rawValue)
+                }
+                ColorRow(slot: .shirt, title: "Shirt", hex: $shirtColor)
+                ColorRow(slot: .pants, title: "Pants", hex: $pantsColor)
+                ColorRow(slot: .hat, title: "Hat", hex: $hatColor)
+                HStack {
+                    Spacer()
+                    Button("Reset Rider") {
+                        riderPose = Settings.RiderPose.auto.rawValue
+                        shirtColor = ""; pantsColor = ""; hatColor = ""
+                    }
+                    .disabled(riderPose == Settings.RiderPose.auto.rawValue && shirtColor.isEmpty && pantsColor.isEmpty && hatColor.isEmpty)
+                }
+            } header: {
+                Text("Rider")
+            } footer: {
+                Text("The little one on the needle. On Auto the pose sometimes changes when a new song starts.")
+                    .font(.caption).foregroundStyle(.secondary)
+                    .multilineTextAlignment(.leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            Section {
+                Toggle("Crowd", isOn: $crowd)
+                Picker("Crowd Pace", selection: $crowdPace) {
+                    Text("1×").tag(1)
+                    Text("2×").tag(2)
+                    Text("5×").tag(5)
+                    Text("10×").tag(10)
+                }
+                .pickerStyle(.segmented)
+                .disabled(!crowd)
+            } header: {
+                Text("Crowd")
+            } footer: {
+                Text("The longer the music plays, the more friends drop by. When the music stops they head home one by one. Crowd Pace makes them come and go faster.")
+                    .font(.caption).foregroundStyle(.secondary)
+                    .multilineTextAlignment(.leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
     }
@@ -348,7 +390,7 @@ private struct ColorRow: View {
 
     private enum Choice: Hashable { case automatic, vinyl, custom }
 
-    private var automaticTitle: String { slot == .arm || slot == .armBase ? "Default" : "Album" }
+    private var automaticTitle: String { [.arm, .armBase, .hat].contains(slot) ? "Default" : "Album" }
 
     private var choice: Binding<Choice> {
         Binding(

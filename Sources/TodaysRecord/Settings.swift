@@ -35,6 +35,7 @@ final class Settings {
         case armBase = "armBaseColor"
         case shirt = "shirtColor"
         case pants = "pantsColor"
+        case hat = "hatColor"
 
         var menuTitle: String {
             switch self {
@@ -46,6 +47,7 @@ final class Settings {
             case .armBase: return "Arm Base Color"
             case .shirt: return "Shirt Color"
             case .pants: return "Pants Color"
+            case .hat: return "Hat Color"
             }
         }
 
@@ -68,6 +70,8 @@ final class Settings {
                 return [("Album Colors", ""), ("Red", "#D9483B"), ("Yellow", "#F2C230"), ("Blue", "#3A7BD5")]
             case .pants:
                 return [("Album Colors", ""), ("Denim", "#3D5A80"), ("Black", "#26262A"), ("Khaki", "#B59E72")]
+            case .hat:
+                return [("Default", ""), ("Red", "#D9483B"), ("Yellow", "#F2C230"), ("Black", "#26262A")]
             }
         }
     }
@@ -84,6 +88,7 @@ final class Settings {
         static let coloredVinyl = "coloredVinyl"
         static let crowd = "crowd"
         static let crowdPace = "crowdPace"
+        static let riderPose = "riderPose"
         static let autoUpdateCheck = "autoUpdateCheck"
         static let lastUpdateCheck = "lastUpdateCheck"
         static let disabledDisplays = "disabledDisplays"
@@ -105,6 +110,7 @@ final class Settings {
             Key.coloredVinyl: false,
             Key.crowd: true,
             Key.crowdPace: 1,
+            Key.riderPose: RiderPose.auto.rawValue,
             Key.autoUpdateCheck: true,
             Key.disabledDisplays: "",
             Key.fps: FrameRate.auto.rawValue,
@@ -188,6 +194,13 @@ final class Settings {
         set { defaults.set(newValue, forKey: Key.crowdPace) }
     }
 
+    /// 바늘 위 캐릭터의 포즈. auto면 새 곡에 가끔 바뀐다. 명세 6장 27.
+    enum RiderPose: String, CaseIterable { case auto, sit, lean, cross, hug }
+    var riderPose: RiderPose {
+        get { RiderPose(rawValue: defaults.string(forKey: Key.riderPose) ?? "") ?? .auto }
+        set { defaults.set(newValue.rawValue, forKey: Key.riderPose) }
+    }
+
     /// "#RRGGBB" 또는 빈 문자열(앨범 색).
     func color(_ slot: ColorSlot) -> String {
         defaults.string(forKey: slot.rawValue) ?? ""
@@ -217,6 +230,8 @@ final class Settings {
             "armBaseColor": color(.armBase),
             "shirtColor": color(.shirt),
             "pantsColor": color(.pants),
+            "hatColor": color(.hat),
+            "riderPose": riderPose.rawValue,
         ]
     }
 }
