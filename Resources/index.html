@@ -799,17 +799,21 @@
     ctx.fillStyle = css(C.shade); disc(ctx, bx + 0.015 * R, by + 0.035 * R, 0.13 * R);
     ctx.fillStyle = css(C.metal); disc(ctx, bx, by, 0.125 * R);
     ctx.fillStyle = css(mix(C.metal, C.plinth, 0.18)); disc(ctx, bx, by, 0.07 * R);
+    // controls sit on an arc around the record, from the tonearm side toward the front:
+    // volume knob, speed knob, power lamp, then one lamp per LP side
+    const ARC = 1.22 * R, onArc = a => ({ x: Math.cos(a) * ARC, y: Math.sin(a) * ARC });
     // speed knob + power lamp
-    const kx = 0.75 * R, ky = 1.0 * R, on = media.state === 'playing';
+    const K = onArc(1.04), kx = K.x, ky = K.y, on = media.state === 'playing';
     ctx.fillStyle = css(C.shade); disc(ctx, kx + 0.012 * R, ky + 0.03 * R, 0.085 * R);
     ctx.fillStyle = css(C.metal); disc(ctx, kx, ky, 0.08 * R);
     const na = on ? -0.7 : -2.3;
     ctx.strokeStyle = css(C.plinth); ctx.lineWidth = 0.014 * R; ctx.lineCap = 'round';
     ctx.beginPath(); ctx.moveTo(kx, ky); ctx.lineTo(kx + Math.cos(na) * 0.06 * R, ky + Math.sin(na) * 0.06 * R); ctx.stroke();
     ctx.fillStyle = on ? css(C.accent) : css(mix(C.plinth, [255, 255, 255], 0.18));
-    disc(ctx, kx - 0.16 * R, ky + 0.02 * R, 0.022 * R);
+    const P = onArc(1.19);
+    disc(ctx, P.x, P.y, 0.022 * R);
     // volume knob: pointer and a ring of ticks lit up to the output volume
-    const vx = 1.0 * R, vy = 1.0 * R, v = clamp(vol.shown);
+    const V = onArc(0.78), vx = V.x, vy = V.y, v = clamp(vol.shown);
     const live = vol.level !== null || media.source === 'demo';
     const A0 = 0.75 * Math.PI, SWEEP = 1.5 * Math.PI, TICKS = 10;
     for (let i = 0; i < TICKS; i++) {
@@ -825,18 +829,20 @@
     // side lamps: one per LP side of this disc, the current side lit
     const lamps = [];
     if (side && media.state !== 'stopped') {
-      const n = Math.min(4, side.sides), sx = 0.18 * R, sy = 1.06 * R, step = 0.09 * R;
+      const n = Math.min(4, side.sides);
       for (let i = 0; i < n; i++) {
-        const x = sx + i * step;
+        const a = 1.31 + i * 0.085, Q = onArc(a);
         ctx.fillStyle = i === side.index ? css(C.accent) : css(mix(C.plinth, [255, 255, 255], 0.18));
-        disc(ctx, x, sy, 0.02 * R);
-        lamps.push({ x, y: sy, ch: String.fromCharCode(65 + side.first + i), on: i === side.index });
+        disc(ctx, Q.x, Q.y, 0.02 * R);
+        // letter just outside the lamp on the same radius line
+        lamps.push({ x: Math.cos(a) * (ARC + 0.075 * R), y: Math.sin(a) * (ARC + 0.075 * R), ch: String.fromCharCode(65 + side.first + i), on: i === side.index });
       }
     }
     ctx.restore();
     for (const l of lamps) {
-      const p = toScreen(L, l.x + 0.035 * R, l.y), size = Math.max(10, Math.round(0.042 * R)), color = l.on ? css(C.metal) : css(C.metal, 0.6);
-      drawPix(l.ch, p.x, p.y - size, size, 1, color, 800);
+      const p = toScreen(L, l.x, l.y), size = Math.max(10, Math.round(0.042 * R)), color = l.on ? css(C.metal) : css(C.metal, 0.6);
+      const m = pixMask(l.ch, size, 800);
+      drawPix(l.ch, p.x - m.width / 2, p.y - m.height / 2, size, 1, color, 800);
     }
     // arm rest post (screen space, stands up from the plinth)
     const rt = armTip(REST_PHI), rp = toScreen(L, rt.x * R, rt.y * R);
