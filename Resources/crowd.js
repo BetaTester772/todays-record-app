@@ -172,11 +172,15 @@
     const surfaceDir = a => ({ x: -Math.sin(a) * Math.cos(TILT) - Math.cos(a) * SQUASH * Math.sin(TILT), y: -Math.sin(a) * Math.sin(TILT) + Math.cos(a) * SQUASH * Math.cos(TILT) });
     // A treadmill spot: on the back or front of the record, where the surface moves left-right on screen, so the
     // runner faces one clear way. They run against the turn and stay in the same place.
+    // Stepping on, the record carries them along (CARRY of its speed), so they start that far back and land on the spot.
+    const CARRY = 0.35;
     function runAngle(L, p) {
       const u = unitOf(L);
       for (let i = 0; i < 20; i++) {
-        const a = chance(0.6) ? rand(-2.3, -0.9) : rand(1.25, 1.95), d = surfaceDir(a), q = recordPoint(L, a, RUN_R);
+        const b = chance(0.6) ? rand(-2.3, -0.9) : rand(1.25, 1.95), d = surfaceDir(b), q = recordPoint(L, b, RUN_R);
         if (Math.abs(d.x) < 0.8 * Math.hypot(d.x, d.y)) continue;
+        // the step lasts stepTime of crowd time (stepTime / pace in real time) and the carry ramps up over its first half
+        const a = b - S.spinVel * CARRY * 0.75 * stepTime(L, p, b) / pace();
         const near = recordPoint(L, a, 1.3);   // where they walk to before stepping on: on screen
         if (spotOK(L, q.x, q.y, 'run', u) && clearOf(u, p, q.x, q.y, 16) && onScreen(L, near.x, near.y, 8 * u) && near.y - 36 * u > S.inset.top) return a;
       }
@@ -384,8 +388,9 @@
     }
 
     function updateRunner(L, p, dt, u, realDt) {
-      // walking onto the record from just outside it; the record already carries them a little
+      // walking onto the record from just outside it: the record carries them along the way it turns
       if (p.act === 'stepon') {
+        p.ra += S.spinVel * realDt * CARRY * clamp(p.t / p.dur * 2);   // more once both feet are on
         const e = clamp(p.t / p.dur), q = recordPoint(L, p.ra, lerp(1.3, RUN_R, e));
         if (Math.abs(q.x - p.x) > 0.3) p.face = q.x > p.x ? 1 : -1;
         p.walkPhase += dt * WALK * p.k * p.pace / 5.5; p.x = q.x; p.y = q.y;
@@ -393,21 +398,19 @@
         return;
       }
       if (p.act === 'run') {
-        // like a treadmill, but not quite keeping up: they run against the turn and still drift slowly along with it
-        // (about an eighth of the record's speed). The legs keep an easy cadence for the surface under them.
+        // like a treadmill: running against the turn, they stay in place. The legs keep an easy cadence for the
+        // surface under them.
         const sd = surfaceDir(p.ra), surface = S.spinVel * RUN_R * L.R * Math.hypot(sd.x, sd.y);   // px/s on screen
         p.walkPhase += realDt * Math.min(16, surface / (9 * u));
-        p.ra += S.spinVel * realDt * 0.12;
         const q = recordPoint(L, p.ra, RUN_R); p.x = q.x; p.y = q.y; p.face = runFace(p.ra);
-        // carried round to where the surface runs up or down the screen: time to step off
-        const d2 = surfaceDir(p.ra), sideways = Math.abs(d2.x) >= 0.7 * Math.hypot(d2.x, d2.y);
         if (chance(dt * 0.25)) crowd.fx.push({ type: 'drop', x: p.x - p.face * 5 * u * p.k, y: p.y - 30 * u * p.k, t: 0, life: 0.8 });
         // the record is lifted off for a swap: flung off. It slowed down or the time is up: walk off.
         if (S.cue && S.recOff.lift) { startAct(L, p, 'tumble', 1); p.from = { x: p.x, y: p.y }; }
-        else if (S.spinVel < 0.35 * TAU * RPS || p.t >= p.dur || !sideways) { startAct(L, p, 'stepoff', stepTime(L, p, p.ra)); p.from = { x: p.x, y: p.y }; }
+        else if (S.spinVel < 0.35 * TAU * RPS || p.t >= p.dur) { startAct(L, p, 'stepoff', stepTime(L, p, p.ra)); p.from = { x: p.x, y: p.y }; }
         return;
       }
       if (p.act === 'stepoff') {
+        p.ra += S.spinVel * realDt * CARRY * (1 - clamp(p.t / p.dur));   // carried along until off the record
         const e = clamp(p.t / p.dur), q = recordPoint(L, p.ra, lerp(RUN_R, 1.32, e));
         if (Math.abs(q.x - p.x) > 0.3) p.face = q.x > p.x ? 1 : -1;
         p.walkPhase += dt * WALK * p.k * p.pace / 5.5; p.x = q.x; p.y = q.y;
