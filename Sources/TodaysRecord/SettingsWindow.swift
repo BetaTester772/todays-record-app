@@ -191,6 +191,7 @@ private struct EffectsPane: View {
     @AppStorage(Settings.Key.windowLight) private var windowLight = true
     @AppStorage(Settings.Key.trail) private var trail = Settings.Trail.afterglow.rawValue
     @AppStorage(Settings.Key.grain) private var grain = Settings.Grain.normal.rawValue
+    @AppStorage(Settings.Key.sideChange) private var sideChange = Settings.SideChange.turn.rawValue
 
     var body: some View {
         Pane {
@@ -212,6 +213,15 @@ private struct EffectsPane: View {
                     Text("High").tag(Settings.Grain.high.rawValue)
                 }
                 .pickerStyle(.segmented)
+            }
+            Section {
+                Picker("Side Change", selection: $sideChange) {
+                    Text("Lift & Turn").tag(Settings.SideChange.turn.rawValue)
+                    Text("Swap Record").tag(Settings.SideChange.swap.rawValue)
+                    Text("Needle Only").tag(Settings.SideChange.needle.rawValue)
+                }
+                Text("How the record moves when the next song is on the other side of the same record.")
+                    .font(.caption).foregroundStyle(.secondary)
             }
         }
     }

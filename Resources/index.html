@@ -162,7 +162,8 @@
   const inset = { top: 0, right: 0, bottom: 0, left: 0 };   // screen edges under the menu bar and Dock (set by the app)
   // options the app can change from its menu (setOptions)
   // colors '' = taken from the album
-  const opts = { position: 'right', transparent: false, windowLight: true, trail: 'afterglow', grain: 'normal', fps: 60, recordColor: '', bgColor: '', lineColor: '' };
+  // sideChange: how turning to the other side of the same record looks: 'turn' (lift and turn), 'swap' (like a new album), 'needle' (needle only)
+  const opts = { position: 'right', transparent: false, windowLight: true, trail: 'afterglow', grain: 'normal', fps: 60, sideChange: 'turn', recordColor: '', bgColor: '', lineColor: '' };
   const GRAIN = { off: 0, low: 0.45, normal: 1, high: 1.45 };   // multiplier on the original grain strength
   const glowPts = [];   // recent stylus points for the afterglow trail: { fr, a, t, c } or null for a lift
   let pal = palFromHex(DEMO[0].pal), targetPal = clonePal(pal);
@@ -178,6 +179,7 @@
   let armPhi = REST_PHI, armLift = 0.1;
   let spin = 0, spinVel = 0, beatEnv = 0, lastBeat = -1, legPhase = 0;
   let recOff = { x: 0, y: 0, lift: 0 };
+  let sideFade = 1;        // while turning to the other side: how far the new side's lines have faded in (0..1)
   let prevPt = null, prog = 0, posNow = 0;
   let today = [], todayKey = dayKey();
   let particles = [];
@@ -371,6 +373,13 @@
     if (!booted) {
       booted = true; shown = A; pal = clonePal(A.pal); targetPal = clonePal(A.pal);
       cue = { kind: 'start', t0: now, dur: 1700, fromPhi: armPhi, fromLift: armLift };
+    } else if (newAlbum && sameRecord(shown, A) && opts.sideChange === 'turn') {
+      // the other side of the record on the platter: lift it, turn it half a turn, set it down
+      cue = { kind: 'flip', t0: now, dur: 2600, fromPhi: armPhi, fromLift: armLift, next: A, swapped: false };
+    } else if (newAlbum && sameRecord(shown, A) && opts.sideChange === 'needle') {
+      // the other side without any record motion: only the needle moves to the new track
+      swapRecord(A);
+      cue = { kind: 'track', t0: now, dur: 1300, fromPhi: armPhi, fromLift: armLift };
     } else if (newAlbum) {
       cue = { kind: 'album', t0: now, dur: 2600, fromPhi: armPhi, fromLift: armLift, next: A, swapped: false };
     } else {
@@ -499,6 +508,11 @@
   const SIDE_MAX = 6;
   const sideKey = (base, lp) => base + '#side:' + lp.disc + '-' + lp.side;
   const sideBase = key => key.replace(/#side:\d+-\d+$/, '');
+  // Two album entries are the two faces of one record (A·B, C·D…) of the same LP set.
+  function sameRecord(a, b) {
+    const sa = a && a.key.match(/#side:(\d+)-(\d+)$/), sb = b && b.key.match(/#side:(\d+)-(\d+)$/);
+    return !!(sa && sb) && sideBase(a.key) === sideBase(b.key) && sa[1] === sb[1] && (sa[2] >> 1) === (sb[2] >> 1);
+  }
   // Like a real LP set, two sides make one record (A·B, C·D, E·F…). Which record of the set this side is on.
   // Music's discs are each split into their own records; other discs are assumed to need as many.
   function lpRecord(sd) {
@@ -592,6 +606,7 @@
         if (o.trail === 'keep' || o.trail === 'afterglow') opts.trail = o.trail;
         if (o.grain in GRAIN) opts.grain = o.grain;
         if (o.fps === 30 || o.fps === 60) opts.fps = o.fps;
+        if (['turn', 'swap', 'needle'].includes(o.sideChange)) opts.sideChange = o.sideChange;
         for (const k of ['recordColor', 'bgColor', 'lineColor']) {
           if (typeof o[k] === 'string') opts[k] = /^#[0-9a-f]{6}$/i.test(o[k]) ? o[k] : '';
         }
@@ -677,11 +692,11 @@
     prog = clamp(posNow / media.duration);
     const onPhi = phiOf(trackFr(prog));
 
-    recOff = { x: 0, y: 0, lift: 0 };
+    recOff = { x: 0, y: 0, lift: 0 }; sideFade = 1;
     if (cue) {
       const e = (now - cue.t0) / cue.dur;
       if (e >= 1) {
-        if (cue.kind === 'album' && !cue.swapped) swapRecord(cue.next);
+        if ((cue.kind === 'album' || cue.kind === 'flip') && !cue.swapped) swapRecord(cue.next);
         cue = null;
       } else if (cue.kind === 'track') {
         armPhi = lerp(cue.fromPhi, onPhi, easeInOut(clamp((e - 0.25) / 0.5)));
@@ -692,6 +707,22 @@
       } else if (cue.kind === 'park') {
         armPhi = lerp(cue.fromPhi, REST_PHI, easeInOut(clamp((e - 0.3) / 0.55)));
         armLift = e < 0.3 ? lerp(cue.fromLift, 1, easeOut(e / 0.3)) : e < 0.85 ? 1 : lerp(1, 0.1, easeInOut((e - 0.85) / 0.15));
+      } else if (cue.kind === 'flip') {
+        // the other side of the same record: needle to its rest, the record rises, turns half a turn in place while
+        // its lines fade over to the new side, settles back down, and the needle goes back down
+        if (e < 0.3) armPhi = lerp(cue.fromPhi, REST_PHI, easeInOut(clamp((e - 0.08) / 0.22)));
+        else if (e < 0.8) armPhi = REST_PHI;
+        else armPhi = lerp(REST_PHI, onPhi, easeInOut(clamp((e - 0.8) / 0.14)));
+        armLift = liftCurve(e, 0.08, 0.94, cue.fromLift);
+        if (e >= 0.3 && e < 0.42) recOff = { x: 0, y: -0.05 * easeOut((e - 0.3) / 0.12), lift: easeOut((e - 0.3) / 0.12) };
+        else if (e >= 0.42 && e < 0.66) {
+          const t = (e - 0.42) / 0.24, turn = easeInOut(t);
+          if (!cue.swapped) { cue.prev = shown; swapRecord(cue.next); cue.swapped = true; }
+          spin += Math.PI * (turn - (cue.turned || 0)); cue.turned = turn;
+          sideFade = turn;
+          recOff = { x: 0, y: -0.05, lift: 1 };
+        } else if (e >= 0.66 && e < 0.8) { const k = 1 - easeInOut((e - 0.66) / 0.14); recOff = { x: 0, y: -0.05 * k, lift: k }; }
+        if (cue.swapped && cue.turned < 1 && e >= 0.66) { spin += Math.PI * (1 - cue.turned); cue.turned = 1; }
       } else if (cue.kind === 'album') {
         if (e < 0.32) armPhi = lerp(cue.fromPhi, REST_PHI, easeInOut(clamp((e - 0.12) / 0.2)));
         else if (e < 0.72) armPhi = REST_PHI;
@@ -957,13 +988,18 @@
     ctx.beginPath(); ctx.arc(0, 0, R, 0, TAU); ctx.fillStyle = css(C.record); ctx.fill();
     ctx.clip();
     ctx.drawImage(rgb2hsl(C.record)[2] < 0.4 ? groovesLight : grooves, -S / 2 * k, -S / 2 * k, S * k, S * k);
-    if (lift || ox || oy) drawGaps(R, C);
+    if (lift || ox || oy || sideFade !== 1) drawGaps(R, C);
     ctx.restore();
   }
   // gaps between tracks: smooth bands without grooves
   function drawGaps(R, C) {
     ctx.strokeStyle = css(mix(C.record, [255, 255, 255], 0.5)); ctx.lineWidth = GAP * 0.7 * R;
-    for (const g of shown.gaps) { ctx.beginPath(); ctx.arc(0, 0, g * R, 0, TAU); ctx.stroke(); }
+    const prev = sideFade < 1 && cue && cue.prev;
+    for (const [gaps, a] of prev ? [[cue.prev.gaps, 1 - sideFade], [shown.gaps, sideFade]] : [[shown.gaps, 1]]) {
+      ctx.globalAlpha = a;
+      for (const g of gaps) { ctx.beginPath(); ctx.arc(0, 0, g * R, 0, TAU); ctx.stroke(); }
+    }
+    ctx.globalAlpha = 1;
   }
 
   function drawRecord(L, C) {
@@ -971,17 +1007,22 @@
     const R = L.R, k = L.k;
     const ox = recOff.x * R, oy = recOff.y * R, lift = recOff.lift;
     const sc = 1 + 0.03 * lift, up = lift * 0.04 * R;
-    if (!ox && !oy && !lift) {
+    if (!ox && !oy && !lift && sideFade === 1) {
       const key = [layoutKey(L), toHex(C.record), toHex(C.edge)].join('|');
       cachedLayer('record', key, { x: L.cx - 1.25 * R, y: L.cy - 0.85 * R, w: 2.5 * R + 60, h: 1.7 * R + 70 }, () => drawRecordBase(L, C, 0, 0, 0));
     } else drawRecordBase(L, C, ox, oy, lift);
 
     ctx.save(); ctx.translate(L.cx + ox, L.cy + oy - up); ctx.rotate(TILT); ctx.scale(sc, SQUASH * sc);
     ctx.save(); ctx.beginPath(); ctx.arc(0, 0, R, 0, TAU); ctx.clip();
-    if (!ox && !oy && !lift) drawGaps(R, C);
+    if (!ox && !oy && !lift && sideFade === 1) drawGaps(R, C);
     ctx.rotate(spin);
     if (opts.trail === 'afterglow') drawGlow(R, performance.now());
-    else ctx.drawImage(shown.trail, -S / 2 * k, -S / 2 * k, S * k, S * k);
+    else if (sideFade < 1 && cue && cue.prev) {
+      // turning to the other side: the old side's lines fade out as the new side's fade in
+      ctx.globalAlpha = 1 - sideFade; ctx.drawImage(cue.prev.trail, -S / 2 * k, -S / 2 * k, S * k, S * k);
+      ctx.globalAlpha = sideFade; ctx.drawImage(shown.trail, -S / 2 * k, -S / 2 * k, S * k, S * k);
+      ctx.globalAlpha = 1;
+    } else ctx.drawImage(shown.trail, -S / 2 * k, -S / 2 * k, S * k, S * k);
     if (shown.label) { const lr = LABEL_R * R; ctx.drawImage(shown.label, -lr, -lr, 2 * lr, 2 * lr); }
     ctx.restore();
     const gr = ctx.createLinearGradient(-R, -R, R, R), sheen = isDark() ? 0.07 : 0.16;
