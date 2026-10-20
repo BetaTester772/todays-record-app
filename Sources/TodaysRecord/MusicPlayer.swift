@@ -15,8 +15,8 @@ final class MusicPlayer: Player {
         artScript = AppleScriptRunner(label: "Music 커버", source: Self.artSource, logToStdout: false)
     }
 
-    func status() -> PlayerStatus {
-        guard kind.isRunning else {
+    func status(running: Bool) -> PlayerStatus {
+        guard running else {
             if logToStdout { stdout("[Music] 꺼져 있어 묻지 않음") }
             return .info(.stopped)
         }
@@ -41,8 +41,8 @@ final class MusicPlayer: Player {
         }
     }
 
-    func artwork(for info: NowPlayingInfo, completion: @escaping (Data?) -> Void) {
-        guard kind.isRunning, case .output(let result) = artScript.run(), result.stringValue != "none" else {
+    func artwork(for info: NowPlayingInfo, running: Bool, completion: @escaping (Data?) -> Void) {
+        guard running, case .output(let result) = artScript.run(), result.stringValue != "none" else {
             completion(nil)
             return
         }

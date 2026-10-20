@@ -117,7 +117,7 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
 **(1) 분산 알림.** `DistributedNotificationCenter`에서 이름 `com.apple.Music.playerInfo`를 구독한다. 곡 변경, 재생, 일시정지, 정지 때 온다. `userInfo`에 곡 이름, 아티스트, 앨범, 재생 상태, 전체 시간, 영구 ID 등이 들어 있다. 정확한 키 이름은 `--log-nowplaying`으로 실제 값을 찍어 확인한 뒤 확정한다.
 
 **(2) AppleScript.** 알림에 없는 정보(현재 재생 위치, 앨범 아티스트, BPM, 곡 번호·곡 수·디스크 번호·디스크 수, 앨범 커버)와 앱 시작 시점의 상태는 `NSAppleScript`로 묻는다. 참고 구현은 `reference/nowplaying.py`의 `STATUS_SCRIPT`, `ART_SCRIPT`에 있다.
-- Music이 실행 중이 아니면 절대 실행시키지 않는다. `NSRunningApplication`으로 번들 ID `com.apple.Music`이 떠 있을 때만 묻는다.
+- Music이 실행 중이 아니면 절대 실행시키지 않는다. 메인 스레드에서 `NSWorkspace.shared.runningApplications`에 번들 ID `com.apple.Music`이 있을 때만 묻는다. `NSRunningApplication.runningApplications(withBundleIdentifier:)`는 다른 앱이 종료되는 순간 실행 중인 앱을 빠뜨릴 때가 있어(2026-10 확인, 6번 중 2번) 쓰지 않는다.
 - AppleScript는 메인 스레드를 막지 않도록 별도 직렬 큐에서 실행한다.
 - 언제 묻는가: 앱 시작 시 실행 중인 플레이어마다 1번, 알림을 받을 때마다 그 플레이어만 1번, 보여주는 플레이어가 재생 중이면 위치 보정을 위해 그 플레이어만 10초마다 1번. 1초마다 묻지 않는다.
 - 숫자는 지역 설정에 따라 소수점이 쉼표일 수 있으니 문자열로 받으면 `,`를 `.`로 바꿔 해석한다.

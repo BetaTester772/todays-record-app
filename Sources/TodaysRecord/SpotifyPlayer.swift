@@ -11,8 +11,8 @@ final class SpotifyPlayer: Player {
         statusScript = AppleScriptRunner(label: "Spotify", source: Self.statusSource, logToStdout: logToStdout)
     }
 
-    func status() -> PlayerStatus {
-        guard kind.isRunning else {
+    func status(running: Bool) -> PlayerStatus {
+        guard running else {
             if logToStdout { stdout("[Spotify] 꺼져 있어 묻지 않음") }
             return .info(.stopped)
         }
@@ -27,7 +27,7 @@ final class SpotifyPlayer: Player {
     }
 
     /// Spotify는 커버 바이트를 주지 않고 주소만 준다.
-    func artwork(for info: NowPlayingInfo, completion: @escaping (Data?) -> Void) {
+    func artwork(for info: NowPlayingInfo, running: Bool, completion: @escaping (Data?) -> Void) {
         guard let url = info.artworkURL else {
             completion(nil)
             return

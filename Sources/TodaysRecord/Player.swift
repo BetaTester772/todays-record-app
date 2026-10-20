@@ -27,9 +27,12 @@ enum PlayerKind: String, CaseIterable {
         }
     }
 
-    /// 꺼져 있는 앱에는 AppleScript를 보내지 않는다(보내면 앱이 실행된다).
+    /// 꺼져 있는 앱에는 AppleScript를 보내지 않는다(보내면 앱이 실행된다). 메인 스레드에서만 부른다.
+    /// NSRunningApplication.runningApplications(withBundleIdentifier:)는 다른 앱이 종료되는 순간
+    /// 실행 중인 앱을 빠뜨릴 때가 있어(2026-10 확인), 종료 알림과 함께 갱신되는 NSWorkspace 목록을 쓴다.
     var isRunning: Bool {
-        !NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).isEmpty
+        assert(Thread.isMainThread, "isRunning은 메인 스레드에서만 부른다")
+        return NSWorkspace.shared.runningApplications.contains { $0.bundleIdentifier == bundleID }
     }
 }
 
@@ -41,10 +44,10 @@ enum PlayerStatus {
 
 protocol Player: AnyObject {
     var kind: PlayerKind { get }
-    /// AppleScript 큐에서만 부른다.
-    func status() -> PlayerStatus
+    /// AppleScript 큐에서만 부른다. running은 메인 스레드에서 확인한 실행 여부.
+    func status(running: Bool) -> PlayerStatus
     /// 플레이어가 주는 커버(4.6의 1순위). AppleScript 큐에서만 부른다. 결과는 아무 스레드에서나 온다.
-    func artwork(for info: NowPlayingInfo, completion: @escaping (Data?) -> Void)
+    func artwork(for info: NowPlayingInfo, running: Bool, completion: @escaping (Data?) -> Void)
 }
 
 /// 컴파일한 AppleScript를 기억해 두고 실행한다. AppleScript 큐에서만 쓴다.

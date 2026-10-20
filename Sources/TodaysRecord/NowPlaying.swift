@@ -158,8 +158,9 @@ final class NowPlaying {
 
     private func query(_ kind: PlayerKind) {
         guard let player = players[kind] else { return }
+        let running = kind.isRunning
         queue.async { [weak self] in
-            let status = player.status()
+            let status = player.status(running: running)
             DispatchQueue.main.async { self?.handle(kind, status) }
         }
     }

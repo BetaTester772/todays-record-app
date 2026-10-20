@@ -25,8 +25,9 @@ final class Artwork {
     func fetch(for info: NowPlayingInfo, from player: Player, completion: @escaping (Result?) -> Void) {
         let countries = ITunesSearch.countries
         let name = player.kind.name
+        let running = player.kind.isRunning
         queue.async { [weak self] in
-            player.artwork(for: info) { data in
+            player.artwork(for: info, running: running) { data in
                 guard let self else { return }
                 if let data, Self.mimeType(of: data) != nil {
                     if self.logToStdout { stdout("[커버] \(name)에서 받음 \(data.count)바이트") }
