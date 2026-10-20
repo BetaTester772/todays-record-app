@@ -251,6 +251,7 @@ private struct EffectsPane: View {
     @AppStorage(Settings.Key.trail) private var trail = Settings.Trail.afterglow.rawValue
     @AppStorage(Settings.Key.grain) private var grain = Settings.Grain.normal.rawValue
     @AppStorage(Settings.Key.sideChange) private var sideChange = Settings.SideChange.turn.rawValue
+    @AppStorage(Settings.Key.albumChange) private var albumChange = "swap"
 
     var body: some View {
         Pane {
@@ -280,6 +281,12 @@ private struct EffectsPane: View {
                     Text("Needle Only").tag(Settings.SideChange.needle.rawValue)
                 }
                 Text("How the record moves when the next song is on the other side of the same record.")
+                    .font(.caption).foregroundStyle(.secondary)
+                Picker("Album Change", selection: $albumChange) {
+                    Text("Swap Record").tag("swap")
+                    Text("Slide Over").tag("slide")
+                }
+                Text("How the record changes when the next song is from another album. Slide Over pushes the old record off to the left as the new one slides in on top.")
                     .font(.caption).foregroundStyle(.secondary)
             }
         }

@@ -85,6 +85,7 @@ final class Settings {
         static let trail = "trail"
         static let grain = "grain"
         static let sideChange = "sideChange"
+        static let albumChange = "albumChange"
         static let coloredVinyl = "coloredVinyl"
         static let vinylStyle = "vinylStyle"
         static let lineStyle = "lineStyle"
@@ -109,6 +110,7 @@ final class Settings {
             Key.trail: Trail.afterglow.rawValue,
             Key.grain: Grain.normal.rawValue,
             Key.sideChange: SideChange.turn.rawValue,
+            Key.albumChange: "swap",
             Key.coloredVinyl: false,
             Key.vinylStyle: "match",
             Key.lineStyle: "album",
@@ -192,6 +194,12 @@ final class Settings {
         set { defaults.set(newValue, forKey: Key.lineStyle) }
     }
 
+    /// 다른 앨범으로 바뀔 때 판 움직임: swap(빼고 갈아 끼우기) 또는 slide(옛 판을 왼쪽으로 빼며 새 판을 위로 밀어 넣기). 명세 6장 28.
+    var albumChange: String {
+        get { defaults.string(forKey: Key.albumChange) == "slide" ? "slide" : "swap" }
+        set { defaults.set(newValue, forKey: Key.albumChange) }
+    }
+
     /// 컬러 바이닐의 색: match(앨범 색) 또는 contrast(앨범 색의 반대 색상).
     var vinylStyle: String {
         get { defaults.string(forKey: Key.vinylStyle) == "contrast" ? "contrast" : "match" }
@@ -235,6 +243,7 @@ final class Settings {
             "trail": trail.rawValue,
             "grain": grain.rawValue,
             "sideChange": sideChange.rawValue,
+            "albumChange": albumChange,
             "coloredVinyl": coloredVinyl,
             "vinylStyle": vinylStyle,
             "lineStyle": lineStyle,

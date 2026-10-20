@@ -82,7 +82,7 @@ Everything else is in Settings:
 | General | Show wallpaper, open at login, frame rate, updates |
 | Displays | Which displays show the record |
 | Appearance | Record position, transparent background, colors |
-| Effects | Window light, trail (keep or afterglow), grain, how a side change looks |
+| Effects | Window light, trail (keep or afterglow), grain, how a side change or a new album looks (swap the record or slide the new one over) |
 | Characters | The character's pose and colors, crowd on/off and speed |
 | Players | Music and Spotify permission status |
 

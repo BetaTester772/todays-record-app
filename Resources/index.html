@@ -170,7 +170,7 @@
   // options the app can change from its menu (setOptions)
   // colors '' = taken from the album
   // sideChange: how turning to the other side of the same record looks: 'turn' (lift and turn), 'swap' (like a new album), 'needle' (needle only)
-  const opts = { position: 'right', transparent: false, windowLight: true, trail: 'afterglow', grain: 'normal', fps: 60, sideChange: 'turn', coloredVinyl: false, vinylStyle: 'match', lineStyle: 'album', recordColor: '', bgColor: '', lineColor: '', textColor: '', armColor: '', armBaseColor: '', shirtColor: '', pantsColor: '', hatColor: '', riderPose: 'auto', crowd: true, crowdPace: 1 };
+  const opts = { position: 'right', transparent: false, windowLight: true, trail: 'afterglow', grain: 'normal', fps: 60, sideChange: 'turn', albumChange: 'swap', coloredVinyl: false, vinylStyle: 'match', lineStyle: 'album', recordColor: '', bgColor: '', lineColor: '', textColor: '', armColor: '', armBaseColor: '', shirtColor: '', pantsColor: '', hatColor: '', riderPose: 'auto', crowd: true, crowdPace: 1 };
   const GRAIN = { off: 0, low: 0.45, normal: 1, high: 1.45 };   // multiplier on the original grain strength
   const glowPts = [];   // recent stylus points for the afterglow trail: { fr, a, t, c } or null for a lift
   let pal = palFromHex(DEMO[0].pal), targetPal = clonePal(pal);
@@ -395,7 +395,8 @@
       swapRecord(A);
       cue = { kind: 'track', t0: now, dur: 1700, fromPhi: armPhi, fromLift: armLift };
     } else if (newAlbum) {
-      cue = { kind: 'album', t0: now, dur: 2900, fromPhi: armPhi, fromLift: armLift, next: A, swapped: false };
+      // Slide Over (albumChange 'slide'): the old record slides off to the left as the new one slides in on top of it
+      cue = { kind: 'album', t0: now, dur: 2900, fromPhi: armPhi, fromLift: armLift, next: A, swapped: false, slide: opts.albumChange === 'slide' };
     } else {
       cue = { kind: 'track', t0: now, dur: 1700, fromPhi: armPhi, fromLift: armLift };
     }
@@ -621,6 +622,7 @@
         if (o.grain in GRAIN) opts.grain = o.grain;
         if (o.fps === 30 || o.fps === 60) opts.fps = o.fps;
         if (['turn', 'swap', 'needle'].includes(o.sideChange)) opts.sideChange = o.sideChange;
+        if (o.albumChange === 'swap' || o.albumChange === 'slide') opts.albumChange = o.albumChange;
         if (typeof o.coloredVinyl === 'boolean') opts.coloredVinyl = o.coloredVinyl;
         if (o.vinylStyle === 'match' || o.vinylStyle === 'contrast') opts.vinylStyle = o.vinylStyle;
         if (o.lineStyle === 'album' || o.lineStyle === 'contrast') opts.lineStyle = o.lineStyle;
@@ -752,8 +754,18 @@
         else if (e < 0.7) armPhi = REST_PHI;
         else armPhi = lerp(REST_PHI, onPhi, easeInOut(clamp((e - 0.7) / 0.16)));
         armLift = liftCurve(e, 0.12, 0.8, cue.fromLift);
-        if (e >= 0.32 && e < 0.52) { const k = easeIn((e - 0.32) / 0.2); recOff = { x: k * 1.8, y: -k * 0.28, lift: k }; }
-        else if (e >= 0.52 && e < 0.72) {
+        if (cue.slide) {
+          // both records float up a little; the old one leaves to the left while the new one comes in from the right
+          // over it and settles onto the platter
+          if (e >= 0.28 && !cue.swapped) { cue.out = { A: shown, C: sceneColors(), rot: spin }; swapRecord(cue.next); cue.swapped = true; }
+          if (cue.out) {
+            const k = easeInOut(clamp((e - 0.28) / 0.44));
+            cue.outOff = { x: -2.4 * k, y: -0.08 * k, lift: clamp(k * 4) };
+            recOff = { x: 2.4 * (1 - k), y: -0.08 * (1 - k), lift: clamp((1 - k) * 4) };
+            if (k >= 1) cue.out = null;
+          }
+        } else if (e >= 0.32 && e < 0.52) { const k = easeIn((e - 0.32) / 0.2); recOff = { x: k * 1.8, y: -k * 0.28, lift: k }; }
+        else if (e >= 0.52 && e < 0.72 && !cue.slide) {
           if (!cue.swapped) { swapRecord(cue.next); cue.swapped = true; }
           const k = 1 - easeOut((e - 0.52) / 0.2); recOff = { x: -k * 1.8, y: -k * 0.28, lift: k };
         }
@@ -907,15 +919,15 @@
     return { x: L.cx + ox + lx * c - y2 * s, y: L.cy + oy + lx * s + y2 * c };
   }
   function plane(L, ox = 0, oy = 0) { ctx.translate(L.cx + ox, L.cy + oy); ctx.rotate(TILT); ctx.scale(1, SQUASH); }
-  function sceneColors() {
+  function sceneColors(P = pal) {
     const d = isDark();
-    const c = clonePal(pal);
+    const c = clonePal(P);
     if (d) {
-      c.bg = mix(pal.bg, [18, 21, 20], 0.84);
-      c.plinth = mix(pal.plinth, [8, 10, 9], 0.35);
-      c.record = mix(pal.record, [40, 38, 42], 0.62);
-      c.vinyl = mix(pal.vinyl, [40, 38, 42], 0.3);
-      const h = rgb2hsl(pal.bg); c.ink = hsl2rgb([h[0], Math.min(0.4, h[1]), 0.86]);
+      c.bg = mix(P.bg, [18, 21, 20], 0.84);
+      c.plinth = mix(P.plinth, [8, 10, 9], 0.35);
+      c.record = mix(P.record, [40, 38, 42], 0.62);
+      c.vinyl = mix(P.vinyl, [40, 38, 42], 0.3);
+      const h = rgb2hsl(P.bg); c.ink = hsl2rgb([h[0], Math.min(0.4, h[1]), 0.86]);
     }
     // colors chosen in the app's settings
     // colored vinyl in the album's main color, or in the opposite hue for contrast (same saturation and lightness)
@@ -1040,7 +1052,7 @@
 
   // The parts of the record that look the same at any rotation (shadow, edge, base, grooves).
   // Track gaps are stroked live: thick strokes on the squashed circle came out broken in an offscreen canvas.
-  function drawRecordBase(L, C, ox, oy, lift) {
+  function drawRecordBase(L, C, ox, oy, lift, A = shown) {
     const R = L.R, k = L.k;
     const thick = Math.max(3, 0.022 * R), sc = 1 + 0.03 * lift, up = lift * 0.04 * R;
     ctx.save(); ctx.translate(L.cx + ox, L.cy + oy + thick - up); ctx.rotate(TILT); ctx.scale(sc, SQUASH * sc);
@@ -1053,43 +1065,46 @@
     ctx.beginPath(); ctx.arc(0, 0, R, 0, TAU); ctx.fillStyle = css(C.record); ctx.fill();
     ctx.clip();
     ctx.drawImage(rgb2hsl(C.record)[2] < 0.4 ? groovesLight : grooves, -S / 2 * k, -S / 2 * k, S * k, S * k);
-    if (lift || ox || oy || sideFade !== 1) drawGaps(R, C);
+    if (lift || ox || oy || sideFade !== 1) drawGaps(R, C, A);
     ctx.restore();
   }
   // gaps between tracks: smooth bands without grooves
-  function drawGaps(R, C) {
+  function drawGaps(R, C, A = shown) {
     // fainter on a colored or dark record, where half-white rings stand out too much
     ctx.strokeStyle = css(mix(C.record, [255, 255, 255], rgb2hsl(C.record)[2] >= 0.8 ? 0.5 : 0.2)); ctx.lineWidth = GAP * 0.7 * R;
-    const prev = sideFade < 1 && cue && cue.prev;
-    for (const [gaps, a] of prev ? [[cue.prev.gaps, 1 - sideFade], [shown.gaps, sideFade]] : [[shown.gaps, 1]]) {
+    const prev = A === shown && sideFade < 1 && cue && cue.prev;
+    for (const [gaps, a] of prev ? [[cue.prev.gaps, 1 - sideFade], [shown.gaps, sideFade]] : [[A.gaps, 1]]) {
       ctx.globalAlpha = a;
       for (const g of gaps) { ctx.beginPath(); ctx.arc(0, 0, g * R, 0, TAU); ctx.stroke(); }
     }
     ctx.globalAlpha = 1;
   }
 
-  function drawRecord(L, C) {
-    if (!shown) return;
+  // A record on the platter (A, default the one shown) at offset off and turn rot. During Slide Over the leaving
+  // record is drawn too, with its own colors, and only the one on the platter gets the spindle.
+  function drawRecord(L, C, A = shown, off = recOff, rot = spin) {
+    if (!A) return;
+    const main = A === shown;
     const R = L.R, k = L.k;
-    const ox = recOff.x * R, oy = recOff.y * R, lift = recOff.lift;
+    const ox = off.x * R, oy = off.y * R, lift = off.lift;
     const sc = 1 + 0.03 * lift, up = lift * 0.04 * R;
-    if (!ox && !oy && !lift && sideFade === 1) {
+    if (main && !ox && !oy && !lift && sideFade === 1) {
       const key = [layoutKey(L), toHex(C.record), toHex(C.edge)].join('|');
       cachedLayer('record', key, { x: L.cx - 1.25 * R, y: L.cy - 0.85 * R, w: 2.5 * R + 60, h: 1.7 * R + 70 }, () => drawRecordBase(L, C, 0, 0, 0));
-    } else drawRecordBase(L, C, ox, oy, lift);
+    } else drawRecordBase(L, C, ox, oy, lift, A);
 
     ctx.save(); ctx.translate(L.cx + ox, L.cy + oy - up); ctx.rotate(TILT); ctx.scale(sc, SQUASH * sc);
     ctx.save(); ctx.beginPath(); ctx.arc(0, 0, R, 0, TAU); ctx.clip();
-    if (!ox && !oy && !lift && sideFade === 1) drawGaps(R, C);
-    ctx.rotate(spin);
-    if (opts.trail === 'afterglow') drawGlow(R, performance.now());
-    else if (sideFade < 1 && cue && cue.prev) {
+    if (main && !ox && !oy && !lift && sideFade === 1) drawGaps(R, C);
+    ctx.rotate(rot);
+    if (opts.trail === 'afterglow') { if (main) drawGlow(R, performance.now()); }
+    else if (main && sideFade < 1 && cue && cue.prev) {
       // turning to the other side: the old side's lines fade out as the new side's fade in
       ctx.globalAlpha = 1 - sideFade; ctx.drawImage(cue.prev.trail, -S / 2 * k, -S / 2 * k, S * k, S * k);
       ctx.globalAlpha = sideFade; ctx.drawImage(shown.trail, -S / 2 * k, -S / 2 * k, S * k, S * k);
       ctx.globalAlpha = 1;
-    } else ctx.drawImage(shown.trail, -S / 2 * k, -S / 2 * k, S * k, S * k);
-    if (shown.label) { const lr = LABEL_R * R; ctx.drawImage(shown.label, -lr, -lr, 2 * lr, 2 * lr); }
+    } else ctx.drawImage(A.trail, -S / 2 * k, -S / 2 * k, S * k, S * k);
+    if (A.label) { const lr = LABEL_R * R; ctx.drawImage(A.label, -lr, -lr, 2 * lr, 2 * lr); }
     ctx.restore();
     const gr = ctx.createLinearGradient(-R, -R, R, R), sheen = isDark() ? 0.07 : 0.16;
     gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.43, 'rgba(255,255,255,0)');
@@ -1097,6 +1112,7 @@
     gr.addColorStop(0.57, 'rgba(255,255,255,0)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
     ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(0, 0, R, 0, TAU); ctx.arc(0, 0, LABEL_R * R * 1.02, 0, TAU, true); ctx.fill('evenodd');
     ctx.restore();
+    if (!main) return;
 
     const cx = L.cx + ox, cy = L.cy + oy - up, sr = Math.max(2.5, 0.022 * R), sh = Math.max(5, 0.05 * R);
     ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.beginPath(); ctx.ellipse(cx + sr * 0.5, cy + sr * 0.3, sr * 1.3, sr * 0.75, 0, 0, TAU); ctx.fill();
@@ -1568,7 +1584,8 @@
       drawSpecks(now);
     }
     drawDeck(L, C);
-    drawRecord(L, C);
+    if (cue && cue.out) { drawRecord(L, cue.out.C, cue.out.A, cue.outOff, cue.out.rot); drawRecord(L, sceneColors(targetPal)); }
+    else drawRecord(L, C);
     // the crowd stands below the tonearm and needle (the arm's base plate is part of the deck, under everyone)
     if (crowd) crowd.draw(L, C);
     drawArm(L, C, now);
