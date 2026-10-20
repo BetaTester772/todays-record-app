@@ -164,7 +164,7 @@
   // options the app can change from its menu (setOptions)
   // colors '' = taken from the album
   // sideChange: how turning to the other side of the same record looks: 'turn' (lift and turn), 'swap' (like a new album), 'needle' (needle only)
-  const opts = { position: 'right', transparent: false, windowLight: true, trail: 'afterglow', grain: 'normal', fps: 60, sideChange: 'turn', coloredVinyl: false, recordColor: '', bgColor: '', lineColor: '', textColor: '', armColor: '', armBaseColor: '' };
+  const opts = { position: 'right', transparent: false, windowLight: true, trail: 'afterglow', grain: 'normal', fps: 60, sideChange: 'turn', coloredVinyl: false, recordColor: '', bgColor: '', lineColor: '', textColor: '', armColor: '', armBaseColor: '', shirtColor: '', pantsColor: '' };
   const GRAIN = { off: 0, low: 0.45, normal: 1, high: 1.45 };   // multiplier on the original grain strength
   const glowPts = [];   // recent stylus points for the afterglow trail: { fr, a, t, c } or null for a lift
   let pal = palFromHex(DEMO[0].pal), targetPal = clonePal(pal);
@@ -615,7 +615,7 @@
         if (o.fps === 30 || o.fps === 60) opts.fps = o.fps;
         if (['turn', 'swap', 'needle'].includes(o.sideChange)) opts.sideChange = o.sideChange;
         if (typeof o.coloredVinyl === 'boolean') opts.coloredVinyl = o.coloredVinyl;
-        for (const k of ['recordColor', 'bgColor', 'lineColor', 'textColor', 'armColor', 'armBaseColor']) {
+        for (const k of ['recordColor', 'bgColor', 'lineColor', 'textColor', 'armColor', 'armBaseColor', 'shirtColor', 'pantsColor']) {
           if (typeof o[k] === 'string') opts[k] = /^#[0-9a-f]{6}$/i.test(o[k]) ? o[k] : '';
         }
         if (typeof o.transparent === 'boolean') {
@@ -1124,8 +1124,10 @@
   function drawRider(x, y, s, C, now) {
     const u = s / 40;
     const skin = '#F1C6A3', hair = '#2B2320', boot = '#FFF8F1', dark = '#2A2527';
-    const top = css(C.accent), topD = css(mix(C.accent, [0, 0, 0], 0.2));
-    const pc = isDark() ? mix(C.plinth, [255, 255, 255], 0.2) : C.plinth;
+    // shirt follows the accent and pants the plinth, unless picked in the settings
+    const tc = opts.shirtColor ? hex(opts.shirtColor) : C.accent;
+    const top = css(tc), topD = css(mix(tc, [0, 0, 0], 0.2));
+    const pc = opts.pantsColor ? hex(opts.pantsColor) : isDark() ? mix(C.plinth, [255, 255, 255], 0.2) : C.plinth;
     const pants = css(pc), pantsD = css(mix(pc, [0, 0, 0], 0.28));
     const st = media.state;
     const sleeping = st === 'stopped' && !cue;

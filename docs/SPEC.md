@@ -231,11 +231,11 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
 |---|---|
 | General | Show Wallpaper, Open at Login (`SMAppService.mainApp` 등록/해제), Frame Rate(Auto / 30 / 60, 4.7. Auto는 배터리일 때 30), Clear This Record, Check for Updates Automatically와 버전·Check Now·업데이트 버튼(4.10) |
 | Displays | 연결된 화면마다 켜기/끄기 (4.3). 화면이 바뀌면 목록을 다시 읽는다 |
-| Appearance | Record Position(Left / Center / Right), Background(Default / Transparent). 그 아래 **Colors** 묶음 하나에 색을 모은다(6장 21): Record(Album / Colored Vinyl / Custom), Background·Line·Text(Album / Custom), Tonearm·Arm Base(Default / Custom). 기본은 지금 색 그대로이고, Custom일 때만 오른쪽에 색 상자가 보인다. Custom을 처음 고르면 미리 정한 색(판 검정, 배경 크림 등)에서 시작한다. Reset Colors는 모두 기본으로 되돌린다(바꾼 것이 없으면 비활성) |
+| Appearance | Record Position(Left / Center / Right), Background(Default / Transparent). 그 아래 **Colors** 묶음 하나에 색을 모은다(6장 21): Record(Album / Colored Vinyl / Custom), Background·Line·Text(Album / Custom), Tonearm·Arm Base(Default / Custom), Shirt·Pants(바늘 위 캐릭터 옷, Album / Custom). 기본은 지금 색 그대로이고, Custom일 때만 오른쪽에 색 상자가 보인다. Custom을 처음 고르면 미리 정한 색(판 검정, 배경 크림 등)에서 시작한다. Reset Colors는 모두 기본으로 되돌린다(바꾼 것이 없으면 비활성) |
 | Effects | Window Light(6장 19), Trail(Keep / Afterglow, 6장 20), Grain(Off / Low / Normal / High), Side Change(Lift & Turn / Swap Record / Needle Only, 6장 23) |
 | Players | Music·Spotify 제어 권한 상태와 자동화 설정 열기 |
 
-설정은 `UserDefaults`에 저장한다(키 `enabled`, `position`, `transparent`, `windowLight`, `trail`, `grain`, `sideChange`, `coloredVinyl`, `recordColor`, `bgColor`, `lineColor`, `textColor`, `armColor`, `armBaseColor`, `disabledDisplays`, `fps`). 설정 창은 `@AppStorage`로 같은 키(`Settings.Key`)에 바로 쓰고, 앱은 `UserDefaults.didChangeNotification`을 받아 한 번에 모아 창과 모든 웹뷰에 반영한다(`setOptions`). 앱 시작 시와 웹뷰가 준비될 때도 적용한다. 화면과 메뉴 문구는 영어로 쓴다. 로그인 항목이 사용자 승인을 기다리는 상태(`requiresApproval`)면 시스템 설정의 로그인 항목 화면을 연다.
+설정은 `UserDefaults`에 저장한다(키 `enabled`, `position`, `transparent`, `windowLight`, `trail`, `grain`, `sideChange`, `coloredVinyl`, `recordColor`, `bgColor`, `lineColor`, `textColor`, `armColor`, `armBaseColor`, `shirtColor`, `pantsColor`, `disabledDisplays`, `fps`). 설정 창은 `@AppStorage`로 같은 키(`Settings.Key`)에 바로 쓰고, 앱은 `UserDefaults.didChangeNotification`을 받아 한 번에 모아 창과 모든 웹뷰에 반영한다(`setOptions`). 앱 시작 시와 웹뷰가 준비될 때도 적용한다. 화면과 메뉴 문구는 영어로 쓴다. 로그인 항목이 사용자 승인을 기다리는 상태(`requiresApproval`)면 시스템 설정의 로그인 항목 화면을 연다.
 
 **앱 아이콘.** `scripts/make-icon.swift`가 앱 화면과 같은 색(분홍 배경, 초록 받침, 크림색 판, 초록 라벨, 주황 바늘)으로 macOS 아이콘 격자(1024 안 824 둥근 사각형)에 그려 `iconutil`로 `Resources/AppIcon.icns`를 만든다. `Info.plist`의 `CFBundleIconFile`이 가리킨다.
 
@@ -264,7 +264,7 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
 | `TodaysRecord.nowPlaying(payload)` | 4.5의 JSON |
 | `TodaysRecord.art(dataURL, version)` | 앨범 커버 |
 | `TodaysRecord.setPaused(bool)` | 그리기 멈춤/재개 |
-| `TodaysRecord.setOptions({position, transparent, windowLight, trail, fps})` | position: `"left"`, `"center"`, `"right"` · transparent: bool · windowLight: bool · trail: `"keep"` 또는 `"afterglow"` · grain: `"off"`, `"low"`, `"normal"`, `"high"`(기존 세기의 0, 0.45, 1, 1.45배) · sideChange: `"turn"`, `"swap"`, `"needle"`(6장 23) · coloredVinyl: bool(6장 21) · recordColor, bgColor, lineColor, textColor: `"#RRGGBB"` 또는 `""`(앨범 색) · armColor, armBaseColor: `"#RRGGBB"` 또는 `""`(기본 금속색) · fps: 30 또는 60(앱이 설정과 전원에 따라 정해 보낸다) |
+| `TodaysRecord.setOptions({position, transparent, windowLight, trail, fps})` | position: `"left"`, `"center"`, `"right"` · transparent: bool · windowLight: bool · trail: `"keep"` 또는 `"afterglow"` · grain: `"off"`, `"low"`, `"normal"`, `"high"`(기존 세기의 0, 0.45, 1, 1.45배) · sideChange: `"turn"`, `"swap"`, `"needle"`(6장 23) · coloredVinyl: bool(6장 21) · recordColor, bgColor, lineColor, textColor: `"#RRGGBB"` 또는 `""`(앨범 색) · armColor, armBaseColor: `"#RRGGBB"` 또는 `""`(기본 금속색) · shirtColor, pantsColor: `"#RRGGBB"` 또는 `""`(앨범 색) · fps: 30 또는 60(앱이 설정과 전원에 따라 정해 보낸다) |
 | `TodaysRecord.clearRecord()` | 지금 판의 선 지우기 |
 | `TodaysRecord.setInsets({top, right, bottom, left})` | 메뉴 막대와 Dock이 덮는 화면 가장자리(4.3) |
 | `TodaysRecord.setVolume({level, muted})` | 시스템 음량. level: 0~1(모르면 생략), muted: bool (4.6.1) |
@@ -325,6 +325,7 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
     - `coloredVinyl`(기본 꺼짐, 0.23 사용자 요청): 판을 실제 컬러 바이닐처럼 커버의 주된 색으로 칠한다. 앨범 색(팔레트 `vinyl`)은 배경과 같은 대표 색상에 채도 0.4~0.7, 밝기 0.38~0.52로 만든다. 커버에 색이 거의 없으면(채도 0.25 넘는 중간 밝기 픽셀이 10% 미만) 어두운 판(밝기 0.14)으로 한다. 강조색이 판 색과 겹쳐 선이 안 보일 수 있으므로, 선 색을 고르지 않았으면 판 색의 옅은 색(밝은 판이면 진한 색)으로 선을 그린다. `recordColor`가 있으면 그 색이 먼저다. 확인: C418 *Minecraft - Volume Alpha* → 초록 판, *Volume Beta*(거의 검은 커버) → 어두운 판.
     - `armColor`(0.23 사용자 요청): 톤암 색. 기둥, 팔, 균형추, 헤드셸, 바늘을 이 색(그늘진 면은 16% 어둡게)으로 그린다. 노브는 금속색 그대로, 카트리지는 강조색 그대로다. 비어 있으면 기본 금속색.
     - `armBaseColor`(0.23 사용자 요청): 톤암 아래 받침판 색(가운데 원은 받침 색을 18% 섞음). 톤암 색과 따로 고른다. 비어 있으면 기본 금속색.
+    - `shirtColor`, `pantsColor`(0.23 사용자 요청): 바늘 위 캐릭터의 윗옷(기본 강조색)과 바지(기본 받침 색). 그늘진 쪽은 지금처럼 어둡게 섞는다.
     - 트랙 사이 띠는 밝은 판(밝기 0.8 이상, 기본 판)에서는 지금처럼 흰색 50%를 섞고, 그보다 어두운 판에서는 20%만 섞는다(진한 판에서 흰 고리가 너무 도드라져서).
 
 22. **그리기 최적화.** 그림은 그대로 두고 그리는 방식만 바꾼다. 잘 바뀌지 않는 부분은 화면 밖 캔버스(기기 픽셀)에 한 번 그려 두고, 입력(크기, 배치, 색, 내용)이 바뀔 때만 다시 그린다(`cachedLayer`).

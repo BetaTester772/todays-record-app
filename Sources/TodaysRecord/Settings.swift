@@ -33,6 +33,8 @@ final class Settings {
         case text = "textColor"
         case arm = "armColor"
         case armBase = "armBaseColor"
+        case shirt = "shirtColor"
+        case pants = "pantsColor"
 
         var menuTitle: String {
             switch self {
@@ -42,6 +44,8 @@ final class Settings {
             case .text: return "Text Color"
             case .arm: return "Arm Color"
             case .armBase: return "Arm Base Color"
+            case .shirt: return "Shirt Color"
+            case .pants: return "Pants Color"
             }
         }
 
@@ -60,6 +64,10 @@ final class Settings {
                 return [("Default", ""), ("Black", "#26262A"), ("Gold", "#C9A45C"), ("Red", "#B8323A")]
             case .armBase:
                 return [("Default", ""), ("Black", "#26262A"), ("Gold", "#C9A45C")]
+            case .shirt:
+                return [("Album Colors", ""), ("Red", "#D9483B"), ("Yellow", "#F2C230"), ("Blue", "#3A7BD5")]
+            case .pants:
+                return [("Album Colors", ""), ("Denim", "#3D5A80"), ("Black", "#26262A"), ("Khaki", "#B59E72")]
             }
         }
     }
@@ -189,6 +197,8 @@ final class Settings {
             "textColor": color(.text),
             "armColor": color(.arm),
             "armBaseColor": color(.armBase),
+            "shirtColor": color(.shirt),
+            "pantsColor": color(.pants),
         ]
     }
 }

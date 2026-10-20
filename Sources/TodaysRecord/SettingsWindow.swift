@@ -196,9 +196,11 @@ private struct AppearancePane: View {
     @AppStorage(Settings.ColorSlot.text.rawValue) private var textColor = ""
     @AppStorage(Settings.ColorSlot.arm.rawValue) private var armColor = ""
     @AppStorage(Settings.ColorSlot.armBase.rawValue) private var armBaseColor = ""
+    @AppStorage(Settings.ColorSlot.shirt.rawValue) private var shirtColor = ""
+    @AppStorage(Settings.ColorSlot.pants.rawValue) private var pantsColor = ""
 
     private var colorsChanged: Bool {
-        coloredVinyl || ![recordColor, bgColor, lineColor, textColor, armColor, armBaseColor].allSatisfy(\.isEmpty)
+        coloredVinyl || ![recordColor, bgColor, lineColor, textColor, armColor, armBaseColor, shirtColor, pantsColor].allSatisfy(\.isEmpty)
     }
 
     var body: some View {
@@ -223,6 +225,8 @@ private struct AppearancePane: View {
                 ColorRow(slot: .text, title: "Text", hex: $textColor)
                 ColorRow(slot: .arm, title: "Tonearm", hex: $armColor)
                 ColorRow(slot: .armBase, title: "Arm Base", hex: $armBaseColor)
+                ColorRow(slot: .shirt, title: "Shirt", hex: $shirtColor)
+                ColorRow(slot: .pants, title: "Pants", hex: $pantsColor)
                 HStack {
                     Spacer()
                     Button("Reset Colors") {
