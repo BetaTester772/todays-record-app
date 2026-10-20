@@ -4,12 +4,17 @@ import AppKit
 /// M1에서는 주 화면에만 창을 띄운다. 모든 화면 모드는 M4에서 붙인다.
 final class WallpaperController {
     private let options: LaunchOptions
+    private let onReady: (RecordWebView) -> Void
     private var window: WallpaperWindow?
     private var webView: RecordWebView?
     private var screenObserver: NSObjectProtocol?
 
-    init(options: LaunchOptions) {
+    var webViews: [RecordWebView] { webView.map { [$0] } ?? [] }
+
+    /// onReady: 웹뷰가 준비되면 불린다. 여기서 첫 상태를 보낸다.
+    init(options: LaunchOptions, onReady: @escaping (RecordWebView) -> Void) {
         self.options = options
+        self.onReady = onReady
     }
 
     deinit {
@@ -40,6 +45,7 @@ final class WallpaperController {
             options: options
         )
         webView.autoresizingMask = [.width, .height]
+        webView.onReady = onReady
         window.contentView = webView
         if options.windowed {
             window.makeKeyAndOrderFront(nil)

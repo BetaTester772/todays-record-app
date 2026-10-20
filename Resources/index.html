@@ -503,7 +503,7 @@
     if (next !== media.state || Math.abs(currentPos(now) - (d.position || 0)) > 0.8) { media.position = d.position || 0; media.posAt = now; }
     if (d.duration > 0) media.duration = d.duration;
     setState(next);
-    if (d.art && d.art !== localArt) {
+    if (media.source === 'local' && d.art && d.art !== localArt) {
       localArt = d.art;
       const img = new Image();
       img.onload = () => applyArt(labelFromImage(img), paletteFromImage(img));
@@ -523,6 +523,29 @@
     media.source = 'local'; media.state = 'stopped'; media.key = '';
     showIdleRecord();
     pollLocal();
+  }
+
+  // ---------- native app source (macOS app 오늘의 판) ----------
+  const NATIVE = window.__TR_NATIVE__ || null;
+  let nativeArt = '';
+  function postNative(msg) {
+    try { window.webkit.messageHandlers.todaysRecord.postMessage(msg); } catch (e) { /* not inside the app */ }
+  }
+  function initNative() {
+    media.source = 'native'; media.state = 'stopped'; media.key = '';
+    showIdleRecord();
+  }
+  if (NATIVE) {
+    window.TodaysRecord = {
+      nowPlaying(d) { if (media.source === 'native') applyNowPlaying(d); },
+      art(dataURL, version) {
+        if (media.source !== 'native' || !dataURL || version === nativeArt) return;
+        nativeArt = version;
+        const img = new Image();
+        img.onload = () => applyArt(labelFromImage(img), paletteFromImage(img));
+        img.src = dataURL;
+      },
+    };
   }
 
   function currentPos(now) {
@@ -982,7 +1005,7 @@
     } else {
       const hint = (media.source === 'we' && !weEnabled) ? 'Wallpaper Engine 설정에서 ‘미디어 연동’을 켜 주세요'
         : (media.source === 'local' && !localOk) ? '도우미(nowplaying.py)가 꺼져 있어요'
-        : media.source === 'local' ? 'Apple Music에서 음악을 틀면 바늘이 내려가요'
+        : (media.source === 'local' || media.source === 'native') ? 'Apple Music에서 음악을 틀면 바늘이 내려가요'
         : '음악을 틀면 바늘이 내려가요';
       y += drawPix(clipPix(hint, sSmall, 600, maxCss / ps), x0, y, sSmall, ps, soft, 600).h + ps * 6;
     }
@@ -1032,7 +1055,8 @@
 
   resize();
   load();
-  if (hasWE()) initWE();
+  if (NATIVE) { if (NATIVE.demo) initDemo(); else initNative(); }
+  else if (hasWE()) initWE();
   else if (isLocalHelper()) initLocal();
   else {
     initDemo();
@@ -1046,6 +1070,7 @@
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(t => { last = t; requestAnimationFrame(frame); });
+  if (NATIVE) postNative({ type: 'ready' });
 })();
 </script>
 </body>

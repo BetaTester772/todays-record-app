@@ -12,6 +12,9 @@ final class RecordWebView: WKWebView {
 
     let role: Role
     let screenID: String
+    /// 화면이 ready를 보내면 불린다. 다시 불러온 뒤에도 다시 불린다.
+    var onReady: ((RecordWebView) -> Void)?
+    private(set) var isReady = false
     private let pageURL: URL?
 
     init(frame: NSRect, role: Role, screenID: String, options: LaunchOptions) {
@@ -47,6 +50,7 @@ final class RecordWebView: WKWebView {
     }
 
     func load() {
+        isReady = false
         guard let pageURL else {
             Log.web.error("번들에서 index.html을 찾지 못함")
             return
@@ -61,6 +65,33 @@ final class RecordWebView: WKWebView {
         return "window.__TR_NATIVE__ = \(json);"
     }
 
+    // MARK: - Swift → JavaScript (명세 5장)
+
+    func sendNowPlaying(_ payload: [String: Any]) {
+        call("nowPlaying", [payload])
+    }
+
+    func sendArt(dataURL: String, version: String) {
+        call("art", [dataURL, version])
+    }
+
+    /// 인자를 JSON 배열로 직렬화해서 넘긴다. 따옴표와 줄바꿈이 안전하게 이스케이프된다.
+    private func call(_ function: String, _ arguments: [Any]) {
+        guard isReady else { return }
+        guard let data = try? JSONSerialization.data(withJSONObject: arguments) else {
+            Log.web.error("\(function, privacy: .public) 인자를 직렬화하지 못함")
+            return
+        }
+        let script = "TodaysRecord.\(function).apply(null, \(String(decoding: data, as: UTF8.self)));"
+        evaluateJavaScript(script) { _, error in
+            if let error {
+                Log.web.error("\(function, privacy: .public) 호출 실패 \(error.localizedDescription, privacy: .public)")
+            }
+        }
+    }
+
+    // MARK: - JavaScript → Swift
+
     fileprivate func receive(_ message: WKScriptMessage) {
         guard let body = message.body as? [String: Any], let type = body["type"] as? String else {
             Log.web.debug("알 수 없는 메시지 \(String(describing: message.body))")
@@ -69,6 +100,8 @@ final class RecordWebView: WKWebView {
         switch type {
         case "ready":
             Log.web.info("ready screen=\(self.screenID, privacy: .public)")
+            isReady = true
+            onReady?(self)
         case "log":
             Log.web.debug("js: \(String(describing: body["message"] ?? ""))")
         default:
