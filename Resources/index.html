@@ -170,7 +170,7 @@
   // options the app can change from its menu (setOptions)
   // colors '' = taken from the album
   // sideChange: how turning to the other side of the same record looks: 'turn' (lift and turn), 'swap' (like a new album), 'needle' (needle only)
-  const opts = { position: 'right', transparent: false, windowLight: true, trail: 'afterglow', grain: 'normal', fps: 60, sideChange: 'turn', albumChange: 'swap', coloredVinyl: false, vinylStyle: 'match', lineStyle: 'album', recordColor: '', bgColor: '', lineColor: '', textColor: '', armColor: '', armBaseColor: '', shirtColor: '', pantsColor: '', hatColor: '', riderPose: 'auto', crowd: true, crowdPace: 1 };
+  const opts = { position: 'right', transparent: false, windowLight: true, trail: 'afterglow', grain: 'normal', fps: 60, sideChange: 'turn', albumChange: 'swap', coloredVinyl: false, vinylStyle: 'match', lineStyle: 'album', recordColor: '', bgColor: '', lineColor: '', textColor: '', armColor: '', armBaseColor: '', spindleColor: '', shirtColor: '', pantsColor: '', hatColor: '', riderPose: 'auto', crowd: true, crowdPace: 1 };
   const GRAIN = { off: 0, low: 0.45, normal: 1, high: 1.45 };   // multiplier on the original grain strength
   const glowPts = [];   // recent stylus points for the afterglow trail: { fr, a, t, c } or null for a lift
   let pal = palFromHex(DEMO[0].pal), targetPal = clonePal(pal);
@@ -631,7 +631,7 @@
         if (typeof o.crowd === 'boolean') opts.crowd = o.crowd;
         if ([1, 2, 5, 10].includes(o.crowdPace)) opts.crowdPace = o.crowdPace;
         if (o.riderPose === 'auto' || o.riderPose in RIDER_POSES) opts.riderPose = o.riderPose;
-        for (const k of ['recordColor', 'bgColor', 'lineColor', 'textColor', 'armColor', 'armBaseColor', 'shirtColor', 'pantsColor', 'hatColor']) {
+        for (const k of ['recordColor', 'bgColor', 'lineColor', 'textColor', 'armColor', 'armBaseColor', 'spindleColor', 'shirtColor', 'pantsColor', 'hatColor']) {
           if (typeof o[k] === 'string') opts[k] = /^#[0-9a-f]{6}$/i.test(o[k]) ? o[k] : '';
         }
         if (typeof o.transparent === 'boolean') {
@@ -975,6 +975,7 @@
     c.arm = opts.armColor ? hex(opts.armColor) : c.metal;
     c.armD = mix(c.arm, [0, 0, 0], 0.16);
     c.armBase = opts.armBaseColor ? hex(opts.armBaseColor) : c.metal;   // the plate under the tonearm
+    c.spindle = opts.spindleColor ? hex(opts.spindleColor) : c.metal; c.spindleD = mix(c.spindle, [0, 0, 0], 0.16);
     c.shade = mix(c.plinth, [0, 0, 0], 0.28);
     return c;
   }
@@ -1147,9 +1148,9 @@
   function drawSpindle(L, C) {
     const R = L.R, cx = L.cx, cy = L.cy, sr = holeR(R), sh = Math.max(5, 0.05 * R) * spindleH;
     ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.beginPath(); ctx.ellipse(cx + sr * 0.5, cy + sr * 0.3, sr * 1.3, sr * 0.75, 0, 0, TAU); ctx.fill();
-    ctx.fillStyle = css(C.metalD); ctx.fillRect(cx - sr, cy - sh, sr * 2, sh);
+    ctx.fillStyle = css(C.spindleD); ctx.fillRect(cx - sr, cy - sh, sr * 2, sh);
     ctx.beginPath(); ctx.ellipse(cx, cy, sr, sr * SQUASH, 0, 0, TAU); ctx.fill();
-    ctx.fillStyle = css(C.metal); ctx.beginPath(); ctx.ellipse(cx, cy - sh, sr, sr * SQUASH, 0, 0, TAU); ctx.fill();
+    ctx.fillStyle = css(C.spindle); ctx.beginPath(); ctx.ellipse(cx, cy - sh, sr, sr * SQUASH, 0, 0, TAU); ctx.fill();
   }
 
   function drawArm(L, C, now) {
@@ -1162,19 +1163,26 @@
     const pivot = { x: G.x, y: G.y - hp }, cw = { x: K.x, y: K.y - hp };
     const head = { x: T.x, y: T.y - hs - lp };
 
-    // shadow on the surface
-    const sx = 0.03 * R + lp * 0.35, sy = 0.035 * R + lp * 0.45;
-    // the arm's shadow and the head's are one shape filled once, so where they meet isn't darker
-    const ax0 = G.x + 0.02 * R, ay0 = G.y + 0.02 * R, ax1 = T.x + sx, ay1 = T.y + sy;
-    const al = Math.hypot(ax1 - ax0, ay1 - ay0) || 1, nx = -(ay1 - ay0) / al * aw / 2, ny = (ax1 - ax0) / al * aw / 2;
-    // every part is traced clockwise like the arcs; a part going the other way would cancel out where they overlap
-    const quad = [[ax0 + nx, ay0 + ny], [ax1 + nx, ay1 + ny], [ax1 - nx, ay1 - ny], [ax0 - nx, ay0 - ny]];
-    let area = 0; for (let i = 0; i < 4; i++) { const [x0, y0] = quad[i], [x1, y1] = quad[(i + 1) % 4]; area += x0 * y1 - x1 * y0; }
-    if (area < 0) quad.reverse();
+    // Shadows on the surface: every part's shadow falls the same way from the light, further the higher the part is
+    // (the post from its foot up, the arm and counterweight at the post's height, the head at its own height). All of it
+    // is one shape filled once, so where shadows meet isn't darker.
+    const lx = 0.95, ly = 1.1, off = (p, h) => [p.x + lx * h, p.y + ly * h];
+    const footS = off(G, 0), pivotS = off(G, hp), cwS = off(K, hp), headS = off(T, hs + lp), pw0 = 0.06 * R;
     ctx.fillStyle = 'rgba(0,0,0,0.15)'; ctx.beginPath();
-    quad.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.closePath();
-    ctx.moveTo(ax0 + aw / 2, ay0); ctx.arc(ax0, ay0, aw / 2, 0, TAU);
-    ctx.moveTo(ax1 + 0.05 * R, ay1); ctx.ellipse(ax1, ay1, 0.05 * R, 0.022 * R, 0, 0, TAU);
+    // a capsule from a to b, w wide; every part is traced clockwise like the arcs, so overlapping parts add up
+    const capsule = (a, b, w) => {
+      const l = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1, nx = -(b[1] - a[1]) / l * w / 2, ny = (b[0] - a[0]) / l * w / 2;
+      const q = [[a[0] + nx, a[1] + ny], [b[0] + nx, b[1] + ny], [b[0] - nx, b[1] - ny], [a[0] - nx, a[1] - ny]];
+      let area = 0; for (let i = 0; i < 4; i++) { const [x0, y0] = q[i], [x1, y1] = q[(i + 1) % 4]; area += x0 * y1 - x1 * y0; }
+      if (area < 0) q.reverse();
+      q.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.closePath();
+      for (const [x, y] of [a, b]) { ctx.moveTo(x + w / 2, y); ctx.arc(x, y, w / 2, 0, TAU); }
+    };
+    capsule(footS, pivotS, pw0 * 0.9);   // the post
+    capsule(cwS, pivotS, aw);            // counterweight end of the arm
+    capsule(pivotS, headS, aw);          // the arm
+    ctx.moveTo(cwS[0] + 0.05 * R, cwS[1]); ctx.ellipse(cwS[0], cwS[1], 0.05 * R, 0.035 * R, 0, 0, TAU);
+    ctx.moveTo(headS[0] + 0.05 * R, headS[1]); ctx.ellipse(headS[0], headS[1], 0.05 * R, 0.022 * R, 0, 0, TAU);
     ctx.fill('nonzero');
     ctx.lineCap = 'round';
 

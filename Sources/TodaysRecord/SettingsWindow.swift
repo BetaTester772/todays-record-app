@@ -199,9 +199,10 @@ private struct AppearancePane: View {
     @AppStorage(Settings.ColorSlot.text.rawValue) private var textColor = ""
     @AppStorage(Settings.ColorSlot.arm.rawValue) private var armColor = ""
     @AppStorage(Settings.ColorSlot.armBase.rawValue) private var armBaseColor = ""
+    @AppStorage(Settings.ColorSlot.spindle.rawValue) private var spindleColor = ""
 
     private var colorsChanged: Bool {
-        coloredVinyl || lineStyle == "contrast" || ![recordColor, bgColor, lineColor, textColor, armColor, armBaseColor].allSatisfy(\.isEmpty)
+        coloredVinyl || lineStyle == "contrast" || ![recordColor, bgColor, lineColor, textColor, armColor, armBaseColor, spindleColor].allSatisfy(\.isEmpty)
     }
 
     var body: some View {
@@ -226,11 +227,12 @@ private struct AppearancePane: View {
                 ColorRow(slot: .text, title: "Text", hex: $textColor)
                 ColorRow(slot: .arm, title: "Tonearm", hex: $armColor)
                 ColorRow(slot: .armBase, title: "Arm Base", hex: $armBaseColor)
+                ColorRow(slot: .spindle, title: "Spindle", hex: $spindleColor)
                 HStack {
                     Spacer()
                     Button("Reset Colors") {
                         coloredVinyl = false; vinylStyle = "match"; lineStyle = "album"
-                        for slot in [Settings.ColorSlot.record, .background, .line, .text, .arm, .armBase] { UserDefaults.standard.set("", forKey: slot.rawValue) }
+                        for slot in [Settings.ColorSlot.record, .background, .line, .text, .arm, .armBase, .spindle] { UserDefaults.standard.set("", forKey: slot.rawValue) }
                     }
                     .disabled(!colorsChanged)
                 }
@@ -403,7 +405,7 @@ private struct ColorRow: View {
 
     private enum Choice: Hashable { case automatic, vinyl, contrast, custom }
 
-    private var automaticTitle: String { [.arm, .armBase, .hat].contains(slot) ? "Default" : "Album" }
+    private var automaticTitle: String { [.arm, .armBase, .spindle, .hat].contains(slot) ? "Default" : "Album" }
 
     private var choice: Binding<Choice> {
         Binding(
