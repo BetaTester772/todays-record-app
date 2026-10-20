@@ -269,9 +269,19 @@ final class NowPlaying {
         }
     }
 
+    /// 잠자기·잠금 동안 위치 확인을 쉰다. 풀리면 보여주는 플레이어에게 바로 한 번 묻는다. 명세 4.7.
+    var suspended = false {
+        didSet {
+            guard suspended != oldValue else { return }
+            Log.nowPlaying.info("위치 확인 \(self.suspended ? "쉼" : "다시 시작", privacy: .public)")
+            updatePollTimer()
+            if !suspended, let shown = chooser.shown { query(shown) }
+        }
+    }
+
     /// 위치 보정은 보여주는 플레이어에게만 묻는다.
     private func updatePollTimer() {
-        if current.state == .playing {
+        if current.state == .playing && !suspended {
             guard pollTimer == nil else { return }
             let timer = Timer(timeInterval: Self.pollInterval, repeats: true) { [weak self] _ in
                 guard let self, let shown = self.chooser.shown else { return }

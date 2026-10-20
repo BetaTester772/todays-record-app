@@ -1,6 +1,6 @@
 # 오늘의 판 — macOS 앱 명세서
 
-버전 0.13 · 2026-10-20 (0.2: LP 면 나누기, iTunes 검색 국가 대체 · 0.3: 음량 노브, 면 램프 · 0.4: 색 섞기 전환, 곡 안 위치 이동 · 0.5: 화면 문구 영어 · 0.6: 긴 이름 흐르기 · 0.7: 메뉴 막대·Dock 피하기 · 0.8: 오늘 들은 곡 수만, 노란 강조색 피하기 · 0.9: M2 설정 메뉴, 창문 빛, 잔상 · 0.10: 판 색 고르기, 시간대 색감 · 0.11: 배경색, 선 색 고르기 · 0.12: 그레인 세기 · 0.13: Spotify 지원)
+버전 0.14 · 2026-10-20 (0.2: LP 면 나누기, iTunes 검색 국가 대체 · 0.3: 음량 노브, 면 램프 · 0.4: 색 섞기 전환, 곡 안 위치 이동 · 0.5: 화면 문구 영어 · 0.6: 긴 이름 흐르기 · 0.7: 메뉴 막대·Dock 피하기 · 0.8: 오늘 들은 곡 수만, 노란 강조색 피하기 · 0.9: M2 설정 메뉴, 창문 빛, 잔상 · 0.10: 판 색 고르기, 시간대 색감 · 0.11: 배경색, 선 색 고르기 · 0.12: 그레인 세기 · 0.13: M4 절전, 여러 화면, 그리기 최적화 · 0.14: Spotify 지원)
 
 ## 1. 개요
 
@@ -93,6 +93,8 @@ scripts/
 ### 4.3 화면 관리 (`WallpaperController`)
 
 - 설정 `displays`: `main`(기본, 주 화면만) 또는 `all`(모든 화면).
+- 주 화면은 메뉴 막대가 있는 화면(`NSScreen.screens[0]`)이다. `NSScreen.main`은 키 창이 있는 화면이라 쓰지 않는다.
+- 화면 식별자(`NSScreenNumber`)마다 창과 웹뷰를 하나씩 둔다. 화면 설정이 바뀌면 새 화면에는 창을 만들고, 빠진 화면의 창은 닫고, 남은 창은 크기와 여백을 맞춘다. 주 화면이 바뀌어 역할(primary/mirror)이 달라진 창은 역할이 문서 시작 때 정해지므로 닫고 다시 만든다. `--windowed`에서는 주 화면에 하나만 띄운다.
 - `NSApplication.didChangeScreenParametersNotification`을 받으면 창을 다시 만들거나 크기를 맞춘다.
 - `all`일 때 주 화면의 창만 `role = primary`, 나머지는 `mirror`. 기록 저장은 primary만 한다(6장).
 - 화면마다 `frame`과 `visibleFrame`의 차이로 메뉴 막대와 Dock이 덮는 가장자리(top, right, bottom, left, 포인트)를 구해 `TodaysRecord.setInsets`로 보낸다. 웹뷰가 준비될 때와 화면 설정이 바뀔 때(Dock 위치·크기 변경 포함) 보낸다. `--windowed`에서는 0이다.
@@ -195,10 +197,12 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
 - 화면 잠자기 (`NSWorkspace.screensDidSleepNotification` / `screensDidWakeNotification`)
 - 시스템 잠자기 (`willSleepNotification` / `didWakeNotification`)
 - 화면 잠금 (분산 알림 `com.apple.screenIsLocked` / `com.apple.screenIsUnlocked`)
-- 창이 완전히 가려짐 (`NSWindow.didChangeOcclusionStateNotification`, 창별로 판단)
+- 창이 완전히 가려짐 (`NSWindow.didChangeOcclusionStateNotification`, 창별로 판단. 이 창만 멈춘다)
 - 사용자가 메뉴에서 끔
 
-배터리 사용 중이면 초당 프레임을 30으로 제한한다(설정 `fps`가 `auto`일 때).
+배터리 사용 중이면 초당 프레임을 30으로 제한한다(설정 `fps`가 `auto`일 때). 전원은 IOKit 공개 API(`IOPSCopyPowerSourcesInfo`, `IOPSGetProvidingPowerSourceType`)로 읽고 `IOPSNotificationCreateRunLoopSource`로 바뀔 때 받는다. 설정 `fps`는 `auto`(기본), `30`, `60`이다.
+
+잠자기·잠금으로 전체가 멈춘 동안에는 Music 위치 확인(10초마다)도 쉬고, 풀리면 바로 한 번 묻는다.
 
 ### 4.8 메뉴 막대 (`StatusMenu`)
 
@@ -217,14 +221,15 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
 | 효과 ▸ 창문 빛 (체크) | 시간대 조명(6장 19). 기본 켜짐 |
 | 효과 ▸ 선 ▸ 계속 남기기 / 잔상 | 6장 20. 기본 잔상 |
 | 효과 ▸ 그레인 ▸ Off / Low / Normal / High | 화면 잡음 무늬 세기. 기본 Normal(기존 세기) |
-| 표시할 화면 ▸ 주 화면 / 모든 화면 | 4.3 |
+| 표시할 화면 ▸ 주 화면 / 모든 화면 | 4.3 (Displays ▸ Main Display / All Displays) |
+| 초당 프레임 ▸ 자동 / 30 / 60 | 4.7 (Frame Rate ▸ Auto (30 on Battery) / 30 fps / 60 fps) |
 | 시스템 배경화면 색 맞추기 (체크) | 4.9 |
 | 이 판 비우기 | `clearRecord()` |
 | 로그인 시 실행 (체크) | `SMAppService.mainApp` 등록/해제 |
 | 제어 권한 열기 (“Allow Control of Music…” 등, 4.5) | 권한이 없는 플레이어가 있을 때만 표시 |
 | 종료 | 앱 종료 (4.9가 켜져 있으면 원래 배경화면 복원 후) |
 
-설정은 `UserDefaults`에 저장하고(키 `enabled`, `position`, `transparent`, `windowLight`, `trail`, `grain`, `recordColor`, `bgColor`, `lineColor`), 앱 시작 시와 웹뷰가 준비될 때 모든 웹뷰에 `setOptions`로 적용한다. 메뉴 문구는 영어로 쓴다(Player, Show Wallpaper, Record Position, Background, Effects ▸ Window Light / Trail ▸ Keep·Afterglow, Clear This Record, Open at Login, Quit). 로그인 항목이 사용자 승인을 기다리는 상태(`requiresApproval`)면 시스템 설정의 로그인 항목 화면을 연다. 표시할 화면(4.3)과 시스템 배경화면 색 맞추기(4.9) 항목은 M4, M5에서 기능과 함께 더한다.
+설정은 `UserDefaults`에 저장하고(키 `enabled`, `position`, `transparent`, `windowLight`, `trail`, `grain`, `recordColor`, `bgColor`, `lineColor`, `displays`, `fps`), 앱 시작 시와 웹뷰가 준비될 때 모든 웹뷰에 `setOptions`로 적용한다. 메뉴 문구는 영어로 쓴다(Player, Show Wallpaper, Record Position, Background, Effects ▸ Window Light / Trail ▸ Keep·Afterglow, Clear This Record, Open at Login, Quit). 로그인 항목이 사용자 승인을 기다리는 상태(`requiresApproval`)면 시스템 설정의 로그인 항목 화면을 연다. 시스템 배경화면 색 맞추기(4.9) 항목은 M5에서 기능과 함께 더한다.
 
 ### 4.9 시스템 배경화면 색 맞추기 (`WallpaperSync`, 선택 기능, 기본 꺼짐)
 
@@ -246,7 +251,7 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
 | `TodaysRecord.nowPlaying(payload)` | 4.5의 JSON |
 | `TodaysRecord.art(dataURL, version)` | 앨범 커버 |
 | `TodaysRecord.setPaused(bool)` | 그리기 멈춤/재개 |
-| `TodaysRecord.setOptions({position, transparent, windowLight, trail, fps})` | position: `"left"`, `"center"`, `"right"` · transparent: bool · windowLight: bool · trail: `"keep"` 또는 `"afterglow"` · grain: `"off"`, `"low"`, `"normal"`, `"high"`(기존 세기의 0, 0.45, 1, 1.45배) · recordColor, bgColor, lineColor: `"#RRGGBB"` 또는 `""`(앨범 색) · fps: 30 또는 60(M4) |
+| `TodaysRecord.setOptions({position, transparent, windowLight, trail, fps})` | position: `"left"`, `"center"`, `"right"` · transparent: bool · windowLight: bool · trail: `"keep"` 또는 `"afterglow"` · grain: `"off"`, `"low"`, `"normal"`, `"high"`(기존 세기의 0, 0.45, 1, 1.45배) · recordColor, bgColor, lineColor: `"#RRGGBB"` 또는 `""`(앨범 색) · fps: 30 또는 60(앱이 설정과 전원에 따라 정해 보낸다) |
 | `TodaysRecord.clearRecord()` | 지금 판의 선 지우기 |
 | `TodaysRecord.setInsets({top, right, bottom, left})` | 메뉴 막대와 Dock이 덮는 화면 가장자리(4.3) |
 | `TodaysRecord.setVolume({level, muted})` | 시스템 음량. level: 0~1(모르면 생략), muted: bool (4.6.1) |
@@ -305,11 +310,28 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
     - `bgColor`: 턴테이블 주변 배경 색. 배경 밝기에 맞춰 곡 정보 글씨 색을 밝게/어둡게 바꾼다.
     - `lineColor`: 판 위 선과 잔상 색. 이미 그린 선은 그때 색 그대로 남는다.
 
+22. **그리기 최적화.** 그림은 그대로 두고 그리는 방식만 바꾼다. 잘 바뀌지 않는 부분은 화면 밖 캔버스(기기 픽셀)에 한 번 그려 두고, 입력(크기, 배치, 색, 내용)이 바뀔 때만 다시 그린다(`cachedLayer`).
+    - 배경 + 받침(그림자 포함)
+    - 판의 회전과 무관한 부분: 그림자, 테두리, 판 바탕, 홈 무늬. 판이 들려 움직이는 동안(판 바꾸기)은 직접 그린다. 트랙 사이 띠는 화면 밖 캔버스에서 굵은 선이 끊겨 그려져(macOS 27 WebKit에서 확인) 매 프레임 직접 그린다.
+    - 곡 정보: 글자, 진행 칸, 시간, 흐르는 위치, 색, 배치가 바뀔 때만 다시 그린다. 색을 입힌 픽셀 글자도 따로 기억한다.
+    - 최적화 전후 같은 시점 그림을 비교해, 정적인 영역의 차이가 없음을 확인했다.
+
 ## 7. 성능 목표
 
 - 재생 중 30fps 기준, Apple Silicon에서 활동 모니터 CPU가 낮게 유지될 것(구현 후 측정해서 기록).
 - 멈춤 상태에서는 웹 콘텐츠 프로세스 CPU가 거의 0이어야 한다.
 - AppleScript 호출은 재생 중에도 10초당 1번 이하(알림 반응 제외).
+
+**측정 기록 (2026-10-20, Apple Silicon, macOS 27, 1008×655 테스트 창, WebKit 웹 콘텐츠 + GPU 프로세스 CPU 합계, `top` 2초 간격 평균)**
+
+| 상태 | 최적화 전 | 최적화 후 |
+|---|---|---|
+| 60fps | 48% | 18.5% |
+| 30fps | 22% | 11.4% |
+| 멈춤(`setPaused(true)`) | — | 0.0% |
+| 바탕화면이 다른 창에 완전히 가려짐 | 0% (WebKit이 스스로 멈춤) | 0% |
+
+바탕화면 전체(1512×982, 2배 해상도)는 테스트 창보다 픽셀이 많아 이보다 조금 더 쓸 수 있다.
 
 ## 8. 마일스톤과 완료 기준
 

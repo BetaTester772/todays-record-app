@@ -156,13 +156,13 @@
 
   // ---------- elements & state ----------
   const canvas = document.getElementById('scene');
-  const ctx = canvas.getContext('2d');
+  let ctx = canvas.getContext('2d');   // swapped briefly while painting cached layers (cachedLayer)
 
   let W = 0, H = 0, DPR = 1, safeTop = 0;
   const inset = { top: 0, right: 0, bottom: 0, left: 0 };   // screen edges under the menu bar and Dock (set by the app)
   // options the app can change from its menu (setOptions)
   // colors '' = taken from the album
-  const opts = { position: 'right', transparent: false, windowLight: true, trail: 'afterglow', grain: 'normal', recordColor: '', bgColor: '', lineColor: '' };
+  const opts = { position: 'right', transparent: false, windowLight: true, trail: 'afterglow', grain: 'normal', fps: 60, recordColor: '', bgColor: '', lineColor: '' };
   const GRAIN = { off: 0, low: 0.45, normal: 1, high: 1.45 };   // multiplier on the original grain strength
   const glowPts = [];   // recent stylus points for the afterglow trail: { fr, a, t, c } or null for a lift
   let pal = palFromHex(DEMO[0].pal), targetPal = clonePal(pal);
@@ -192,8 +192,7 @@
   const grooves = makeGrooves(false), groovesLight = makeGrooves(true);
   const noise = makeNoise();
   let grainPat = null;
-  const scratch = document.createElement('canvas');
-  const sctx = scratch.getContext('2d');
+  const inked = new Map();   // colored pixel-text bitmaps: text|size|weight|color -> canvas
   const measure = document.createElement('canvas').getContext('2d');
   const masks = new Map();
   const specks = Array.from({ length: 16 }, () => ({ x: Math.random(), y: Math.random(), p: Math.random() * TAU }));
@@ -586,6 +585,7 @@
         if (typeof o.windowLight === 'boolean') opts.windowLight = o.windowLight;
         if (o.trail === 'keep' || o.trail === 'afterglow') opts.trail = o.trail;
         if (o.grain in GRAIN) opts.grain = o.grain;
+        if (o.fps === 30 || o.fps === 60) opts.fps = o.fps;
         for (const k of ['recordColor', 'bgColor', 'lineColor']) {
           if (typeof o[k] === 'string') opts[k] = /^#[0-9a-f]{6}$/i.test(o[k]) ? o[k] : '';
         }
@@ -595,6 +595,7 @@
         }
       },
       clearRecord,
+      setPaused,
       setInsets(v) { for (const k of ['top', 'right', 'bottom', 'left']) inset[k] = Math.max(0, +(v && v[k]) || 0); },
       setVolume(v) {
         vol.level = v && typeof v.level === 'number' ? clamp(v.level) : null;
@@ -623,6 +624,7 @@
 
   // ---------- persistence ----------
   function save() {
+    if (NATIVE && NATIVE.role === 'mirror') return;   // only the primary screen writes the record (other screens read it)
     try {
       localStorage.setItem(STORE_KEY, JSON.stringify({
         date: todayKey, today, demo: media.source === 'demo' ? { a: demo.a, t: demo.t } : null,
@@ -925,12 +927,11 @@
     ctx.fillStyle = css(C.metal); ctx.beginPath(); ctx.ellipse(rp.x, rp.y - ph, pw / 2, pw / 2 * SQUASH, 0, 0, TAU); ctx.fill();
   }
 
-  function drawRecord(L, C) {
-    if (!shown) return;
+  // The parts of the record that look the same at any rotation (shadow, edge, base, grooves).
+  // Track gaps are stroked live: thick strokes on the squashed circle came out broken in an offscreen canvas.
+  function drawRecordBase(L, C, ox, oy, lift) {
     const R = L.R, k = L.k;
-    const ox = recOff.x * R, oy = recOff.y * R, lift = recOff.lift;
     const thick = Math.max(3, 0.022 * R), sc = 1 + 0.03 * lift, up = lift * 0.04 * R;
-
     ctx.save(); ctx.translate(L.cx + ox, L.cy + oy + thick - up); ctx.rotate(TILT); ctx.scale(sc, SQUASH * sc);
     ctx.shadowColor = `rgba(0,0,0,${0.22 + 0.1 * lift})`;
     ctx.shadowBlur = 24 + 30 * lift; ctx.shadowOffsetX = 10 + 20 * lift; ctx.shadowOffsetY = 14 + 24 * lift;
@@ -939,11 +940,30 @@
 
     ctx.save(); ctx.translate(L.cx + ox, L.cy + oy - up); ctx.rotate(TILT); ctx.scale(sc, SQUASH * sc);
     ctx.beginPath(); ctx.arc(0, 0, R, 0, TAU); ctx.fillStyle = css(C.record); ctx.fill();
-    ctx.save(); ctx.clip();
+    ctx.clip();
     ctx.drawImage(rgb2hsl(C.record)[2] < 0.4 ? groovesLight : grooves, -S / 2 * k, -S / 2 * k, S * k, S * k);
-    // gaps between tracks: smooth bands without grooves
+    if (lift || ox || oy) drawGaps(R, C);
+    ctx.restore();
+  }
+  // gaps between tracks: smooth bands without grooves
+  function drawGaps(R, C) {
     ctx.strokeStyle = css(mix(C.record, [255, 255, 255], 0.5)); ctx.lineWidth = GAP * 0.7 * R;
     for (const g of shown.gaps) { ctx.beginPath(); ctx.arc(0, 0, g * R, 0, TAU); ctx.stroke(); }
+  }
+
+  function drawRecord(L, C) {
+    if (!shown) return;
+    const R = L.R, k = L.k;
+    const ox = recOff.x * R, oy = recOff.y * R, lift = recOff.lift;
+    const sc = 1 + 0.03 * lift, up = lift * 0.04 * R;
+    if (!ox && !oy && !lift) {
+      const key = [layoutKey(L), toHex(C.record), toHex(C.edge)].join('|');
+      cachedLayer('record', key, { x: L.cx - 1.25 * R, y: L.cy - 0.85 * R, w: 2.5 * R + 60, h: 1.7 * R + 70 }, () => drawRecordBase(L, C, 0, 0, 0));
+    } else drawRecordBase(L, C, ox, oy, lift);
+
+    ctx.save(); ctx.translate(L.cx + ox, L.cy + oy - up); ctx.rotate(TILT); ctx.scale(sc, SQUASH * sc);
+    ctx.save(); ctx.beginPath(); ctx.arc(0, 0, R, 0, TAU); ctx.clip();
+    if (!ox && !oy && !lift) drawGaps(R, C);
     ctx.rotate(spin);
     if (opts.trail === 'afterglow') drawGlow(R, performance.now());
     else ctx.drawImage(shown.trail, -S / 2 * k, -S / 2 * k, S * k, S * k);
@@ -1110,25 +1130,37 @@
     return c;
   }
   function drawPix(text, x, y, size, ps, color, weight) {
-    const m = pixMask(text, size, weight);
-    scratch.width = m.width; scratch.height = m.height;
-    sctx.drawImage(m, 0, 0);
-    sctx.globalCompositeOperation = 'source-in'; sctx.fillStyle = color; sctx.fillRect(0, 0, m.width, m.height);
-    sctx.globalCompositeOperation = 'source-over';
+    const key = text + '|' + size + '|' + weight + '|' + color;
+    let c = inked.get(key);
+    if (!c) {
+      const m = pixMask(text, size, weight);
+      c = document.createElement('canvas'); c.width = m.width; c.height = m.height;
+      const g = c.getContext('2d');
+      g.drawImage(m, 0, 0);
+      g.globalCompositeOperation = 'source-in'; g.fillStyle = color; g.fillRect(0, 0, m.width, m.height);
+      if (inked.size > 300) inked.clear();
+      inked.set(key, c);
+    }
     ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(scratch, Math.round(x), Math.round(y), m.width * ps, m.height * ps);
+    ctx.drawImage(c, Math.round(x), Math.round(y), c.width * ps, c.height * ps);
     ctx.imageSmoothingEnabled = true;
-    return { w: m.width * ps, h: m.height * ps };
+    return { w: c.width * ps, h: c.height * ps };
   }
   // Long names slide sideways inside maxW instead of being cut: hold, slide to the end, hold, slide back.
   const marquee = { key: '', t0: 0 };
-  function drawPixSlide(text, x, y, size, ps, color, weight, maxW) {
-    const m = pixMask(text, size, weight), w = m.width * ps, h = m.height * ps;
-    if (w <= maxW) return drawPix(text, x, y, size, ps, color, weight);
+  // how far a long name has slid right now (0 when it fits)
+  function slideOff(text, size, weight, ps, maxW) {
+    const w = pixMask(text, size, weight).width * ps;
+    if (w <= maxW) return 0;
     const over = w - maxW, run = over / 30 * 1000, hold = 2000;   // 30 css px per second
     const t = (performance.now() - marquee.t0) % (2 * (hold + run));
     const k = t < hold ? 0 : t < hold + run ? (t - hold) / run : t < 2 * hold + run ? 1 : 1 - (t - 2 * hold - run) / run;
-    const off = Math.round(easeInOut(k) * over / ps) * ps;
+    return Math.round(easeInOut(k) * over / ps) * ps;
+  }
+  function drawPixSlide(text, x, y, size, ps, color, weight, maxW) {
+    const m = pixMask(text, size, weight), w = m.width * ps, h = m.height * ps;
+    if (w <= maxW) return drawPix(text, x, y, size, ps, color, weight);
+    const off = slideOff(text, size, weight, ps, maxW);
     ctx.save(); ctx.beginPath(); ctx.rect(x, y, maxW, h); ctx.clip();
     drawPix(text, x - off, y, size, ps, color, weight);
     ctx.restore();
@@ -1145,13 +1177,45 @@
     ICONS[name].forEach((row, j) => { for (let i = 0; i < row.length; i++) if (row[i] === '1') ctx.fillRect(x + i * ps, y + j * ps, ps, ps); });
   }
 
-  // The info text is drawn twice: dark ink clipped to the background, and a light metal tone clipped to the dark plinth,
-  // so a line that crosses the plinth edge stays readable on both sides.
+  function hudMetrics() {
+    const big = W >= 1200, ps = 2;
+    const sTitle = big ? 21 : (W < 420 ? 16 : 18), sSmall = big ? 14 : 12;
+    const x0 = Math.round(Math.max(inset.left + 20, W * 0.045));
+    const xR = Math.round(W - Math.max(inset.right + 20, W * 0.045));
+    const y0 = Math.round(Math.max(inset.top + 18, Math.max(18, H * 0.055) + safeTop));
+    const portrait = W / H < 0.9;
+    const maxCss = portrait ? W - x0 * 2 : Math.min(W * 0.36, 560);
+    // with the record on the left the info sits top right, right-aligned
+    const toRight = !portrait && opts.position === 'left';
+    return { ps, sTitle, sSmall, x0, xR, y0, maxCss, toRight };
+  }
+
+  // The info text is cached as a layer and repainted only when what it shows changes
+  // (text, progress, time, sliding names, colors, layout).
   function drawHUD(C) {
+    const M = hudMetrics(), L = layout();
+    const mk = media.title + '|' + media.artist + '|' + media.album;
+    if (mk !== marquee.key) { marquee.key = mk; marquee.t0 = performance.now(); }
+    const showing = media.state !== 'stopped' && media.title;
+    const key = [
+      layoutKey(L), inset.top, inset.left, inset.right, opts.position, opts.transparent, toHex(C.ink), toHex(C.metal),
+      media.state, media.source, weEnabled, localOk, today.length,
+      showing ? [media.title, media.artist, media.album, Math.round(prog * 20), fmt(posNow), fmt(media.duration),
+        side ? [side.first, side.index, side.number, side.total].join(',') : '',
+        slideOff(media.title, M.sTitle, 800, M.ps, M.maxCss), slideOff(media.artist, M.sSmall, 600, M.ps, M.maxCss),
+        slideOff(media.album, M.sSmall, 600, M.ps, M.maxCss)].join('|') : '',
+    ].join('|');
+    const x = M.toRight ? M.xR - M.maxCss - 8 : M.x0 - 8;
+    cachedLayer('hud', key, { x, y: 0, w: M.maxCss + 80, h: M.y0 + 360 }, () => paintHUD(C, L));
+  }
+
+  // The text is drawn twice: dark ink clipped to the background, and a light metal tone clipped to the dark plinth,
+  // so a line that crosses the plinth edge stays readable on both sides.
+  function paintHUD(C, L) {
     const DARK = { ink: css(C.ink), soft: css(C.ink, 0.62), dim: css(C.ink, 0.42), faint: css(C.ink, 0.2) };
     if (opts.transparent) { hudPass(C, DARK); return; }
     const LIGHT = { ink: css(C.metal), soft: css(C.metal, 0.78), dim: css(C.metal, 0.58), faint: css(C.metal, 0.25) };
-    const L = layout(), R = L.R;
+    const R = L.R;
     const plinthPath = () => {
       ctx.save(); plane(L); ctx.beginPath(); rrect(ctx, -1.22 * R, -1.18 * R, 7 * R, 7 * R, 0.14 * R); ctx.restore();
     };
@@ -1160,15 +1224,8 @@
   }
 
   function hudPass(C, T) {
-    const big = W >= 1200, ps = 2;
-    const sTitle = big ? 21 : (W < 420 ? 16 : 18), sSmall = big ? 14 : 12;
-    const x0 = Math.round(Math.max(inset.left + 20, W * 0.045));
-    const xR = Math.round(W - Math.max(inset.right + 20, W * 0.045));
-    let y = Math.round(Math.max(inset.top + 18, Math.max(18, H * 0.055) + safeTop));
-    const portrait = W / H < 0.9;
-    const maxCss = portrait ? W - x0 * 2 : Math.min(W * 0.36, 560);
-    // with the record on the left the info sits top right, right-aligned
-    const toRight = !portrait && opts.position === 'left';
+    const { ps, sTitle, sSmall, x0, xR, maxCss, toRight } = hudMetrics();
+    let y = hudMetrics().y0;
     const ax = w => toRight ? xR - Math.min(w, maxCss) : x0;
     const pw = (text, size, weight) => pixMask(text, size, weight).width * ps;
     const st = media.state;
@@ -1182,8 +1239,6 @@
     y += rowSmall + ps * 3;
 
     if (st !== 'stopped' && media.title) {
-      const mk = media.title + '|' + media.artist + '|' + media.album;
-      if (mk !== marquee.key) { marquee.key = mk; marquee.t0 = performance.now(); }
       const line = (text, size, weight, key) => drawPixSlide(text, ax(pw(text, size, weight)), y, size, ps, T[key], weight, maxCss).h;
       y += line(media.title, sTitle, 800, 'ink');
       if (media.artist) y += line(media.artist, sSmall, 600, 'soft');
@@ -1276,11 +1331,40 @@
     ctx.restore();
   }
 
+  // ---------- cached layers ----------
+  // Parts that rarely change are painted once into an offscreen canvas (device pixels) covering rect
+  // (css px) and reused until key changes. The draw functions paint through the global ctx, so it is
+  // swapped to the layer while painting.
+  const layers = {};
+  function cachedLayer(name, key, rect, paint) {
+    const x = Math.max(0, Math.floor(rect.x * DPR)), y = Math.max(0, Math.floor(rect.y * DPR));
+    const w = Math.min(Math.ceil((rect.x + rect.w) * DPR), canvas.width) - x, h = Math.min(Math.ceil((rect.y + rect.h) * DPR), canvas.height) - y;
+    if (w <= 0 || h <= 0) return;
+    const full = key + '|' + [x, y, w, h, DPR].join(',');
+    let Lr = layers[name];
+    if (!Lr) { const c = document.createElement('canvas'); Lr = layers[name] = { c, g: c.getContext('2d'), key: '' }; }
+    if (Lr.key !== full) {
+      if (Lr.c.width !== w || Lr.c.height !== h) { Lr.c.width = w; Lr.c.height = h; }
+      const main = ctx; ctx = Lr.g;
+      ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, w, h);
+      ctx.setTransform(DPR, 0, 0, DPR, -x, -y);
+      try { paint(); } finally { ctx = main; }
+      Lr.key = full;
+    }
+    ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(Lr.c, x, y); ctx.restore();
+  }
+  const layoutKey = L => [W, H, Math.round(L.cx * 2), Math.round(L.cy * 2), Math.round(L.R * 2)].join(',');
+
   function draw(now) {
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
     const C = sceneColors(), L = layout();
     if (opts.transparent) ctx.clearRect(0, 0, W, H);
-    else { ctx.fillStyle = css(C.bg); ctx.fillRect(0, 0, W, H); drawPlinth(L, C); drawSpecks(now); }
+    else {
+      cachedLayer('table', [layoutKey(L), toHex(C.bg), toHex(C.plinth), isDark()].join('|'), { x: 0, y: 0, w: W, h: H }, () => {
+        ctx.fillStyle = css(C.bg); ctx.fillRect(0, 0, W, H); drawPlinth(L, C);
+      });
+      drawSpecks(now);
+    }
     drawDeck(L, C);
     drawRecord(L, C);
     drawArm(L, C, now);
@@ -1312,14 +1396,24 @@
     initDemo();
     addEventListener('load', () => { if (hasWE() && media.source === 'demo') initWE(); });
   }
-  let last = performance.now();
+  let last = performance.now(), rafId = 0, paused = false, skipFrame = false;
   function frame(now) {
+    rafId = requestAnimationFrame(frame);
+    // fps 30: draw every other frame; dt still covers the skipped one so speeds stay the same
+    if (opts.fps === 30 && (skipFrame = !skipFrame)) return;
     const dt = Math.min(0.05, (now - last) / 1000); last = now;
     update(dt, now);
     draw(now);
-    requestAnimationFrame(frame);
   }
-  requestAnimationFrame(t => { last = t; requestAnimationFrame(frame); });
+  // Paused: the loop stops entirely. On resume the time in between is skipped, not played back at once.
+  function setPaused(p) {
+    p = !!p;
+    if (p === paused) return;
+    paused = p;
+    if (p) { cancelAnimationFrame(rafId); save(); }
+    else rafId = requestAnimationFrame(t => { last = t; rafId = requestAnimationFrame(frame); });
+  }
+  rafId = requestAnimationFrame(t => { last = t; rafId = requestAnimationFrame(frame); });
   if (NATIVE) postNative({ type: 'ready' });
 })();
 </script>
