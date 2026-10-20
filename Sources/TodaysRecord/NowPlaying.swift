@@ -153,7 +153,11 @@ final class NowPlaying {
             statusScript = NSAppleScript(source: Self.statusSource)
         }
         var error: NSDictionary?
+        let started = DispatchTime.now()
         let output = statusScript?.executeAndReturnError(&error).stringValue
+        let elapsed = Double(DispatchTime.now().uptimeNanoseconds - started.uptimeNanoseconds) / 1_000_000
+        Log.nowPlaying.debug("상태 스크립트 \(elapsed, format: .fixed(precision: 1))ms")
+        if logToStdout { stdout("[AppleScript] \(String(format: "%.1f", elapsed))ms") }
         if let error {
             let code = error[NSAppleScript.errorNumber] as? Int ?? 0
             Log.nowPlaying.error("상태 스크립트 오류 \(code): \(String(describing: error[NSAppleScript.errorMessage] ?? ""), privacy: .public)")
