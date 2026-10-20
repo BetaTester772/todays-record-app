@@ -1,6 +1,6 @@
 import Foundation
 
-/// 앨범 커버 가져오기. Music → iTunes 검색 순서. 명세 4.6.
+/// 앨범 커버 가져오기. 플레이어 → iTunes 검색 순서. 명세 4.6.
 final class Artwork {
     struct Result {
         let dataURL: String
@@ -11,7 +11,6 @@ final class Artwork {
 
     private let queue: DispatchQueue
     private let logToStdout: Bool
-    private var artScript: NSAppleScript?
     // 아래 두 값은 메인 스레드에서만 다룬다.
     private var counter = 0
     private var last: (data: Data, version: String)?
@@ -23,18 +22,22 @@ final class Artwork {
     }
 
     /// 결과는 메인 스레드에서 받는다. 찾지 못하면 nil.
-    func fetch(artist: String, album: String, title: String, completion: @escaping (Result?) -> Void) {
+    func fetch(for info: NowPlayingInfo, from player: Player, completion: @escaping (Result?) -> Void) {
         let countries = ITunesSearch.countries
+        let name = player.kind.name
+        let running = player.kind.isRunning
         queue.async { [weak self] in
-            guard let self else { return }
-            if let data = self.runArtScript(), Self.mimeType(of: data) != nil {
-                if self.logToStdout { stdout("[커버] Music에서 받음 \(data.count)바이트") }
-                self.finish(data, completion)
-                return
-            }
-            Self.search(artist: artist, album: album, title: title, countries: countries) { data in
-                if self.logToStdout { stdout("[커버] 검색 결과 \(data.map { "\($0.count)바이트" } ?? "없음")") }
-                self.finish(data, completion)
+            player.artwork(for: info, running: running) { data in
+                guard let self else { return }
+                if let data, Self.mimeType(of: data) != nil {
+                    if self.logToStdout { stdout("[커버] \(name)에서 받음 \(data.count)바이트") }
+                    self.finish(data, completion)
+                    return
+                }
+                Self.search(artist: info.artist, album: info.album, title: info.title, countries: countries) { data in
+                    if self.logToStdout { stdout("[커버] 검색 결과 \(data.map { "\($0.count)바이트" } ?? "없음")") }
+                    self.finish(data, completion)
+                }
             }
         }
     }
@@ -56,22 +59,6 @@ final class Artwork {
         }
     }
 
-    /// AppleScript 큐에서만 부른다.
-    private func runArtScript() -> Data? {
-        guard NowPlaying.isMusicRunning else { return nil }
-        if artScript == nil {
-            artScript = NSAppleScript(source: Self.artSource)
-        }
-        var error: NSDictionary?
-        let result = artScript?.executeAndReturnError(&error)
-        if let error {
-            Log.nowPlaying.error("커버 스크립트 오류 \(String(describing: error[NSAppleScript.errorNumber] ?? ""), privacy: .public)")
-            return nil
-        }
-        guard let result, result.stringValue != "none" else { return nil }
-        return result.data
-    }
-
     private static func search(artist: String, album: String, title: String, countries: [String], completion: @escaping (Data?) -> Void) {
         ITunesSearch.findAlbum(artist: artist, album: album, title: title, countries: countries) { found in
             guard let url = found?.artworkURL else {
@@ -91,20 +78,4 @@ final class Artwork {
     private static func dataURL(_ data: Data, _ mime: String) -> String {
         "data:\(mime);base64,\(data.base64EncodedString())"
     }
-
-    // reference/nowplaying.py의 ART_SCRIPT와 같은 내용. 파일 대신 raw data를 바로 돌려받는다.
-    private static let artSource = """
-    if application "Music" is running then
-      tell application "Music"
-        try
-          set t to current track
-          if (count of artworks of t) is 0 then return "none"
-          return raw data of artwork 1 of t
-        on error
-          return "none"
-        end try
-      end tell
-    end if
-    return "none"
-    """
 }

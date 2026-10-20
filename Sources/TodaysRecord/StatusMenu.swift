@@ -9,10 +9,15 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     /// 설정이 바뀌면 불린다. 받는 쪽에서 창과 웹뷰에 반영한다.
     var onSettingsChange: (() -> Void)?
     var onClearRecord: (() -> Void)?
+    /// 메뉴를 열 때 불린다. 실행 중인 플레이어와 지금 보여주는 플레이어(4.5.2). 없으면 Player 항목을 숨긴다.
+    var playerChoice: (() -> (running: [PlayerKind], shown: PlayerKind?))?
+    var onChoosePlayer: ((PlayerKind) -> Void)?
 
     private let settings: Settings
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
     private let nowItem = NSMenuItem(title: "Nothing Playing", action: nil, keyEquivalent: "")
+    private let playerItem = NSMenuItem(title: "Player", action: nil, keyEquivalent: "")
+    private var playerItems: [PlayerKind: NSMenuItem] = [:]
     private let permissionItem = NSMenuItem(title: "Allow Control of Music…", action: nil, keyEquivalent: "")
     private let enabledItem = NSMenuItem(title: "Show Wallpaper", action: nil, keyEquivalent: "")
     private let windowLightItem = NSMenuItem(title: "Window Light", action: nil, keyEquivalent: "")
@@ -40,6 +45,16 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         menu.delegate = self
         nowItem.isEnabled = false
         menu.addItem(nowItem)
+        let players = NSMenu()
+        for kind in PlayerKind.allCases {
+            let item = target(NSMenuItem(title: kind.name, action: nil, keyEquivalent: ""), #selector(choosePlayer(_:)))
+            item.representedObject = kind.rawValue
+            playerItems[kind] = item
+            players.addItem(item)
+        }
+        playerItem.submenu = players
+        playerItem.isHidden = true
+        menu.addItem(playerItem)
         menu.addItem(.separator())
 
         menu.addItem(target(enabledItem, #selector(toggleEnabled)))
@@ -128,8 +143,13 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         }
     }
 
-    func setPermissionNeeded(_ needed: Bool) {
-        permissionItem.isHidden = !needed
+    /// 제어 권한이 없는 플레이어. 비어 있으면 권한 항목을 숨긴다.
+    func setPermissionNeeded(for players: Set<PlayerKind>) {
+        let names = PlayerKind.allCases.filter(players.contains).map(\.name)
+        permissionItem.isHidden = names.isEmpty
+        if !names.isEmpty {
+            permissionItem.title = "Allow Control of \(names.joined(separator: " and "))…"
+        }
     }
 
     // MARK: - 메뉴 동작
@@ -243,13 +263,29 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         refreshChecks()
     }
 
+    @objc private func choosePlayer(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? String, let kind = PlayerKind(rawValue: raw) else { return }
+        onChoosePlayer?(kind)
+    }
+
     @objc private func openAutomationSettings() {
         NSWorkspace.shared.open(Self.automationSettingsURL)
     }
 
     // 메뉴를 열 때마다 체크 표시를 실제 상태에 맞춘다(로그인 항목은 시스템 설정에서도 바뀔 수 있다).
+    // Player 항목은 둘 다 실행 중일 때만 보인다.
     func menuWillOpen(_ menu: NSMenu) {
         refreshChecks()
+        refreshPlayers()
+    }
+
+    private func refreshPlayers() {
+        guard let choice = playerChoice?() else {
+            playerItem.isHidden = true
+            return
+        }
+        playerItem.isHidden = choice.running.count < 2
+        playerItems.forEach { $0.value.state = $0.key == choice.shown ? .on : .off }
     }
 
     // MARK: - 도우미

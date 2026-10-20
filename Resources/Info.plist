@@ -27,6 +27,6 @@
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSAppleEventsUsageDescription</key>
-	<string>Reads the song playing in Music to show it on the record.</string>
+	<string>Reads the song playing in Music or Spotify to show it on the record.</string>
 </dict>
 </plist>

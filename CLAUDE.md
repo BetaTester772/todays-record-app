@@ -1,6 +1,6 @@
 # 오늘의 판 (macOS 메뉴 막대 앱)
 
-Apple Music에서 재생 중인 곡을 레코드 턴테이블 그림으로 바탕화면에 보여주는 앱이다.
+Apple Music 또는 Spotify에서 재생 중인 곡을 레코드 턴테이블 그림으로 바탕화면에 보여주는 앱이다.
 전체 명세는 아래 문서에 있다. 작업 전에 반드시 읽는다.
 
 @docs/SPEC.md
@@ -23,7 +23,7 @@ Apple Music에서 재생 중인 곡을 레코드 턴테이블 그림으로 바�
 - Swift 5.9 이상, AppKit + WebKit. 외부 라이브러리를 쓰지 않는다.
 - Swift Package Manager로 빌드하고 `scripts/bundle.sh`로 .app을 조립한다. `.xcodeproj`는 만들지 않는다.
 - 비공개 API(MediaRemote 등)를 쓰지 않는다. 명세에 적힌 것 외의 비공개 속성 접근도 하지 않는다.
-- Music 앱이 꺼져 있을 때 Music을 실행시키는 코드를 만들지 않는다. AppleScript 전에 `com.apple.Music` 실행 여부를 확인한다.
+- Music이나 Spotify가 꺼져 있을 때 그 앱을 실행시키는 코드를 만들지 않는다. AppleScript 전에 `com.apple.Music`, `com.spotify.client` 실행 여부를 확인한다.
 - AppleScript와 네트워크 요청은 메인 스레드 밖에서 실행한다.
 - 로그는 `os.Logger`(subsystem `com.todaysrecord`)로 남긴다.
 - 사용자에게 보이는 문구(화면, 메뉴, 권한 설명)는 영어로, 짧고 쉬운 말로 쓴다. 곡·앨범·아티스트 이름과 앱 이름 “오늘의 판”은 그대로 둔다. (2026-10-20 사용자 요청으로 한국어에서 변경)
@@ -38,10 +38,11 @@ Apple Music에서 재생 중인 곡을 레코드 턴테이블 그림으로 바�
 
 ```bash
 swift build                     # 빌드
+swift test                      # 단위 테스트 (고르기 규칙, 상태 해석, 곡 위치)
 scripts/run.sh                  # .app 조립, 애드혹 서명, 실행
 scripts/run.sh --demo           # Music 없이 미리보기 데이터로 실행
 scripts/run.sh --windowed       # 일반 창으로 띄워 디버깅 (Safari 웹 속성 검사기 연결 가능)
-scripts/run.sh --log-nowplaying # Music 알림과 AppleScript 결과 출력
+scripts/run.sh --log-nowplaying # Music·Spotify 알림과 AppleScript 결과 출력
 log stream --predicate 'subsystem == "com.todaysrecord"'   # 로그 보기
 ```
 

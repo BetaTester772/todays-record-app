@@ -1,12 +1,12 @@
 # 오늘의 판 — macOS 앱 명세서
 
-버전 0.13 · 2026-10-20 (0.2: LP 면 나누기, iTunes 검색 국가 대체 · 0.3: 음량 노브, 면 램프 · 0.4: 색 섞기 전환, 곡 안 위치 이동 · 0.5: 화면 문구 영어 · 0.6: 긴 이름 흐르기 · 0.7: 메뉴 막대·Dock 피하기 · 0.8: 오늘 들은 곡 수만, 노란 강조색 피하기 · 0.9: M2 설정 메뉴, 창문 빛, 잔상 · 0.10: 판 색 고르기, 시간대 색감 · 0.11: 배경색, 선 색 고르기 · 0.12: 그레인 세기 · 0.13: M4 절전, 여러 화면, 그리기 최적화)
+버전 0.14 · 2026-10-20 (0.2: LP 면 나누기, iTunes 검색 국가 대체 · 0.3: 음량 노브, 면 램프 · 0.4: 색 섞기 전환, 곡 안 위치 이동 · 0.5: 화면 문구 영어 · 0.6: 긴 이름 흐르기 · 0.7: 메뉴 막대·Dock 피하기 · 0.8: 오늘 들은 곡 수만, 노란 강조색 피하기 · 0.9: M2 설정 메뉴, 창문 빛, 잔상 · 0.10: 판 색 고르기, 시간대 색감 · 0.11: 배경색, 선 색 고르기 · 0.12: 그레인 세기 · 0.13: M4 절전, 여러 화면, 그리기 최적화 · 0.14: Spotify 지원)
 
 ## 1. 개요
 
-Apple Music에서 지금 재생 중인 곡을 레코드 턴테이블 그림으로 바탕화면에 보여주는 macOS 메뉴 막대 앱이다. 레코드가 돌고, 톤암 바늘이 곡의 진행에 맞춰 판 안쪽으로 이동하며 앨범 색으로 선을 남기고, 바늘 머리에는 작은 캐릭터가 앉아 있다.
+Apple Music 또는 Spotify에서 지금 재생 중인 곡을 레코드 턴테이블 그림으로 바탕화면에 보여주는 macOS 메뉴 막대 앱이다. 레코드가 돌고, 톤암 바늘이 곡의 진행에 맞춰 판 안쪽으로 이동하며 앨범 색으로 선을 남기고, 바늘 머리에는 작은 캐릭터가 앉아 있다.
 
-화면 그리기는 이미 완성된 `Resources/index.html`(HTML5 Canvas)을 그대로 쓴다. 이 앱이 새로 만드는 것은 그 화면을 바탕화면 층에 띄우고, Music 앱의 재생 정보를 읽어 화면에 넘겨주는 macOS 쪽 부분이다.
+화면 그리기는 이미 완성된 `Resources/index.html`(HTML5 Canvas)을 그대로 쓴다. 이 앱이 새로 만드는 것은 그 화면을 바탕화면 층에 띄우고, Music과 Spotify 앱의 재생 정보를 읽어 화면에 넘겨주는 macOS 쪽 부분이다.
 
 ### 목표
 
@@ -16,7 +16,7 @@ Apple Music에서 지금 재생 중인 곡을 레코드 턴테이블 그림으�
 
 ### 범위 밖 (이번 버전에서 하지 않음)
 
-- Spotify 등 Music 외 플레이어 지원
+- Music, Spotify 외 플레이어 지원
 - 잠금 화면, 로그인 화면 표시
 - App Store 배포와 샌드박스
 - 소리 자체를 분석하는 비트 반응
@@ -47,8 +47,12 @@ Sources/TodaysRecord/
 ├─ WallpaperController.swift  화면별 창 생성, 모니터 변경 대응
 ├─ WallpaperWindow.swift   바탕화면 층 창
 ├─ RecordWebView.swift     WKWebView 설정과 브리지
-├─ NowPlaying.swift        Music 재생 정보 읽기
-├─ Artwork.swift           앨범 커버 가져오기 (Music → 검색 대체)
+├─ NowPlaying.swift        보여줄 플레이어 고르기, 곡 목록·커버 연결
+├─ Player.swift            플레이어 종류(번들 ID, 알림), AppleScript 실행
+├─ PlayerChooser.swift     보여줄 플레이어 고르기 규칙 (4.5.2)
+├─ MusicPlayer.swift       Music 상태 묻기와 해석
+├─ SpotifyPlayer.swift     Spotify 상태 묻기와 해석
+├─ Artwork.swift           앨범 커버 가져오기 (플레이어 → 검색 대체)
 ├─ ITunesSearch.swift      iTunes Search API (커버 검색, 앨범 곡 목록)
 ├─ AlbumTracks.swift       앨범 디스크별 곡 길이 (LP 면 나누기용)
 ├─ SystemVolume.swift      시스템 출력 음량 (음량 노브용)
@@ -58,12 +62,13 @@ Resources/
 ├─ index.html              레코드 화면 (기존 파일, 6장에 따라 일부 수정)
 ├─ Info.plist              번들 정보
 └─ AppIcon.icns            (선택)
+Tests/TodaysRecordTests/    고르기 규칙, 상태 해석, 곡 위치 단위 테스트 (`swift test`)
 scripts/
 ├─ bundle.sh               .app 번들 조립과 애드혹 서명
 └─ run.sh                  빌드 후 실행
 ```
 
-데이터 흐름: Music 앱 → `NowPlaying` → `AppDelegate` → 각 `RecordWebView` → `index.html`. 설정 변경은 `StatusMenu` → `Settings` → 각 `RecordWebView`. 절전 상태는 `PowerWatcher` → 각 `RecordWebView`.
+데이터 흐름: Music·Spotify 앱 → `NowPlaying` → `AppDelegate` → 각 `RecordWebView` → `index.html`. 설정 변경은 `StatusMenu` → `Settings` → 각 `RecordWebView`. 절전 상태는 `PowerWatcher` → 각 `RecordWebView`.
 
 ## 4. 구성 요소 명세
 
@@ -71,8 +76,8 @@ scripts/
 
 - Dock 아이콘 없이 메뉴 막대에만 존재한다 (`Info.plist`의 `LSUIElement = true`).
 - 실행 인자
-  - `--demo`: Music 대신 index.html 내장 미리보기 데이터로 동작 (Music 없이 테스트용)
-  - `--log-nowplaying`: 받은 Music 알림 내용과 AppleScript 결과를 표준 출력에 기록
+  - `--demo`: Music, Spotify 대신 index.html 내장 미리보기 데이터로 동작 (Music 없이 테스트용)
+  - `--log-nowplaying`: 받은 Music·Spotify 알림 내용과 AppleScript 결과를 표준 출력에 기록
   - `--windowed`: 바탕화면 층 대신 일반 창으로 띄워 디버깅 (Safari 웹 속성 검사기로 확인 가능하게 `isInspectable = true`)
 
 ### 4.2 바탕화면 층 창 (`WallpaperWindow`)
@@ -109,14 +114,14 @@ scripts/
 
 ### 4.5 재생 정보 읽기 (`NowPlaying`)
 
-Music 앱의 재생 정보를 다음 두 가지 방법을 합쳐서 얻는다.
+Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법을 합쳐서 얻고, 그중 보여줄 플레이어 하나의 상태만 웹뷰와 메뉴에 보낸다(4.5.2). 아래 (1)~(3)은 Music 기준이고, Spotify의 다른 점은 4.5.1에 적는다.
 
 **(1) 분산 알림.** `DistributedNotificationCenter`에서 이름 `com.apple.Music.playerInfo`를 구독한다. 곡 변경, 재생, 일시정지, 정지 때 온다. `userInfo`에 곡 이름, 아티스트, 앨범, 재생 상태, 전체 시간, 영구 ID 등이 들어 있다. 정확한 키 이름은 `--log-nowplaying`으로 실제 값을 찍어 확인한 뒤 확정한다.
 
 **(2) AppleScript.** 알림에 없는 정보(현재 재생 위치, 앨범 아티스트, BPM, 곡 번호·곡 수·디스크 번호·디스크 수, 앨범 커버)와 앱 시작 시점의 상태는 `NSAppleScript`로 묻는다. 참고 구현은 `reference/nowplaying.py`의 `STATUS_SCRIPT`, `ART_SCRIPT`에 있다.
-- Music이 실행 중이 아니면 절대 실행시키지 않는다. `NSRunningApplication`으로 번들 ID `com.apple.Music`이 떠 있을 때만 묻는다.
+- Music이 실행 중이 아니면 절대 실행시키지 않는다. 메인 스레드에서 `NSWorkspace.shared.runningApplications`에 번들 ID `com.apple.Music`이 있을 때만 묻는다. `NSRunningApplication.runningApplications(withBundleIdentifier:)`는 다른 앱이 종료되는 순간 실행 중인 앱을 빠뜨릴 때가 있어(2026-10 확인, 6번 중 2번) 쓰지 않는다.
 - AppleScript는 메인 스레드를 막지 않도록 별도 직렬 큐에서 실행한다.
-- 언제 묻는가: 앱 시작 시 1번, 알림을 받을 때마다 1번, 재생 중에는 위치 보정을 위해 10초마다 1번. 1초마다 묻지 않는다.
+- 언제 묻는가: 앱 시작 시 실행 중인 플레이어마다 1번, 알림을 받을 때마다 그 플레이어만 1번, 보여주는 플레이어가 재생 중이면 위치 보정을 위해 그 플레이어만 10초마다 1번. 1초마다 묻지 않는다.
 - 숫자는 지역 설정에 따라 소수점이 쉼표일 수 있으니 문자열로 받으면 `,`를 `.`로 바꿔 해석한다.
 - macOS 27의 Music 사전에서는 `tell application "Music"` 안에서 변수 이름 `st`가 컴파일되지 않는다. 참고 구현의 `st`는 `pstate`로 바꿔 쓴다.
 
@@ -136,7 +141,7 @@ Music 앱의 재생 정보를 다음 두 가지 방법을 합쳐서 얻는다.
   "duration": 215.5,             // 초
   "position": 12.0,              // 초, 이 값을 보낸 시점 기준
   "bpm": 0,                      // 없으면 0
-  "id": "영구 ID 또는 제목|아티스트|앨범",
+  "id": "영구 ID, Spotify 곡 ID 또는 제목|아티스트|앨범",
   "trackNumber": 3,              // 디스크 안 곡 번호, 없으면 0
   "trackCount": 12,              // 디스크 안 곡 수, 없으면 0
   "discNumber": 1,               // 없으면 0
@@ -148,12 +153,32 @@ Music 앱의 재생 정보를 다음 두 가지 방법을 합쳐서 얻는다.
 
 `fast forwarding`, `rewinding`은 `playing`으로 본다.
 
-**권한.** 처음 AppleScript를 실행하면 macOS가 “Music을 제어하려고 합니다” 권한을 묻는다. `Info.plist`에 `NSAppleEventsUsageDescription`을 넣는다. 오류 코드 -1743(권한 없음)을 받으면 상태를 `stopped`로 보내고, 메뉴에 “Music 제어 권한 열기” 항목을 보여 시스템 설정의 자동화 화면을 연다.
+**권한.** 플레이어마다 처음 AppleScript를 보내면 macOS가 “Music(Spotify)을 제어하려고 합니다” 권한을 따로 묻는다. `Info.plist`에 `NSAppleEventsUsageDescription`(“Reads the song playing in Music or Spotify to show it on the record.”)을 넣는다. 오류 코드 -1743(권한 없음)을 받으면 그 플레이어를 `stopped`로 보고, 메뉴에 제어 권한 열기 항목을 보여 시스템 설정의 자동화 화면을 연다. 항목 이름은 권한이 없는 플레이어에 따라 “Allow Control of Music…”, “Allow Control of Spotify…”, “Allow Control of Music and Spotify…”로 쓴다.
+
+### 4.5.1 Spotify (`SpotifyPlayer`)
+
+- 번들 ID `com.spotify.client`. 실행 중이 아니면 묻지 않고, 절대 실행시키지 않는다. 스크립트도 `if application "Spotify" is running`으로 감싼다.
+- 분산 알림 `com.spotify.client.PlaybackStateChanged`를 구독한다. 재생, 일시정지, 곡 변경 때 바로 온다. `userInfo` 키는 `Name`, `Artist`, `Album`, `Album Artist`, `Track ID`, `Track Number`, `Disc Number`, `Duration`(밀리초), `Playback Position`(초), `Player State`(`Playing`/`Paused`/…), `Has Artwork`, `Play Count`, `Popularity`다(2026-10 확인). Music과 같이 알림은 묻는 계기로만 쓰고 값은 AppleScript로 읽는다.
+- AppleScript로 `player state`, `player position`(초)과 `current track`의 `name`, `artist`, `album`, `album artist`, `duration`, `track number`, `disc number`, `id`(`spotify:track:…`), `artwork url`을 묻는다. `duration`은 사전에 초로 적혀 있지만 실제로는 밀리초다(2026-10 확인, Spotify 1.3.5).
+- 곡 수, 디스크 수, BPM은 주지 않는다(0). 곡 번호와 디스크는 Spotify 값을 쓰고, 곡 수와 곡 길이는 4.5 (3)의 곡 목록에서 얻는다. 곡 수로 판본을 확인할 수 없으므로, 목록에서 그 번호 곡의 길이가 Spotify 값과 3초 넘게 다르면 목록을 쓰지 않는다.
+- 광고(`id`가 `spotify:ad:`로 시작)는 곡으로 치지 않고 화면과 메뉴에 `stopped`로 보낸다. 판 기록과 오늘 들은 곡 수에 들어가지 않는다. 플레이어 고르기(4.5.2)에서는 재생 중으로 보아, 광고 때문에 다른 플레이어로 넘어갔다 돌아오지 않게 한다.
+- 팟캐스트 에피소드는 일반 곡처럼 다룬다(앨범 자리에 프로그램 이름).
+
+### 4.5.2 보여줄 플레이어 고르기
+
+플레이어마다 마지막 상태를 기억하고, 그중 하나(보여주는 플레이어)의 상태만 보낸다. 권한이 없거나 꺼진 플레이어는 `stopped`로 본다.
+
+- 처음에는 재생 중인 쪽, 없으면 일시정지 상태인 쪽을 보여준다. 앱 시작 때 둘 다 재생 중이거나 둘 다 일시정지면 어느 쪽이 먼저인지 알 수 없으므로 Music을 보여준다.
+- 다른 플레이어가 재생을 시작했을 때(일시정지·정지 → 재생. 재생 중 다음 곡으로 넘어가는 것은 시작이 아님): 보여주는 플레이어가 재생 중이면 무시하고 원래 쪽을 계속 보여준다. 재생 중이 아니면 그쪽으로 넘어간다.
+- 보여주는 플레이어가 재생 → 일시정지가 되면, 다른 쪽이 재생 중일 때 그쪽으로 넘어간다.
+- 보여주는 플레이어가 `stopped`가 되거나 종료되면, 다른 쪽이 재생 중이거나 일시정지 상태일 때 그쪽으로 넘어간다.
+- 둘 다 실행 중이면 메뉴 `Player ▸ Music / Spotify`로 사용자가 고를 수 있다. 고른 플레이어는 위 세 가지 변화가 생길 때까지 그대로 보여준다(재생 중인 쪽이 있어도 일시정지된 쪽을 고를 수 있음). 고른 값은 저장하지 않는다.
+- 넘어갈 때는 새 플레이어에게 한 번 더 물어 최신 위치로 보낸다. 곡 ID가 바뀌므로 기존 곡·판 바꾸기 동작(6장 10)이 그대로 쓰인다.
 
 ### 4.6 앨범 커버 (`Artwork`)
 
 - 곡 ID가 바뀔 때만 가져온다.
-- 1순위: AppleScript로 `artwork 1 of current track`의 `raw data`.
+- 1순위: 플레이어가 주는 커버. Music은 AppleScript로 `artwork 1 of current track`의 `raw data`, Spotify는 `artwork url`의 이미지를 받는다.
 - 2순위(커버가 없거나 실패): iTunes Search API `https://itunes.apple.com/search?term=<아티스트 앨범>&entity=album&limit=5&country=<국가>`에서 앨범 이름이 같은 결과(없으면 첫 결과)의 `artworkUrl100`에서 `100x100bb`를 `600x600bb`로 바꿔 받는다. 국가 기본값 `KR`, 설정으로 변경 가능.
 - 앨범 찾기는 먼저 `entity=song`, `term=<아티스트 제목>`으로 하고(스트리밍 곡의 앨범은 앨범 검색에 잘 걸리지 않음), 못 찾으면 위의 앨범 검색을 쓴다. 앨범 이름과 곡 제목이 같은 결과를 먼저 고른다.
 - 2026-10 확인 결과 `country=KR`은 search, lookup 모두 결과가 0건이다(한국 iTunes Store는 음악을 팔지 않음). 그래서 설정 국가로 찾지 못하면 `US`로 한 번 더 찾는다. 찾은 앨범의 `collectionId`로 `lookup?id=<id>&entity=song`을 불러 곡 목록과 길이(`trackTimeMillis`)도 얻는다(4.5의 (3)).
@@ -186,6 +211,7 @@ Music 앱의 재생 정보를 다음 두 가지 방법을 합쳐서 얻는다.
 | 항목 | 동작 |
 |---|---|
 | 지금 재생 중인 곡 (비활성 텍스트) | 제목 — 아티스트 표시. 없으면 “Nothing Playing” |
+| Player ▸ Music / Spotify | 둘 다 실행 중일 때만 표시. 보여줄 플레이어를 고른다(4.5.2) |
 | 배경화면 켜기 / 끄기 | 창 표시 여부 |
 | 레코드 위치 ▸ 왼쪽 / 가운데 / 오른쪽 | `setOptions({position})` |
 | 배경 ▸ 기본 / 투명 | 투명이면 원래 배경화면 위에 턴테이블만 표시 |
@@ -200,10 +226,10 @@ Music 앱의 재생 정보를 다음 두 가지 방법을 합쳐서 얻는다.
 | 시스템 배경화면 색 맞추기 (체크) | 4.9 |
 | 이 판 비우기 | `clearRecord()` |
 | 로그인 시 실행 (체크) | `SMAppService.mainApp` 등록/해제 |
-| Music 제어 권한 열기 (“Allow Control of Music…”) | 권한이 없을 때만 표시 |
+| 제어 권한 열기 (“Allow Control of Music…” 등, 4.5) | 권한이 없는 플레이어가 있을 때만 표시 |
 | 종료 | 앱 종료 (4.9가 켜져 있으면 원래 배경화면 복원 후) |
 
-설정은 `UserDefaults`에 저장하고(키 `enabled`, `position`, `transparent`, `windowLight`, `trail`, `grain`, `recordColor`, `bgColor`, `lineColor`, `displays`, `fps`), 앱 시작 시와 웹뷰가 준비될 때 모든 웹뷰에 `setOptions`로 적용한다. 메뉴 문구는 영어로 쓴다(Show Wallpaper, Record Position, Background, Effects ▸ Window Light / Trail ▸ Keep·Afterglow, Clear This Record, Open at Login, Quit). 로그인 항목이 사용자 승인을 기다리는 상태(`requiresApproval`)면 시스템 설정의 로그인 항목 화면을 연다. 시스템 배경화면 색 맞추기(4.9) 항목은 M5에서 기능과 함께 더한다.
+설정은 `UserDefaults`에 저장하고(키 `enabled`, `position`, `transparent`, `windowLight`, `trail`, `grain`, `recordColor`, `bgColor`, `lineColor`, `displays`, `fps`), 앱 시작 시와 웹뷰가 준비될 때 모든 웹뷰에 `setOptions`로 적용한다. 메뉴 문구는 영어로 쓴다(Player, Show Wallpaper, Record Position, Background, Effects ▸ Window Light / Trail ▸ Keep·Afterglow, Clear This Record, Open at Login, Quit). 로그인 항목이 사용자 승인을 기다리는 상태(`requiresApproval`)면 시스템 설정의 로그인 항목 화면을 연다. 시스템 배경화면 색 맞추기(4.9) 항목은 M5에서 기능과 함께 더한다.
 
 ### 4.9 시스템 배경화면 색 맞추기 (`WallpaperSync`, 선택 기능, 기본 꺼짐)
 
@@ -252,7 +278,7 @@ Music 앱의 재생 정보를 다음 두 가지 방법을 합쳐서 얻는다.
 6. **투명 배경.** transparent면 배경 채우기와 받침(plinth)을 그리지 않고, 레코드·톤암·노브·곡 정보만 그린다. 그레인은 레코드 영역에만 적용하거나 생략한다.
 7. **역할.** `role`이 `mirror`면 localStorage에 쓰지 않는다(읽기만).
 8. **palette 메시지.** 앨범 색이 바뀔 때 `bg`, `plinth`, `accent`를 보낸다.
-9. 상태 문구: native에서 권한 오류 등으로 stopped일 때 “Play something in Apple Music to drop the needle”을 보여준다.
+9. 상태 문구: native에서 권한 오류 등으로 stopped일 때 “Play something in Music or Spotify to drop the needle”을 보여준다.
 10. **LP 면 나누기.** `trackNumber`, `trackCount`가 있으면 실제 LP처럼 디스크를 면으로 나눈다.
     - 한 면에 최대 6곡. 면 수는 `ceil(곡 수 / 6)`, 곡은 앞면부터 고르게 나눈다(2곡 → 1면, 12곡 → 6+6, 13곡 → 5+4+4).
     - 면 하나가 판 하나다(판 키 = 앨범 키 + 디스크 + 면). 면 안에서 곡마다 띠를 나누고, 띠 폭은 `trackDurations`가 있으면 곡 길이 비율, 없으면 같은 폭. 기존 미리보기 데이터의 `bandsFor`와 `beginTrack({band, gaps})`를 그대로 쓴다.
@@ -329,6 +355,13 @@ Music 앱의 재생 정보를 다음 두 가지 방법을 합쳐서 얻는다.
 - Music이 꺼져 있을 때 앱이 Music을 실행시키지 않는다.
 - 권한을 거부하면 메뉴에 권한 열기 항목이 보인다.
 
+**M3.1 Spotify 연결**
+- Spotify에서 곡을 틀면 제목, 아티스트, 앨범, 진행 시간, 커버가 반영된다. 광고는 곡으로 표시되지 않는다.
+- 둘 다 실행 중이면 메뉴에서 플레이어를 고를 수 있다. 나중에 재생을 시작한 쪽은 무시되고, 보여주던 쪽을 일시정지하면 재생 중인 쪽으로 넘어간다.
+- 보여주던 플레이어를 종료하면 다른 쪽으로 넘어가거나 정지로 표시된다.
+- Spotify가 꺼져 있을 때 앱이 Spotify를 실행시키지 않는다.
+- Spotify 권한을 거부하면 메뉴에 “Allow Control of Spotify…”가 보인다.
+
 **M4. 절전과 여러 화면**
 - 잠금, 잠자기, 전체 화면 앱으로 가려질 때 그리기가 멈추고 돌아오면 이어진다.
 - 모든 화면 모드에서 모니터를 꽂고 빼도 창이 맞게 다시 생긴다.
@@ -342,7 +375,7 @@ Music 앱의 재생 정보를 다음 두 가지 방법을 합쳐서 얻는다.
 
 ## 9. 알려진 주의점
 
-- 애드혹 서명은 빌드할 때마다 서명이 바뀌어 Music 제어 권한을 다시 물을 수 있다. 계속 거슬리면 키체인 접근에서 자체 서명 인증서를 만들어 그 인증서로 서명한다.
+- 애드혹 서명은 빌드할 때마다 서명이 바뀌어 Music·Spotify 제어 권한을 다시 물을 수 있다. 계속 거슬리면 키체인 접근에서 자체 서명 인증서를 만들어 그 인증서로 서명한다.
 - 서명·공증 없는 앱은 처음 열 때 “확인되지 않은 개발자” 경고가 뜬다. 다른 사람에게 배포하려면 Apple 개발자 프로그램 서명과 공증이 필요하다.
 - 시스템 메뉴 막대와 위젯 색은 실제 시스템 배경화면을 따른다(4.9가 이를 보완).
 - 바탕화면 층 창의 정확한 층 값과 동작은 macOS 버전마다 다를 수 있어 M1에서 실제로 확인한다.
