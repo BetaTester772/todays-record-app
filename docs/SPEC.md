@@ -1,6 +1,6 @@
 # 오늘의 판 — macOS 앱 명세서
 
-버전 0.21 · 2026-10-20 (0.2: LP 면 나누기, iTunes 검색 국가 대체 · 0.3: 음량 노브, 면 램프 · 0.4: 색 섞기 전환, 곡 안 위치 이동 · 0.5: 화면 문구 영어 · 0.6: 긴 이름 흐르기 · 0.7: 메뉴 막대·Dock 피하기 · 0.8: 오늘 들은 곡 수만, 노란 강조색 피하기 · 0.9: M2 설정 메뉴, 창문 빛, 잔상 · 0.10: 판 색 고르기, 시간대 색감 · 0.11: 배경색, 선 색 고르기 · 0.12: 그레인 세기 · 0.13: M4 절전, 여러 화면, 그리기 최적화 · 0.14: Spotify 지원 · 0.15: 설정 창, 화면별 켜기, 앱 아이콘 · 0.16: 배포 zip, README · 0.17: M5 뺌 · 0.18: 긴 앨범 LP 세트 · 0.19: 면 바꾸기 동작 · 0.20: 자연스러운 움직임, 글자 색 · 0.21: 앱 안 업데이트, 배포 인증서)
+버전 0.22 · 2026-10-21 (0.2: LP 면 나누기, iTunes 검색 국가 대체 · 0.3: 음량 노브, 면 램프 · 0.4: 색 섞기 전환, 곡 안 위치 이동 · 0.5: 화면 문구 영어 · 0.6: 긴 이름 흐르기 · 0.7: 메뉴 막대·Dock 피하기 · 0.8: 오늘 들은 곡 수만, 노란 강조색 피하기 · 0.9: M2 설정 메뉴, 창문 빛, 잔상 · 0.10: 판 색 고르기, 시간대 색감 · 0.11: 배경색, 선 색 고르기 · 0.12: 그레인 세기 · 0.13: M4 절전, 여러 화면, 그리기 최적화 · 0.14: Spotify 지원 · 0.15: 설정 창, 화면별 켜기, 앱 아이콘 · 0.16: 배포 zip, README · 0.17: M5 뺌 · 0.18: 긴 앨범 LP 세트 · 0.19: 면 바꾸기 동작 · 0.20: 자연스러운 움직임, 글자 색 · 0.21: 앱 안 업데이트, 배포 인증서 · 0.22: 업데이트 설치 자리, 실패 이유, 응용 프로그램 폴더로 옮기기)
 
 ## 1. 개요
 
@@ -243,7 +243,10 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
 
 - 설정 `autoUpdateCheck`(기본 켜짐)면 앱 시작 10초 뒤와, 그 뒤 마지막 확인에서 24시간이 지날 때마다 `https://api.github.com/repos/soysaucecrab/todays-record-app/releases/latest`를 확인한다(메인 스레드 밖, 마지막 확인 시각은 `lastUpdateCheck`). 설정 창 General의 **Check Now**로 바로 확인할 수도 있다.
 - 태그(`v0.4.0`)를 숫자 단위로 지금 버전(`CFBundleShortVersionString`)과 비교해, 새 버전이면 메뉴에 “Update to v0.4.0…”, 설정 창에 업데이트 버튼을 보인다.
-- 누르면 확인 창(Update / Later / Release Notes)을 띄우고, Update면: 릴리스의 `TodaysRecord-<버전>.zip`과 `.sha256`을 받아 SHA-256을 맞춰 보고 → `ditto`로 풀고 → 번들 ID가 같은지, 서명이 정상인지 확인하고 → **지금 앱이 인증서로 서명돼 있으면 새 앱도 같은 designated requirement(같은 인증서)를 만족하는지** 확인한 뒤(`SecStaticCodeCheckValidity`) → 지금 앱 자리에 원자적으로 바꿔 넣고(`FileManager.replaceItemAt`) → 지금 앱이 끝나면 새 앱을 연다. 어느 단계든 실패하면 아무것도 바꾸지 않고 릴리스 페이지를 연다. 앱 폴더에 쓸 권한이 없어도 같다.
+- 누르면 확인 창(Update / Later / Release Notes)을 띄우고, Update면: 릴리스의 `TodaysRecord-<버전>.zip`과 `.sha256`을 받아 SHA-256을 맞춰 보고 → `ditto`로 풀고 → 번들 ID가 같은지, 서명이 정상인지 확인하고 → **지금 앱이 인증서로 서명돼 있으면 새 앱도 같은 designated requirement(같은 인증서)를 만족하는지** 확인한 뒤(`SecStaticCodeCheckValidity`) → 설치할 자리에 바꿔 넣고 → 지금 앱이 끝나면 새 앱을 연다.
+- 설치할 자리: 지금 앱 자리에 쓸 수 있고 App Translocation(경로에 `/AppTranslocation/`, 다운로드한 앱을 옮기지 않고 열면 macOS가 읽기 전용 임시 자리에서 실행함) 중이 아니면 지금 자리(`FileManager.replaceItemAt`로 원자적으로 바꿈). 아니면 `/Applications/TodaysRecord.app`. 그 자리에 쓸 권한이 없으면 `NSAppleScript`의 `do shell script … with administrator privileges`로 macOS 관리자 암호 창을 띄워 `rm -rf` 후 `ditto --noqtn`으로 넣는다. 암호 창에서 취소하면(-128) 취소로 본다.
+- 어느 단계든 실패하면 아무것도 바꾸지 않고, 실패 이유(받기 실패, 체크섬 다름, 서명 다름, 쓸 권한 없음 등)를 알림 창으로 보여 준다(Open Download Page / OK). 릴리스 페이지를 말없이 열지 않는다.
+- 앱 시작 때 App Translocation 중이거나 `~/Downloads` 안에서 실행 중이면 “Move 오늘의 판 to the Applications folder?”(Move to Applications / Not Now)를 묻는다. 옮기면 `/Applications`에 넣고(필요하면 관리자 암호), 원래 자리의 앱은 휴지통으로 보낸 뒤(Translocation이면 원본을 모르므로 그대로 둠) 새 자리에서 다시 연다.
 - 앱이 직접 받은 파일에는 “인터넷에서 받음” 표시(quarantine)가 붙지 않아, 업데이트 뒤에는 “그래도 열기”가 다시 필요 없다(확인함).
 
 ### 4.9 (뺌) 시스템 배경화면 색 맞추기
