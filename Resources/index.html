@@ -861,7 +861,8 @@
     let cx, cy, R;
     if (portrait) { R = Math.min(Wv * 0.52, Hv * 0.4); cx = Wv * 0.46; cy = Hv * 0.6; }
     // 0.53 (was 0.62) keeps the knobs and side lamps on the record's front arc inside the visible area
-    else { R = Math.min(Wv * 0.32, Hv * 0.53); cx = Wv * ({ left: 0.32, center: 0.5, right: 0.57 }[opts.position] || 0.57); cy = Hv * 0.6; }
+    // cy 0.56 (was 0.6): a little higher so the controls on the record's front arc stay clear of the Dock
+    else { R = Math.min(Wv * 0.32, Hv * 0.53); cx = Wv * ({ left: 0.32, center: 0.5, right: 0.57 }[opts.position] || 0.57); cy = Hv * 0.56; }
     return { cx: cx + inset.left, cy: cy + inset.top, R, k: R / R_LOCAL };
   }
   function toScreen(L, lx, ly, ox = 0, oy = 0) {
