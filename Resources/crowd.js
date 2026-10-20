@@ -17,6 +17,7 @@
     let ctx = null;
 
     const MAX = 6;
+    const WALK = 20;   // walking speed in u per second: an easy stroll
     const PLINTH = { x0: -1.22, y0: -1.18, x1: 5.78, y1: 5.82 };   // in record radii, record-plane coordinates
     const crowd = { people: [], play: 0, idle: 0, nextAt: rand(180, 420), leaveAt: rand(30, 60), stopped: false, beat: 0, spots: null, spotsKey: '', hud: null, fx: [], prot: [], trackKey: '' };
     // Crowd Pace in the settings (1, 2, 5 or 10 times as fast); test copies can speed it up further
@@ -180,7 +181,7 @@
     }
     const runFace = a => (surfaceDir(a).x > 0 ? -1 : 1);
     // stepping between the record's edge area (1.3 radii) and the running track, at the usual walking speed
-    const stepTime = (L, p, a) => { const A = recordPoint(L, a, 1.3), B = recordPoint(L, a, RUN_R); return Math.max(0.4, Math.hypot(A.x - B.x, A.y - B.y) / (30 * unitOf(L) * p.k * p.pace)); };
+    const stepTime = (L, p, a) => { const A = recordPoint(L, a, 1.3), B = recordPoint(L, a, RUN_R); return Math.max(0.6, Math.hypot(A.x - B.x, A.y - B.y) / (WALK * unitOf(L) * p.k * p.pace)); };
 
     // ---------- comings and goings ----------
     const FRONT_OK = ['idle', 'hello', 'bye', 'dance', 'headbang', 'phone'];
@@ -235,18 +236,18 @@
       const mates = crowd.people.filter(o => o !== p && !o.leaving && !o.partner && (o.act === 'idle' || o.act === 'dance' || o.act === 'phone'));
       const runners = crowd.people.filter(o => o.runs).length;
       const W8 = playing
-        ? { dance: 3, headbang: 1.2, bboy: 0.9, swing: hasEdge ? 1.5 : 0, read: 0.8, doze: 0.5, phone: 0.8, walk: 1.4, idle: 1, play: mates.length ? 1.6 : 0, run: recordSteady() && runners < 2 ? 0.9 : 0 }
-        : { swing: hasEdge ? 1.4 : 0, read: 2, doze: 2, phone: 1.6, walk: 1, idle: 1.4, play: mates.length ? 0.8 : 0 };
+        ? { dance: 3, headbang: 1.2, bboy: 0.9, swing: hasEdge ? 1.5 : 0, read: 0.8, doze: 0.5, phone: 0.8, walk: 0.8, idle: 1.4, play: mates.length ? 1.6 : 0, run: recordSteady() && runners < 2 ? 0.9 : 0 }
+        : { swing: hasEdge ? 1.4 : 0, read: 2, doze: 2, phone: 1.6, walk: 0.6, idle: 1.8, play: mates.length ? 0.8 : 0 };
       let sum = 0; for (const k in W8) sum += W8[k];
       let r = Math.random() * sum, act = 'idle';
       for (const k in W8) { r -= W8[k]; if (r <= 0) { act = k; break; } }
       if (forced) act = forced;
-      const dur = { dance: rand(18, 36), headbang: rand(9, 16), bboy: 18, swing: rand(25, 50), read: rand(30, 60), doze: rand(25, 50), phone: rand(16, 30), idle: rand(5, 12) }[act];
+      const dur = { dance: rand(30, 60), headbang: rand(12, 20), bboy: 18, swing: rand(40, 80), read: rand(45, 90), doze: rand(40, 80), phone: rand(25, 45), idle: rand(8, 18) }[act];
 
       if (act === 'walk') {
         const s = findSpot(L, p, chance(0.2) && hasEdge ? 'edge' : 'stand', 22);
-        if (s) goTo(L, p, s.x, s.y, () => { p.kind = s.kind; startAct(L, p, 'idle', rand(2, 5)); });
-        else startAct(L, p, 'idle', 3);
+        if (s) goTo(L, p, s.x, s.y, () => { p.kind = s.kind; startAct(L, p, 'idle', rand(4, 9)); });
+        else startAct(L, p, 'idle', 5);
         return;
       }
       if (act === 'run') {
@@ -262,7 +263,7 @@
         let bx = p.x + side * gap, ok = spotOK(L, bx, p.y, 'stand', u);
         if (!ok) { bx = p.x - side * gap; ok = spotOK(L, bx, p.y, 'stand', u); }
         if (p.kind !== 'stand' || !ok) { startAct(L, p, 'idle', 2); return; }
-        const game = pick(['highfive', 'twirl', 'tag']), d = rand(9, 14);
+        const game = pick(['highfive', 'twirl', 'tag']), d = rand(12, 20);
         p.partner = q; q.partner = p; p.game = q.game = game;
         startAct(L, p, 'wait', 30); p.face = bx > p.x ? 1 : -1;
         goTo(L, q, bx, p.y, () => {
@@ -320,7 +321,7 @@
       }
 
       // anyone standing in front of or behind someone else moves over (checked now and then, one person at a time)
-      if ((crowd.sepT = (crowd.sepT || 0) + dt) > 1.2) {
+      if ((crowd.sepT = (crowd.sepT || 0) + dt) > 3) {
         crowd.sepT = 0;
         const still = people.filter(p => !p.leaving && !p.runs && !p.partner && !['walk', 'play', 'wait', 'hello', 'bye'].includes(p.act));
         for (const p of still) {
@@ -337,7 +338,7 @@
         if (p.act === 'walk') {
           const tgt = p.path[0];
           if (!tgt) { const f = p.then; p.then = null; p.act = 'idle'; p.t = 0; p.dur = 2; if (f) f(); continue; }
-          const dx = tgt.x - p.x, dy = tgt.y - p.y, d = Math.hypot(dx, dy), v = 30 * u * p.k * p.pace * (p.leaving ? 1.25 : 1);
+          const dx = tgt.x - p.x, dy = tgt.y - p.y, d = Math.hypot(dx, dy), v = WALK * u * p.k * p.pace * (p.leaving ? 1.1 : 1);
           if (d < v * dt) { p.x = tgt.x; p.y = tgt.y; p.path.shift(); }
           else { p.x += dx / d * v * dt; p.y += dy / d * v * dt; if (Math.abs(dx) > 0.5) p.face = dx > 0 ? 1 : -1; }
           p.walkPhase += dt * v / (5.5 * u);
@@ -351,10 +352,10 @@
         if (p.act === 'wait') { if (!p.partner) startAct(L, p, 'idle', 1); continue; }
         if (p.act === 'play' && p.game === 'tag' && p.home) {
           // tag: the two take turns chasing each other around a little circle
-          const a = p.t * 1.6 + (p.face > 0 ? 0 : Math.PI), r = 7 * u;
+          const a = p.t * 1.1 + (p.face > 0 ? 0 : Math.PI), r = 7 * u;
           const nx = p.home.x + Math.cos(a) * r * (p.face > 0 ? 1 : -1), ny = p.home.y + Math.sin(a) * r * 0.45;
           if (Math.abs(nx - p.x) > 0.2) p.chaseFace = nx > p.x ? 1 : -1;
-          p.x = nx; p.y = ny; p.walkPhase += dt * 9;
+          p.x = nx; p.y = ny; p.walkPhase += dt * 6.5;
         }
         // the music stopped: dancers stop; the music came back: dozers wake with a start
         if (!playing && ['dance', 'headbang', 'bboy'].includes(p.act)) p.t = p.dur;
@@ -382,8 +383,8 @@
       if (p.act === 'stepon') {
         const e = clamp(p.t / p.dur), q = recordPoint(L, p.ra, lerp(1.3, RUN_R, e));
         if (Math.abs(q.x - p.x) > 0.3) p.face = q.x > p.x ? 1 : -1;
-        p.walkPhase += dt * 30 * p.k * p.pace / 5.5; p.x = q.x; p.y = q.y;
-        if (e >= 1) { startAct(L, p, 'run', rand(8, 16)); p.face = runFace(p.ra); }
+        p.walkPhase += dt * WALK * p.k * p.pace / 5.5; p.x = q.x; p.y = q.y;
+        if (e >= 1) { startAct(L, p, 'run', rand(12, 22)); p.face = runFace(p.ra); }
         return;
       }
       if (p.act === 'run') {
@@ -400,7 +401,7 @@
       if (p.act === 'stepoff') {
         const e = clamp(p.t / p.dur), q = recordPoint(L, p.ra, lerp(RUN_R, 1.32, e));
         if (Math.abs(q.x - p.x) > 0.3) p.face = q.x > p.x ? 1 : -1;
-        p.walkPhase += dt * 30 * p.k * p.pace / 5.5; p.x = q.x; p.y = q.y;
+        p.walkPhase += dt * WALK * p.k * p.pace / 5.5; p.x = q.x; p.y = q.y;
         if (e >= 1) { p.runs = false; p.kind = 'stand'; if (p.leaving) { startAct(L, p, 'bye', 0.6); p.after = goHome(L, p); } else startAct(L, p, 'idle', rand(1, 2)); }
         return;
       }
@@ -521,7 +522,7 @@
           const g = Math.sin(now / 420 + p.seed);
           P.armB = [-1 * u + g * 2 * u, -6 * u - Math.abs(g) * 3 * u];
           // pacing a little while talking
-          if (Math.sin(now / 3000 + p.seed) > 0.6) { stride(now / 180, 1.6 * u); }
+          if (Math.sin(now / 4200 + p.seed) > 0.6) { stride(now / 240, 1.6 * u); }
           phoneTalk(p, P, now, u);
           break;
         }
@@ -529,7 +530,7 @@
         case 'play': {
           const q = p.partner;
           if (p.game === 'highfive') {
-            const c = (t + 0.2) % 1.8, j = c > 0.5 && c < 1.1 ? Math.sin((c - 0.5) / 0.6 * Math.PI) : 0;
+            const c = (t + 0.2) % 2.4, j = c > 0.5 && c < 1.1 ? Math.sin((c - 0.5) / 0.6 * Math.PI) : 0;
             P.hipY -= j * 6 * u; P.mouth = 'smile';
             P.armF = c > 0.4 && c < 1.15 ? [5.6 * u, -24 * u] : [3 * u, -4 * u];
             if (j > 0) legs(-u, u, j * 2 * u);
@@ -561,23 +562,23 @@
 
     function idlePose(p, P, now, u, pulse, view) {
       const t = p.t;
-      P.hipY += Math.sin(now / 900 + p.seed) * 0.25 * u;
-      P.head = Math.sin(now / 2300 + p.seed) * 0.08;
+      P.hipY += Math.sin(now / 1300 + p.seed) * 0.25 * u;
+      P.head = Math.sin(now / 3200 + p.seed) * 0.08;
       if (S.media.state === 'playing') P.head += pulse * 0.08;
       const front = view === 'front';
-      if (p.idle === 'stretch' && t < 2.2) {
-        const e = Math.sin(clamp(t / 2.2) * Math.PI);
+      if (p.idle === 'stretch' && t < 3) {
+        const e = Math.sin(clamp(t / 3) * Math.PI);
         if (front) { P.armL = [-3 * u, lerp(-2, -26, e) * u]; P.armR = [3 * u, lerp(-2, -26, e) * u]; }
         else { P.armB = [0, lerp(-2, -26, e) * u]; P.armF = [1 * u, lerp(-2, -26, e) * u]; }
         P.eyes = e > 0.5 ? 'closed' : 'open'; P.mouth = e > 0.5 ? 'o' : '';
       } else if (p.idle === 'look') {
         // looking over at the record now and then (turning around in side view)
-        if (!front && Math.floor((t + p.seed) / 3) % 2) p.lookBack = true; else p.lookBack = false;
-        P.head += Math.sin(t * 1.3) * 0.12;
+        if (!front && Math.floor((t + p.seed) / 4.5) % 2) p.lookBack = true; else p.lookBack = false;
+        P.head += Math.sin(t * 0.9) * 0.12;
       } else if (p.idle === 'tap' && S.media.state === 'playing') {
         if (front) P.tapR = pulse * 1.4 * u; else { P.legF.fy -= pulse * 1.4 * u; P.legF.fx += pulse * 0.8 * u; }
       } else if (p.idle === 'cup') {
-        const sip = (t % 5) < 1.2;
+        const sip = (t % 7) < 1.6;
         P.prop = 'cup';
         if (front) P.armR = sip ? [1 * u, -15.5 * u] : [4.4 * u, -6 * u];
         else P.armF = sip ? [3.6 * u, -15.5 * u] : [4.2 * u, -6.4 * u];
@@ -637,7 +638,7 @@
     function frontPose(p, act, now, u) {
       const t = p.t, beat = crowd.beat + p.seed * 0.137, bp = beat % 1, pulse = Math.pow(1 - bp, 3);
       const P = { hipY: -9 * u, dx: 0, armL: [-5.2 * u, -1.5 * u], armR: [5.2 * u, -1.5 * u], head: 0, headY: 0, mouth: '', eyes: 'open', prop: '', liftL: 0, liftR: 0, tapR: 0 };
-      P.dx = Math.sin(now / 1500 + p.seed) * 0.3 * u;
+      P.dx = Math.sin(now / 2100 + p.seed) * 0.3 * u;
       switch (act) {
         case 'hello': case 'bye': P.armR = [6 * u + Math.sin(t * 14) * 1.6 * u, -25 * u]; P.mouth = 'smile'; break;
         case 'idle': idlePose(p, P, now, u, pulse, 'front'); break;
