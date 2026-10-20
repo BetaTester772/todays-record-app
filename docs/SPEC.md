@@ -183,7 +183,7 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
 - 곡 ID가 바뀔 때만 가져온다.
 - 1순위: 플레이어가 주는 커버. Music은 AppleScript로 `artwork 1 of current track`의 `raw data`, Spotify는 `artwork url`의 이미지를 받는다.
 - 2순위(커버가 없거나 실패): iTunes Search API `https://itunes.apple.com/search?term=<아티스트 앨범>&entity=album&limit=5&country=<국가>`에서 앨범 이름이 같은 결과(없으면 첫 결과)의 `artworkUrl100`에서 `100x100bb`를 `600x600bb`로 바꿔 받는다. 국가 기본값 `KR`, 설정으로 변경 가능.
-- 앨범 찾기는 먼저 `entity=song`, `term=<아티스트 제목>`으로 하고(스트리밍 곡의 앨범은 앨범 검색에 잘 걸리지 않음), 못 찾으면 위의 앨범 검색을 쓴다. 앨범 이름과 곡 제목이 같은 결과를 먼저 고른다.
+- 앨범 찾기는 먼저 `entity=song`, `term=<아티스트 제목>`으로 하고(스트리밍 곡의 앨범은 앨범 검색에 잘 걸리지 않음), 못 찾으면 위의 앨범 검색을 쓴다. 앨범 이름과 곡 제목이 같은 결과를 먼저 고른다. 앨범 이름은 대소문자와, iTunes가 싱글·EP 이름 끝에 붙이는 ` - Single`, ` - EP`를 무시하고 비교한다(Spotify 앨범 이름에는 붙지 않는다. 2026-10 확인: `アイドル` ↔ `アイドル - Single`).
 - 2026-10 확인 결과 `country=KR`은 search, lookup 모두 결과가 0건이다(한국 iTunes Store는 음악을 팔지 않음). 그래서 설정 국가로 찾지 못하면 `US`로 한 번 더 찾는다. 찾은 앨범의 `collectionId`로 `lookup?id=<id>&entity=song`을 불러 곡 목록과 길이(`trackTimeMillis`)도 얻는다(4.5의 (3)).
 - PNG/JPEG 바이트를 base64 data URL로 바꿔 `TodaysRecord.art(dataURL, version)`으로 보낸다. 같은 커버를 다시 보내지 않는다.
 
