@@ -262,8 +262,18 @@ final class NowPlaying {
         }
     }
 
+    /// 잠자기·잠금 동안 위치 확인을 쉰다. 풀리면 바로 한 번 묻는다. 명세 4.7.
+    var suspended = false {
+        didSet {
+            guard suspended != oldValue else { return }
+            Log.nowPlaying.info("위치 확인 \(self.suspended ? "쉼" : "다시 시작", privacy: .public)")
+            updatePollTimer()
+            if !suspended { query(reason: "resume") }
+        }
+    }
+
     private func updatePollTimer() {
-        if current.state == .playing {
+        if current.state == .playing && !suspended {
             guard pollTimer == nil else { return }
             let timer = Timer(timeInterval: Self.pollInterval, repeats: true) { [weak self] _ in
                 self?.query(reason: "poll")

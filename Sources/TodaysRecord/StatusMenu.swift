@@ -21,6 +21,8 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     private var backgroundItems: [Bool: NSMenuItem] = [:]
     private var trailItems: [Settings.Trail: NSMenuItem] = [:]
     private var grainItems: [Settings.Grain: NSMenuItem] = [:]
+    private var displayItems: [Settings.Displays: NSMenuItem] = [:]
+    private var fpsItems: [Settings.FrameRate: NSMenuItem] = [:]
     private var colorItems: [Settings.ColorSlot: [NSMenuItem]] = [:]
     private var customColorItems: [Settings.ColorSlot: NSMenuItem] = [:]
     /// 색상 창이 지금 바꾸고 있는 색.
@@ -50,6 +52,24 @@ final class StatusMenu: NSObject, NSMenuDelegate {
             position.addItem(item)
         }
         menu.addItem(submenu("Record Position", position))
+
+        let displays = NSMenu()
+        for (value, title) in [(Settings.Displays.main, "Main Display"), (.all, "All Displays")] {
+            let item = target(NSMenuItem(title: title, action: nil, keyEquivalent: ""), #selector(chooseDisplays(_:)))
+            item.representedObject = value.rawValue
+            displayItems[value] = item
+            displays.addItem(item)
+        }
+        menu.addItem(submenu("Displays", displays))
+
+        let fps = NSMenu()
+        for (value, title) in [(Settings.FrameRate.auto, "Auto (30 on Battery)"), (.fps30, "30 fps"), (.fps60, "60 fps")] {
+            let item = target(NSMenuItem(title: title, action: nil, keyEquivalent: ""), #selector(chooseFrameRate(_:)))
+            item.representedObject = value.rawValue
+            fpsItems[value] = item
+            fps.addItem(item)
+        }
+        menu.addItem(submenu("Frame Rate", fps))
 
         let background = NSMenu()
         for (value, title) in [(false, "Default"), (true, "Transparent")] {
@@ -116,6 +136,18 @@ final class StatusMenu: NSObject, NSMenuDelegate {
 
     @objc private func toggleEnabled() {
         settings.enabled.toggle()
+        changed()
+    }
+
+    @objc private func chooseDisplays(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? String, let value = Settings.Displays(rawValue: raw) else { return }
+        settings.displays = value
+        changed()
+    }
+
+    @objc private func chooseFrameRate(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? String, let value = Settings.FrameRate(rawValue: raw) else { return }
+        settings.fps = value
         changed()
     }
 
@@ -234,6 +266,8 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         backgroundItems.forEach { $0.value.state = $0.key == settings.transparent ? .on : .off }
         trailItems.forEach { $0.value.state = $0.key == settings.trail ? .on : .off }
         grainItems.forEach { $0.value.state = $0.key == settings.grain ? .on : .off }
+        displayItems.forEach { $0.value.state = $0.key == settings.displays ? .on : .off }
+        fpsItems.forEach { $0.value.state = $0.key == settings.fps ? .on : .off }
         for slot in Settings.ColorSlot.allCases {
             let color = settings.color(slot)
             let isPreset = slot.presets.contains { $0.hex.caseInsensitiveCompare(color) == .orderedSame }

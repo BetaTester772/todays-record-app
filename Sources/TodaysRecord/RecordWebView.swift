@@ -19,6 +19,10 @@ final class RecordWebView: WKWebView {
     var insets = NSEdgeInsetsZero {
         didSet { sendInsets() }
     }
+    /// 그리기 멈춤(명세 4.7). 바뀔 때와 준비될 때 화면에 보낸다.
+    var paused = false {
+        didSet { if paused != oldValue { sendPaused() } }
+    }
     private let pageURL: URL?
 
     init(frame: NSRect, role: Role, screenID: String, options: LaunchOptions) {
@@ -79,6 +83,10 @@ final class RecordWebView: WKWebView {
         call("art", [dataURL, version])
     }
 
+    private func sendPaused() {
+        call("setPaused", [paused])
+    }
+
     private func sendInsets() {
         call("setInsets", [["top": insets.top, "right": insets.right, "bottom": insets.bottom, "left": insets.left]])
     }
@@ -129,6 +137,7 @@ final class RecordWebView: WKWebView {
             isReady = true
             sendInsets()
             onReady?(self)
+            sendPaused()
         case "log":
             Log.web.debug("js: \(String(describing: body["message"] ?? ""))")
         default:
