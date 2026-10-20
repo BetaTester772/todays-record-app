@@ -73,6 +73,7 @@ final class NowPlaying {
     /// 곡 길이를 기다리는 동안 더 새로운 결과가 오면 이전 결과를 버리기 위한 번호.
     private var resultGeneration = 0
     private var statusScript: NSAppleScript?
+    private var diagnosticScript: NSAppleScript?
     private var pollTimer: Timer?
     private var pendingQuery: DispatchWorkItem?
     private var observers: [(NotificationCenter, NSObjectProtocol)] = []
@@ -166,8 +167,19 @@ final class NowPlaying {
         }
         if logToStdout {
             stdout("[AppleScript] \(output?.replacingOccurrences(of: Self.separator, with: " | ") ?? "nil")")
+            stdout("[재생 목록] \(runDiagnosticScript())")
         }
         return .info(Self.parse(output ?? ""))
+    }
+
+    /// --log-nowplaying 전용. 셔플, 반복, 지금 재생 중인 목록과 그 안의 순서를 묻는다.
+    private func runDiagnosticScript() -> String {
+        if diagnosticScript == nil {
+            diagnosticScript = NSAppleScript(source: Self.diagnosticSource)
+        }
+        var error: NSDictionary?
+        let output = diagnosticScript?.executeAndReturnError(&error).stringValue
+        return output ?? "오류 \(error?[NSAppleScript.errorNumber] ?? "")"
     }
 
     static var isMusicRunning: Bool {
@@ -301,6 +313,35 @@ final class NowPlaying {
     // reference/nowplaying.py의 STATUS_SCRIPT를 바탕으로 한다. Music을 스스로 실행시키지 않는다.
     // macOS 27의 Music 사전에서는 tell 블록 안의 변수 이름 st가 컴파일되지 않아 pstate로 바꿨다.
     // LP 면 나누기를 위해 곡 번호, 곡 수, 디스크 번호, 디스크 수를 더 읽는다.
+    private static let diagnosticSource = """
+    if application "Music" is running then
+      tell application "Music"
+        set out to ""
+        try
+          set out to out & "shuffle=" & (shuffle enabled as string)
+        end try
+        try
+          set out to out & " mode=" & (shuffle mode as string)
+        end try
+        try
+          set out to out & " repeat=" & (song repeat as string)
+        end try
+        try
+          set pl to current playlist
+          set out to out & " playlist=" & (name of pl) & " kind=" & (class of pl as string)
+          try
+            set out to out & " special=" & (special kind of pl as string)
+          end try
+        end try
+        try
+          set out to out & " index=" & (index of current track as string)
+        end try
+        return out
+      end tell
+    end if
+    return "notrunning"
+    """
+
     private static let statusSource = """
     if application "Music" is running then
       tell application "Music"
