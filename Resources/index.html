@@ -395,8 +395,9 @@
       swapRecord(A);
       cue = { kind: 'track', t0: now, dur: 1700, fromPhi: armPhi, fromLift: armLift };
     } else if (newAlbum) {
-      // Slide Over (albumChange 'slide'): the old record slides off to the left and the new one comes in from the left over it
-      cue = { kind: 'album', t0: now, dur: 2900, fromPhi: armPhi, fromLift: armLift, next: A, swapped: false, slide: opts.albumChange === 'slide' };
+      // Slide Over (albumChange 'slide'): the old record slides off to the upper left and the new one comes in from there, lower, over it
+      const slide = opts.albumChange === 'slide';
+      cue = { kind: 'album', t0: now, dur: slide ? 4200 : 2900, fromPhi: armPhi, fromLift: armLift, next: A, swapped: false, slide };
     } else {
       cue = { kind: 'track', t0: now, dur: 1700, fromPhi: armPhi, fromLift: armLift };
     }
@@ -755,13 +756,21 @@
         else armPhi = lerp(REST_PHI, onPhi, easeInOut(clamp((e - 0.7) / 0.16)));
         armLift = liftCurve(e, 0.12, 0.8, cue.fromLift);
         if (cue.slide) {
-          // the old record slides out to the left, and the new one comes in from that same side a moment later,
-          // passing over it a little higher, and settles onto the platter
-          if (e >= 0.28 && !cue.swapped) { cue.out = { A: shown, C: sceneColors(), rot: spin }; swapRecord(cue.next); cue.swapped = true; }
+          // The old record leaves up and to the left, still turning and slowing down; the new one comes in from the
+          // upper left too, on a lower path, passing over it, and settles onto the platter. Each travels until it is
+          // fully past the left edge (record, edge and shadow), worked out from the layout, so neither pops in or out.
+          armPhi = e < 0.24 ? lerp(cue.fromPhi, REST_PHI, easeInOut(clamp((e - 0.02) / 0.2))) : e < 0.84 ? REST_PHI : lerp(REST_PHI, onPhi, easeInOut(clamp((e - 0.84) / 0.12)));
+          armLift = liftCurve(e, 0.08, 0.88, cue.fromLift);
+          if (e >= 0.24 && !cue.swapped) { cue.out = { A: shown, C: sceneColors(), rot: spin, vel: spinVel }; swapRecord(cue.next); cue.swapped = true; }
           if (cue.swapped) {
-            const kOut = easeInOut(clamp((e - 0.28) / 0.34)), kIn = easeInOut(clamp((e - 0.38) / 0.34));
-            if (cue.out) cue.outOff = { x: -2.4 * kOut, y: -0.06 * kOut, lift: clamp(kOut * 4) };
-            recOff = { x: -2.4 * (1 - kIn), y: -0.12 * (1 - kIn), lift: clamp((1 - kIn) * 4) };
+            const Lr = layout(), clear = (Lr.cx - inset.left) / Lr.R + 1.45;   // how far left, in record radii
+            const OUT = 0.49, IN = 0.25;   // directions: about 28 and 14 degrees above the horizontal
+            const kOut = easeInOut(clamp((e - 0.24) / 0.42)), kIn = easeInOut(clamp((e - 0.38) / 0.42));
+            if (cue.out) {
+              cue.out.vel *= Math.exp(-dt * 1.2); cue.out.rot += cue.out.vel * dt;
+              cue.outOff = { x: -clear * kOut, y: -clear * Math.tan(OUT) * kOut, lift: clamp(kOut * 4) };
+            }
+            recOff = { x: -clear * (1 - kIn), y: -clear * Math.tan(IN) * (1 - kIn) - 0.12 * (1 - kIn), lift: clamp((1 - kIn) * 4) };
             if (kOut >= 1) cue.out = null;
           }
         } else if (e >= 0.32 && e < 0.52) { const k = easeIn((e - 0.32) / 0.2); recOff = { x: k * 1.8, y: -k * 0.28, lift: k }; }
