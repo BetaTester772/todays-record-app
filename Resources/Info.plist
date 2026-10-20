@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleDevelopmentRegion</key>
-	<string>ko</string>
+	<string>en</string>
 	<key>CFBundleExecutable</key>
 	<string>TodaysRecord</string>
 	<key>CFBundleIdentifier</key>
@@ -27,6 +27,6 @@
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSAppleEventsUsageDescription</key>
-	<string>Music에서 지금 재생 중인 곡 정보를 읽어 레코드 화면에 보여줘요.</string>
+	<string>Reads the song playing in Music to show it on the record.</string>
 </dict>
 </plist>

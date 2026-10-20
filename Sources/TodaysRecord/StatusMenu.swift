@@ -6,8 +6,8 @@ final class StatusMenu: NSObject {
     private static let automationSettingsURL = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Automation")!
 
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-    private let nowItem = NSMenuItem(title: "재생 중인 음악 없음", action: nil, keyEquivalent: "")
-    private let permissionItem = NSMenuItem(title: "Music 제어 권한 열기", action: nil, keyEquivalent: "")
+    private let nowItem = NSMenuItem(title: "Nothing Playing", action: nil, keyEquivalent: "")
+    private let permissionItem = NSMenuItem(title: "Allow Control of Music…", action: nil, keyEquivalent: "")
 
     override init() {
         super.init()
@@ -26,13 +26,13 @@ final class StatusMenu: NSObject {
         permissionItem.isHidden = true
         menu.addItem(permissionItem)
 
-        menu.addItem(NSMenuItem(title: "종료", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+        menu.addItem(NSMenuItem(title: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         statusItem.menu = menu
     }
 
     func update(_ info: NowPlayingInfo) {
         if info.state == .stopped || info.title.isEmpty {
-            nowItem.title = "재생 중인 음악 없음"
+            nowItem.title = "Nothing Playing"
         } else if info.artist.isEmpty {
             nowItem.title = info.title
         } else {

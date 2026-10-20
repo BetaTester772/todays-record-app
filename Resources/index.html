@@ -49,7 +49,7 @@
 </style>
 </head>
 <body>
-<canvas id="scene" aria-label="앨범 라벨이 붙은 레코드판 위를 톤암 바늘이 지나가며 선을 남기고, 작은 캐릭터가 바늘 머리에 앉아 있는 배경화면"></canvas>
+<canvas id="scene" aria-label="A wallpaper of a record with an album label, where the tonearm needle leaves a line as it travels and a small character sits on the needle head"></canvas>
 
 
 <script>
@@ -1064,8 +1064,8 @@
     const rowSmall = (Math.ceil(sSmall * 1.35) + 2) * ps;
 
     drawIcon(st === 'playing' ? 'play' : st === 'paused' ? 'pause' : 'stop', x0, y + Math.round(rowSmall / 2 - 3.5 * ps), ps, ink);
-    const pre = media.source === 'demo' ? '미리보기 ' : '';
-    drawPix(st === 'playing' ? (pre ? '미리보기 재생 중' : '지금 재생 중') : st === 'paused' ? pre + '잠시 멈춤' : '재생 중인 음악이 없어요', x0 + ps * 8, y, sSmall, ps, soft, 600);
+    const pre = media.source === 'demo' ? 'Preview · ' : '';
+    drawPix(st === 'playing' ? pre + 'Now Playing' : st === 'paused' ? pre + 'Paused' : 'Nothing Playing', x0 + ps * 8, y, sSmall, ps, soft, 600);
     y += rowSmall + ps * 3;
 
     if (st !== 'stopped' && media.title) {
@@ -1077,17 +1077,17 @@
       for (let i = 0; i < n; i++) { ctx.fillStyle = i < filled ? ink : faint; ctx.fillRect(x0 + i * (bw + gap), y, bw, bw); }
       drawPix(fmt(posNow) + ' / ' + fmt(media.duration), x0 + n * (bw + gap) + ps * 3, y + bw / 2 - rowSmall / 2, sSmall, ps, soft, 600);
       y += bw + ps * 4;
-      if (side) y += drawPix(`${String.fromCharCode(65 + side.first + side.index)}면 · ${side.track + 1}/${side.count}`, x0, y, sSmall, ps, soft, 600).h;
+      if (side) y += drawPix(`Side ${String.fromCharCode(65 + side.first + side.index)} · ${side.track + 1}/${side.count}`, x0, y, sSmall, ps, soft, 600).h;
       y += ps * 5;
     } else {
-      const hint = (media.source === 'we' && !weEnabled) ? 'Wallpaper Engine 설정에서 ‘미디어 연동’을 켜 주세요'
-        : (media.source === 'local' && !localOk) ? '도우미(nowplaying.py)가 꺼져 있어요'
-        : (media.source === 'local' || media.source === 'native') ? 'Apple Music에서 음악을 틀면 바늘이 내려가요'
-        : '음악을 틀면 바늘이 내려가요';
+      const hint = (media.source === 'we' && !weEnabled) ? 'Turn on Media Integration in Wallpaper Engine settings'
+        : (media.source === 'local' && !localOk) ? 'The helper (nowplaying.py) is not running'
+        : (media.source === 'local' || media.source === 'native') ? 'Play something in Apple Music to drop the needle'
+        : 'Play some music to drop the needle';
       y += drawPix(clipPix(hint, sSmall, 600, maxCss / ps), x0, y, sSmall, ps, soft, 600).h + ps * 6;
     }
 
-    y += drawPix(`오늘 들은 곡 ${today.length}`, x0, y, sSmall, ps, soft, 600).h + ps;
+    y += drawPix(`Played Today ${today.length}`, x0, y, sSmall, ps, soft, 600).h + ps;
     const cs = ps * 3, cg = ps, perRow = 20;
     today.slice(-60).forEach((tr, i) => {
       ctx.fillStyle = tr.c || ink;
