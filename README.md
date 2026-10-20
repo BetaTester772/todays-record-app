@@ -1,50 +1,119 @@
-# Claude Code로 ‘오늘의 판’ Mac 앱 만들기
+# 오늘의 판 (Today's Record)
 
-이 폴더를 Claude Code에 그대로 넘기면, 명세서를 읽고 단계별로 앱을 만들어요.
+A macOS menu bar app that turns your desktop into a record player for whatever is playing in **Apple Music** or **Spotify**.
 
-## 폴더 구성
+The record spins, the tonearm moves inward as the song plays and leaves a trail in the album's colors, and a tiny character rides on the needle. Albums are split into LP sides, so the next song on the same side just moves the needle, and a new side or album swaps the record.
 
-- `CLAUDE.md` Claude Code가 매번 자동으로 읽는 작업 지침
-- `docs/SPEC.md` 앱 명세서 (구조, 동작, 화면과의 연결 방식, 마일스톤)
-- `Resources/index.html` 지금까지 만든 레코드 화면
-- `reference/nowplaying.py` Apple Music 정보를 읽는 참고 코드
+- Sits on the desktop layer: your icons stay on top and clicks pass through
+- Album cover, colors, LP sides, volume knob, and time-of-day window light
+- Shows on every display (each one can be turned off)
+- Pauses when the screen is locked, asleep, or covered; 30 fps on battery
 
-## 준비물
+## Requirements
 
-- macOS 14 이상인 Mac과 Apple Music 앱
-- Xcode 또는 개발자 도구: 터미널에서 `xcode-select --install`
-- Claude Code: https://docs.claude.com/en/docs/claude-code/overview
+- macOS 14 Sonoma or later (Apple Silicon or Intel)
+- Apple Music or Spotify for Mac
 
-## 시작하기
+## Install
 
-1. 이 폴더를 원하는 곳에 풀어요. 예: `~/Projects/todays-record-app`
-2. 터미널에서 폴더로 이동한 뒤 `git init`으로 기록을 시작해 두면, 나중에 잘못된 변경을 되돌리기 쉬워요.
-3. `claude`를 실행해요.
-4. 계획 모드(Shift+Tab)로 바꾸고 첫 요청을 보내요.
+1. Download `TodaysRecord-<version>.zip` from [Releases](https://github.com/soysaucecrab/todays-record-app/releases) and unzip it.
+2. Move **TodaysRecord.app** to your **Applications** folder.
+3. Open it. A record icon appears in the menu bar.
 
-   > docs/SPEC.md를 읽고 M1 구현 계획을 세워줘. 계획을 확인한 다음에 코드를 작성해줘.
+### First launch: "Apple could not verify…"
 
-5. 계획을 읽어보고 괜찮으면 진행하라고 해요. 구현이 끝나면 `scripts/run.sh --demo`로 실행해서 확인해요.
-6. 확인한 결과를 알려주고 다음 마일스톤으로 넘어가요.
+The app is not notarized by Apple (it is ad-hoc signed), so macOS blocks it the first time you open it. To allow it once:
 
-> M1 확인했어. 아이콘도 잘 보이고 클릭도 돼. M2 계획 세워줘.
+1. Open the app. When the warning appears, click **Done** (or **OK**).
+2. Open **System Settings → Privacy & Security**.
+3. Scroll down to the message about TodaysRecord and click **Open Anyway**.
+4. Confirm with **Open Anyway** again and enter your password if asked.
 
-## 마일스톤
+After this, the app opens normally.
 
-| 단계 | 내용 | 직접 확인할 것 |
-|---|---|---|
-| M1 | 바탕화면에 띄우기 | 레코드가 아이콘 뒤에 보이는지, 아이콘 클릭이 되는지 |
-| M2 | 메뉴 막대와 설정 | 위치·투명 배경이 바뀌는지, 재시작해도 설정이 남는지 |
-| M3 | Apple Music 연결 | 곡, 커버, 일시정지가 맞게 보이는지, 권한 창이 뜨는지 |
-| M4 | 절전과 여러 화면 | 잠금 후 돌아왔을 때 이어지는지, 모니터를 꽂고 빼도 괜찮은지 |
-| M5 | 시스템 배경화면 색 맞추기 | 앨범이 바뀌면 메뉴 막대 색이 따라가는지, 끄면 원래대로 오는지 |
-| M6 | 마무리 | 설치 방법과 zip 만들기 |
+<details>
+<summary>Alternative: Terminal</summary>
 
-자세한 완료 기준은 `docs/SPEC.md` 8장에 있어요.
+```bash
+xattr -dr com.apple.quarantine /Applications/TodaysRecord.app
+```
 
-## 문제가 생기면
+This removes the "downloaded from the internet" mark so macOS no longer blocks it. Only do this for apps you trust.
+</details>
 
-- 무엇을 했고, 무엇이 보였는지, 터미널에 나온 메시지를 그대로 붙여 넣어 Claude Code에 알려주세요.
-- Music 제어 권한 창이 안 뜨거나 실수로 거부했다면: 시스템 설정 > 개인정보 보호 및 보안 > 자동화에서 켤 수 있어요.
-- 다시 빌드할 때마다 권한을 또 물으면: 명세서 9장의 자체 서명 인증서 방법을 Claude Code에 요청하세요.
-- 처음 열 때 “확인되지 않은 개발자” 경고가 뜨면: 앱을 우클릭 > 열기로 한 번 열어 주세요.
+### Allow access to Music or Spotify
+
+The first time a song plays, macOS asks whether **TodaysRecord** may control **Music** (or **Spotify**). Click **Allow**. The app only reads what is playing; it never starts, stops, or changes your music, and it never opens Music or Spotify by itself.
+
+If you clicked **Don't Allow**, turn it on in **System Settings → Privacy & Security → Automation → TodaysRecord**, or use **Allow Control of …** in the app's menu.
+
+## Using it
+
+Click the record icon in the menu bar:
+
+| Menu | |
+|---|---|
+| Now playing | The song shown on the record |
+| Player | Choose Music or Spotify when both are running |
+| Show Wallpaper | Turn the record on or off |
+| Clear This Record | Erase the lines on the current record |
+| Settings… (⌘,) | Open the settings window |
+
+**Settings**
+
+- **General**: Show Wallpaper, Open at Login, Frame Rate (Auto uses 30 fps on battery), Clear This Record
+- **Displays**: choose which displays show the record
+- **Appearance**: record position, transparent background, record / background / line colors (from the album or your own)
+- **Effects**: window light that follows the time of day, line trail (keep or afterglow), grain
+- **Players**: permission status for Music and Spotify
+
+## Troubleshooting
+
+**Nothing shows on the desktop.** Check **Show Wallpaper** in the menu, and that the display is on in **Settings → Displays**.
+
+**It doesn't show on my external display.** Turn the display on in **Settings → Displays**. The list updates when you plug a display in.
+
+**The song doesn't appear.** Make sure Music or Spotify is playing, then check **Settings → Players**. If it says *Not Allowed*, click **Open Automation Settings…** and turn TodaysRecord on. If the switch is missing, quit the app and play a song again to get the prompt back, or reset the permission in Terminal and reopen the app:
+
+```bash
+tccutil reset AppleEvents com.todaysrecord.app
+```
+
+**Songs from Apple Music streaming don't split into LP sides.** Music doesn't report track numbers for songs that aren't in your library, so the app looks the album up in the iTunes catalog. If it can't find the same edition, the record still plays, just without sides.
+
+**Open at Login doesn't stick.** Keep the app in the Applications folder, and check **System Settings → General → Login Items**.
+
+**Uninstall.** Quit the app, delete it from Applications, and optionally remove its settings:
+
+```bash
+defaults delete com.todaysrecord.app
+```
+
+## Build from source
+
+Needs Xcode or the Command Line Tools (`xcode-select --install`).
+
+```bash
+swift build                     # build
+swift test                      # unit tests
+scripts/run.sh                  # assemble the .app, ad-hoc sign, and run
+scripts/run.sh --demo           # run with preview data (no Music needed)
+scripts/package.sh              # universal release zip in dist/
+```
+
+When you run the app from Terminal with `scripts/run.sh`, macOS attaches the Music/Spotify permission to Terminal instead of the app. To test the app's own permission, open it with `open build/TodaysRecord.app`. Each ad-hoc rebuild has a new signature, so macOS may ask for permission again.
+
+Docs: [`docs/SPEC.md`](docs/SPEC.md) (full spec, in Korean) · [`docs/claude-code-guide.md`](docs/claude-code-guide.md) (how this app was built with Claude Code)
+
+---
+
+## 한국어 요약
+
+Apple Music이나 Spotify에서 재생 중인 곡을 바탕화면의 레코드 턴테이블로 보여 주는 macOS 메뉴 막대 앱이에요.
+
+1. [Releases](https://github.com/soysaucecrab/todays-record-app/releases)에서 zip을 받아 풀고, **TodaysRecord.app**을 **응용 프로그램** 폴더로 옮겨요.
+2. 처음 열 때 "Apple이 확인할 수 없음" 경고가 뜨면 **완료**를 누르고, **시스템 설정 → 개인정보 보호 및 보안**에서 **그래도 열기**를 눌러요. Apple 공증을 받지 않은 앱이라 한 번만 필요해요.
+3. 곡을 틀면 "Music(또는 Spotify)을 제어하려고 합니다" 창이 떠요. **허용**을 눌러요. 앱은 재생 정보를 읽기만 하고, 음악을 바꾸거나 Music·Spotify를 대신 켜지 않아요.
+4. 메뉴 막대의 레코드 아이콘 → **Settings…**에서 화면, 색, 효과를 바꿀 수 있어요.
+
+macOS 14 이상, Apple Silicon과 Intel 모두 지원해요.
