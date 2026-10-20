@@ -1,5 +1,6 @@
 import AppKit
 import CryptoKit
+import Security
 
 /// GitHub 릴리스로 새 버전을 확인하고, 사용자가 원하면 내려받아 설치한다. 명세 4.10.
 /// 네트워크와 파일 작업은 메인 스레드 밖에서 하고, 결과는 메인 스레드로 알린다.
@@ -134,7 +135,7 @@ final class Updater {
     }
 
     private enum InstallError: Error {
-        case checksum, notAnApp, wrongApp, signature, notWritable(String)
+        case checksum, notAnApp, wrongApp, signature, otherSigner, notWritable(String)
     }
 
     /// 메인 스레드 밖에서 부른다.
@@ -162,10 +163,34 @@ final class Updater {
             throw fm.fileExists(atPath: newApp.path) ? InstallError.wrongApp : InstallError.notAnApp
         }
         do { try run("/usr/bin/codesign", ["--verify", "--strict", newApp.path]) } catch { throw InstallError.signature }
+        // 지금 앱이 인증서로 서명돼 있으면, 새 앱도 같은 인증서로 서명된 것만 받는다(릴리스가 바꿔치기돼도 설치하지 않게).
+        if let requirement = currentRequirement(), !satisfies(newApp, requirement) { throw InstallError.otherSigner }
 
         // 지금 앱 자리에 새 앱을 원자적으로 넣는다. 예전 앱은 휴지통 대신 지운다.
         _ = try fm.replaceItemAt(appURL, withItemAt: newApp, backupItemName: nil, options: [])
         return appURL
+    }
+
+    /// 지금 실행 중인 앱의 designated requirement. 애드혹 서명(인증서 없음)이면 nil.
+    private static func currentRequirement() -> SecRequirement? {
+        var code: SecCode?
+        var staticCode: SecStaticCode?
+        guard SecCodeCopySelf([], &code) == errSecSuccess, let code,
+              SecCodeCopyStaticCode(code, [], &staticCode) == errSecSuccess, let staticCode else { return nil }
+        var info: CFDictionary?
+        guard SecCodeCopySigningInformation(staticCode, SecCSFlags(rawValue: kSecCSSigningInformation), &info) == errSecSuccess,
+              let certificates = (info as? [String: Any])?[kSecCodeInfoCertificates as String] as? [SecCertificate],
+              !certificates.isEmpty else { return nil }
+        var requirement: SecRequirement?
+        guard SecCodeCopyDesignatedRequirement(staticCode, [], &requirement) == errSecSuccess else { return nil }
+        return requirement
+    }
+
+    private static func satisfies(_ appURL: URL, _ requirement: SecRequirement) -> Bool {
+        var staticCode: SecStaticCode?
+        guard SecStaticCodeCreateWithPath(appURL as CFURL, [], &staticCode) == errSecSuccess, let staticCode else { return false }
+        let flags = SecCSFlags(rawValue: kSecCSCheckAllArchitectures | kSecCSStrictValidate)
+        return SecStaticCodeCheckValidity(staticCode, flags, requirement) == errSecSuccess
     }
 
     private static func run(_ tool: String, _ arguments: [String]) throws {
