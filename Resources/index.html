@@ -163,7 +163,7 @@
   // options the app can change from its menu (setOptions)
   // colors '' = taken from the album
   // sideChange: how turning to the other side of the same record looks: 'turn' (lift and turn), 'swap' (like a new album), 'needle' (needle only)
-  const opts = { position: 'right', transparent: false, windowLight: true, trail: 'afterglow', grain: 'normal', fps: 60, sideChange: 'turn', recordColor: '', bgColor: '', lineColor: '' };
+  const opts = { position: 'right', transparent: false, windowLight: true, trail: 'afterglow', grain: 'normal', fps: 60, sideChange: 'turn', recordColor: '', bgColor: '', lineColor: '', textColor: '' };
   const GRAIN = { off: 0, low: 0.45, normal: 1, high: 1.45 };   // multiplier on the original grain strength
   const glowPts = [];   // recent stylus points for the afterglow trail: { fr, a, t, c } or null for a lift
   let pal = palFromHex(DEMO[0].pal), targetPal = clonePal(pal);
@@ -177,7 +177,8 @@
   let track = null;        // { start, end, fixed }
   let cue = null;          // tonearm / record-change animation
   let armPhi = REST_PHI, armLift = 0.1;
-  let spin = 0, spinVel = 0, beatEnv = 0, lastBeat = -1, legPhase = 0;
+  let spin = 0, spinVel = 0, spinAcc = 0, beatEnv = 0, lastBeat = -1, legPhase = 0;
+  let warpLift = 0, touchAt = 0, prevLift = 1;   // record warp under the needle; when the needle last touched down
   let recOff = { x: 0, y: 0, lift: 0 };
   let sideFade = 1;        // while turning to the other side: how far the new side's lines have faded in (0..1)
   let prevPt = null, prog = 0, posNow = 0;
@@ -372,18 +373,18 @@
     }
     if (!booted) {
       booted = true; shown = A; pal = clonePal(A.pal); targetPal = clonePal(A.pal);
-      cue = { kind: 'start', t0: now, dur: 1700, fromPhi: armPhi, fromLift: armLift };
+      cue = { kind: 'start', t0: now, dur: 2100, fromPhi: armPhi, fromLift: armLift };
     } else if (newAlbum && sameRecord(shown, A) && opts.sideChange === 'turn') {
       // the other side of the record on the platter: lift it, turn it half a turn, set it down
-      cue = { kind: 'flip', t0: now, dur: 2600, fromPhi: armPhi, fromLift: armLift, next: A, swapped: false };
+      cue = { kind: 'flip', t0: now, dur: 3000, fromPhi: armPhi, fromLift: armLift, next: A, swapped: false };
     } else if (newAlbum && sameRecord(shown, A) && opts.sideChange === 'needle') {
       // the other side without any record motion: only the needle moves to the new track
       swapRecord(A);
-      cue = { kind: 'track', t0: now, dur: 1300, fromPhi: armPhi, fromLift: armLift };
+      cue = { kind: 'track', t0: now, dur: 1700, fromPhi: armPhi, fromLift: armLift };
     } else if (newAlbum) {
-      cue = { kind: 'album', t0: now, dur: 2600, fromPhi: armPhi, fromLift: armLift, next: A, swapped: false };
+      cue = { kind: 'album', t0: now, dur: 2900, fromPhi: armPhi, fromLift: armLift, next: A, swapped: false };
     } else {
-      cue = { kind: 'track', t0: now, dur: 1300, fromPhi: armPhi, fromLift: armLift };
+      cue = { kind: 'track', t0: now, dur: 1700, fromPhi: armPhi, fromLift: armLift };
     }
     prevPt = null; lastBeat = -1;
     today.push({ t: media.title, a: media.artist, c: toHex(A.pal.accent), at: Date.now() });
@@ -560,7 +561,7 @@
     const next = d.state === 'playing' ? 'playing' : 'paused';
     const drift = Math.abs(currentPos(now) - (d.position || 0));
     // a seek inside the same track (back to the start, skipping ahead): lift the needle over to the new spot
-    if (sameTrack && media.state !== 'stopped' && drift > 3 && booted && track && !cue) cue = { kind: 'track', t0: now, dur: 1300, fromPhi: armPhi, fromLift: armLift };
+    if (sameTrack && media.state !== 'stopped' && drift > 3 && booted && track && !cue) cue = { kind: 'track', t0: now, dur: 1700, fromPhi: armPhi, fromLift: armLift };
     if (next !== media.state || drift > 0.8) { media.position = d.position || 0; media.posAt = now; }
     if (d.duration > 0) media.duration = d.duration;
     setState(next);
@@ -607,7 +608,7 @@
         if (o.grain in GRAIN) opts.grain = o.grain;
         if (o.fps === 30 || o.fps === 60) opts.fps = o.fps;
         if (['turn', 'swap', 'needle'].includes(o.sideChange)) opts.sideChange = o.sideChange;
-        for (const k of ['recordColor', 'bgColor', 'lineColor']) {
+        for (const k of ['recordColor', 'bgColor', 'lineColor', 'textColor']) {
           if (typeof o[k] === 'string') opts[k] = /^#[0-9a-f]{6}$/i.test(o[k]) ? o[k] : '';
         }
         if (typeof o.transparent === 'boolean') {
@@ -672,9 +673,10 @@
   }
 
   // ---------- update ----------
+  // Like a cue lever: the needle lifts quickly and lowers slowly, slowing down until it touches the record softly.
   function liftCurve(e, up, down, from) {
     if (e < up) return lerp(from, 1, easeOut(e / up));
-    if (e > down) return 1 - easeInOut((e - down) / (1 - down));
+    if (e > down) return Math.pow(1 - clamp((e - down) / (1 - down)), 3);
     return 1;
   }
 
@@ -690,7 +692,9 @@
     }
     posNow = currentPos(now);
     prog = clamp(posNow / media.duration);
-    const onPhi = phiOf(trackFr(prog));
+    // the record is very slightly off-centre, so the needle sways in and out once per turn
+    const sway = Math.min(1, spinVel / (TAU * RPS)) * 0.0035 * Math.sin(spin + 0.7);
+    const onPhi = phiOf(trackFr(prog) + sway);
 
     recOff = { x: 0, y: 0, lift: 0 }; sideFade = 1;
     if (cue) {
@@ -699,11 +703,11 @@
         if ((cue.kind === 'album' || cue.kind === 'flip') && !cue.swapped) swapRecord(cue.next);
         cue = null;
       } else if (cue.kind === 'track') {
-        armPhi = lerp(cue.fromPhi, onPhi, easeInOut(clamp((e - 0.25) / 0.5)));
-        armLift = liftCurve(e, 0.25, 0.75, cue.fromLift);
+        armPhi = lerp(cue.fromPhi, onPhi, easeInOut(clamp((e - 0.2) / 0.35)));
+        armLift = liftCurve(e, 0.2, 0.55, cue.fromLift);
       } else if (cue.kind === 'start') {
-        armPhi = lerp(cue.fromPhi, onPhi, easeInOut(clamp((e - 0.15) / 0.65)));
-        armLift = liftCurve(e, 0.15, 0.8, cue.fromLift);
+        armPhi = lerp(cue.fromPhi, onPhi, easeInOut(clamp((e - 0.12) / 0.45)));
+        armLift = liftCurve(e, 0.12, 0.6, cue.fromLift);
       } else if (cue.kind === 'park') {
         armPhi = lerp(cue.fromPhi, REST_PHI, easeInOut(clamp((e - 0.3) / 0.55)));
         armLift = e < 0.3 ? lerp(cue.fromLift, 1, easeOut(e / 0.3)) : e < 0.85 ? 1 : lerp(1, 0.1, easeInOut((e - 0.85) / 0.15));
@@ -712,8 +716,8 @@
         // its lines fade over to the new side, settles back down, and the needle goes back down
         if (e < 0.3) armPhi = lerp(cue.fromPhi, REST_PHI, easeInOut(clamp((e - 0.08) / 0.22)));
         else if (e < 0.8) armPhi = REST_PHI;
-        else armPhi = lerp(REST_PHI, onPhi, easeInOut(clamp((e - 0.8) / 0.14)));
-        armLift = liftCurve(e, 0.08, 0.94, cue.fromLift);
+        else armPhi = lerp(REST_PHI, onPhi, easeInOut(clamp((e - 0.8) / 0.08)));
+        armLift = liftCurve(e, 0.08, 0.86, cue.fromLift);
         if (e >= 0.3 && e < 0.42) recOff = { x: 0, y: -0.05 * easeOut((e - 0.3) / 0.12), lift: easeOut((e - 0.3) / 0.12) };
         else if (e >= 0.42 && e < 0.66) {
           const t = (e - 0.42) / 0.24, turn = easeInOut(t);
@@ -726,8 +730,8 @@
       } else if (cue.kind === 'album') {
         if (e < 0.32) armPhi = lerp(cue.fromPhi, REST_PHI, easeInOut(clamp((e - 0.12) / 0.2)));
         else if (e < 0.72) armPhi = REST_PHI;
-        else armPhi = lerp(REST_PHI, onPhi, easeInOut(clamp((e - 0.72) / 0.18)));
-        armLift = liftCurve(e, 0.12, 0.9, cue.fromLift);
+        else armPhi = lerp(REST_PHI, onPhi, easeInOut(clamp((e - 0.72) / 0.12)));
+        armLift = liftCurve(e, 0.12, 0.84, cue.fromLift);
         if (e >= 0.32 && e < 0.52) { const k = easeIn((e - 0.32) / 0.2); recOff = { x: k * 1.8, y: -k * 0.28, lift: k }; }
         else if (e >= 0.52 && e < 0.72) {
           if (!cue.swapped) { swapRecord(cue.next); cue.swapped = true; }
@@ -749,8 +753,16 @@
 
     const spd = media.source === 'demo' ? PREVIEW_SPEED : 1;
     const target = playing ? TAU * RPS * spd : 0;
-    spinVel += (target - spinVel) * (1 - Math.exp(-dt * (target > spinVel ? 2.5 : 1.6)));
+    // the platter has a little weight: it eases into and out of speed in about half a second (critically damped)
+    const SPIN_W = 9.5;
+    spinAcc += (SPIN_W * SPIN_W * (target - spinVel) - 2 * SPIN_W * spinAcc) * dt;
+    spinVel += spinAcc * dt;
+    if (spinVel < 0) { spinVel = 0; spinAcc = Math.max(0, spinAcc); }
     spin += spinVel * dt;
+    // ...and slightly warped, so the needle rides up and down a little twice per turn
+    warpLift = !cue && armLift < 0.03 ? Math.min(1, spinVel / (TAU * RPS)) * 0.025 * (0.5 + 0.5 * Math.sin(2 * spin + 1.3)) : 0;
+    if (prevLift >= 0.03 && armLift < 0.03 && media.state === 'playing') touchAt = now;
+    prevLift = armLift;
 
     const onRecord = !cue && armLift < 0.03 && shown === album;
     if (playing && onRecord) {
@@ -1045,7 +1057,7 @@
     const back = { x: ARM.bx - 0.2 * Math.cos(armPhi), y: ARM.by - 0.2 * Math.sin(armPhi) };
     const G = toScreen(L, ARM.bx * R, ARM.by * R), T = toScreen(L, tip.x * R, tip.y * R), K = toScreen(L, back.x * R, back.y * R);
     stylus.x = T.x; stylus.y = T.y;
-    const hp = 0.08 * R, hs = 0.03 * R, lp = armLift * 0.14 * R, aw = Math.max(2, 0.022 * R);
+    const hp = 0.08 * R, hs = 0.03 * R, lp = (armLift + warpLift) * 0.14 * R, aw = Math.max(2, 0.022 * R);
     const pivot = { x: G.x, y: G.y - hp }, cw = { x: K.x, y: K.y - hp };
     const head = { x: T.x, y: T.y - hs - lp };
 
@@ -1097,7 +1109,9 @@
     const swing = st === 'playing' && !sleeping ? Math.sin(legPhase) : st === 'paused' ? Math.sin(now / 900) * 0.3 : 0;
     const bob = beatEnv * 1.6 * u;
 
-    ctx.save(); ctx.translate(x, y - bob); ctx.scale(-1, 1);
+    // a small wobble when the needle touches down
+    const since = now - touchAt, touch = touchAt && since < 700 ? (1 - since / 700) ** 2 * Math.sin(since / 55) : 0;
+    ctx.save(); ctx.translate(x, y - bob + touch * 1.5 * u); ctx.rotate(touch * 0.1); ctx.scale(-1, 1);
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     const limb = (x1, y1, mx, my, x2, y2, col, w) => {
       ctx.strokeStyle = col; ctx.lineWidth = w;
@@ -1265,7 +1279,7 @@
     if (mk !== marquee.key) { marquee.key = mk; marquee.t0 = performance.now(); }
     const showing = media.state !== 'stopped' && media.title;
     const key = [
-      layoutKey(L), inset.top, inset.left, inset.right, opts.position, opts.transparent, toHex(C.ink), toHex(C.metal),
+      layoutKey(L), inset.top, inset.left, inset.right, opts.position, opts.transparent, toHex(C.ink), toHex(C.metal), opts.textColor,
       media.state, media.source, weEnabled, localOk, today.length,
       showing ? [media.title, media.artist, media.album, Math.round(prog * 20), fmt(posNow), fmt(media.duration),
         side ? [side.first, side.index, side.number, side.total, side.discs].join(',') : '',
@@ -1280,6 +1294,12 @@
   // The text is drawn twice: dark ink clipped to the background, and a light metal tone clipped to the dark plinth,
   // so a line that crosses the plinth edge stays readable on both sides.
   function paintHUD(C, L) {
+    // a text color picked in the app is used everywhere, on the background and on the plinth alike
+    if (opts.textColor) {
+      const T = hex(opts.textColor);
+      hudPass(C, { ink: css(T), soft: css(T, 0.78), dim: css(T, 0.6), faint: css(T, 0.25) });
+      return;
+    }
     const DARK = { ink: css(C.ink), soft: css(C.ink, 0.62), dim: css(C.ink, 0.42), faint: css(C.ink, 0.2) };
     if (opts.transparent) { hudPass(C, DARK); return; }
     const LIGHT = { ink: css(C.metal), soft: css(C.metal, 0.78), dim: css(C.metal, 0.58), faint: css(C.metal, 0.25) };

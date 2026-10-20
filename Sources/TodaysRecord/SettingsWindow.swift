@@ -162,6 +162,7 @@ private struct AppearancePane: View {
     @AppStorage(Settings.ColorSlot.record.rawValue) private var recordColor = ""
     @AppStorage(Settings.ColorSlot.background.rawValue) private var bgColor = ""
     @AppStorage(Settings.ColorSlot.line.rawValue) private var lineColor = ""
+    @AppStorage(Settings.ColorSlot.text.rawValue) private var textColor = ""
 
     var body: some View {
         Pane {
@@ -182,6 +183,7 @@ private struct AppearancePane: View {
                 ColorRow(title: "Record Color", hex: $recordColor)
                 ColorRow(title: "Background Color", hex: $bgColor)
                 ColorRow(title: "Line Color", hex: $lineColor)
+                ColorRow(title: "Text Color", hex: $textColor)
             }
         }
     }

@@ -30,12 +30,14 @@ final class Settings {
         case record = "recordColor"
         case background = "bgColor"
         case line = "lineColor"
+        case text = "textColor"
 
         var menuTitle: String {
             switch self {
             case .record: return "Record Color"
             case .background: return "Background Color"
             case .line: return "Line Color"
+            case .text: return "Text Color"
             }
         }
 
@@ -48,6 +50,8 @@ final class Settings {
                 return [("Album Colors", ""), ("Cream", "#F1E9DA"), ("Gray", "#D9D9DC"), ("Sage", "#CFD9C8"), ("Charcoal", "#2B2B2E"), ("Navy", "#1F2A44")]
             case .line:
                 return [("Album Colors", ""), ("White", "#FFFFFF"), ("Black", "#1A1A1A"), ("Red", "#E0443C"), ("Orange", "#F07A2A"), ("Blue", "#3A7BD5"), ("Green", "#3FAF6A")]
+            case .text:
+                return [("Album Colors", ""), ("White", "#FFFFFF"), ("Black", "#1A1A1A")]
             }
         }
     }
@@ -151,6 +155,7 @@ final class Settings {
             "recordColor": color(.record),
             "bgColor": color(.background),
             "lineColor": color(.line),
+            "textColor": color(.text),
         ]
     }
 }
