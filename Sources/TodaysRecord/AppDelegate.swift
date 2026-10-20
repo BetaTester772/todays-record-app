@@ -12,6 +12,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private lazy var settingsWindow = SettingsWindowController(model: settingsModel)
     private var defaultsObserver: NSObjectProtocol?
     private lazy var updater = Updater(settings: settings)
+    /// 메뉴의 Check for Updates…로 확인 중이면 결과를 창으로 알린다.
+    private var reportUpdateCheck = false
     private var applyScheduled = false
 
     init(options: LaunchOptions) {
@@ -31,8 +33,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self.statusMenu?.setUpdate(state)
             self.settingsModel.update = state
             if self.options.installUpdate, case .available(let release) = state { self.updater.install(release) }
+            if self.reportUpdateCheck { self.reportUpdateResult(state) }
         }
         menu.onInstallUpdate = { [weak self] in self?.confirmUpdate() }
+        menu.onCheckForUpdates = { [weak self] in
+            self?.reportUpdateCheck = true
+            self?.updater.check()
+        }
         settingsModel.onInstallUpdate = { [weak self] in self?.confirmUpdate() }
         settingsModel.onCheckForUpdates = { [weak self] in self?.updater.check() }
         updater.start()
@@ -89,6 +96,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         self.nowPlaying = nowPlaying
         nowPlaying.start()
+    }
+
+    /// Check for Updates… 결과: 새 버전이면 설치를 묻고, 아니면 알린다.
+    private func reportUpdateResult(_ state: Updater.State) {
+        switch state {
+        case .checking, .idle, .installing:
+            return
+        case .available:
+            reportUpdateCheck = false
+            confirmUpdate()
+        case .upToDate, .failed:
+            reportUpdateCheck = false
+            NSApp.activate(ignoringOtherApps: true)
+            let alert = NSAlert()
+            let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
+            if case .failed(let message) = state {
+                alert.messageText = "Couldn't check for updates"
+                alert.informativeText = message
+            } else {
+                alert.messageText = "You're up to date"
+                alert.informativeText = "오늘의 판 v\(version) is the latest version."
+            }
+            alert.runModal()
+        }
     }
 
     /// 설치 전에 한 번 묻는다. 앱이 바뀌고 다시 실행된다.

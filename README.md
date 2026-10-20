@@ -64,6 +64,7 @@ Click the record icon in the menu bar:
 | Show Wallpaper | Turn the record on or off |
 | Clear This Record | Erase the lines on the current record |
 | Settings… (⌘,) | Open the settings window |
+| Check for Updates… | Check for a new version now |
 | Update to v… | Shown when a new version is available |
 
 **Settings**

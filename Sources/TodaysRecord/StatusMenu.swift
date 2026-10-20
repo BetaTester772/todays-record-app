@@ -8,6 +8,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     var onClearRecord: (() -> Void)?
     var onOpenSettings: (() -> Void)?
     var onInstallUpdate: (() -> Void)?
+    var onCheckForUpdates: (() -> Void)?
     /// 메뉴를 열 때 불린다. 실행 중인 플레이어와 지금 보여주는 플레이어(4.5.2). 없으면 Player 항목을 숨긴다.
     var playerChoice: (() -> (running: [PlayerKind], shown: PlayerKind?))?
     var onChoosePlayer: ((PlayerKind) -> Void)?
@@ -48,6 +49,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         menu.addItem(target(enabledItem, #selector(toggleEnabled)))
         menu.addItem(target(NSMenuItem(title: "Clear This Record", action: nil, keyEquivalent: ""), #selector(clearRecord)))
         menu.addItem(target(NSMenuItem(title: "Settings…", action: nil, keyEquivalent: ","), #selector(openSettings)))
+        menu.addItem(target(NSMenuItem(title: "Check for Updates…", action: nil, keyEquivalent: ""), #selector(checkForUpdates)))
         menu.addItem(.separator())
 
         target(updateItem, #selector(installUpdate))
@@ -102,6 +104,10 @@ final class StatusMenu: NSObject, NSMenuDelegate {
 
     @objc private func installUpdate() {
         onInstallUpdate?()
+    }
+
+    @objc private func checkForUpdates() {
+        onCheckForUpdates?()
     }
 
     @objc private func toggleEnabled() {

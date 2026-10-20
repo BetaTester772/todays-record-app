@@ -220,6 +220,7 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
 | Show Wallpaper (체크) | 창 표시 여부 |
 | Clear This Record | `clearRecord()` |
 | Settings… (⌘,) | 설정 창을 연다 |
+| Check for Updates… | 바로 업데이트를 확인한다. 새 버전이면 설치를 묻고, 최신이면 알린다(4.10) |
 | Update to vX… | 새 버전이 있을 때만 표시(4.10) |
 | 제어 권한 열기 (“Allow Control of Music…” 등, 4.5) | 권한이 없는 플레이어가 있을 때만 표시 |
 | Quit | 앱 종료 |
