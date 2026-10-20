@@ -1,4 +1,4 @@
-// 오늘의 판 — the crowd (spec 6.25)
+// TurnTable — the crowd (spec 6.25)
 //
 // The longer the music plays without a break, the more little people drop by: one 3-7 minutes in, then one every
 // 3-5 minutes, up to 6. They walk around the turntable and the desk, sit on the plinth's edge swinging their feet,

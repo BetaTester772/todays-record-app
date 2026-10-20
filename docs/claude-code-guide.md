@@ -1,4 +1,4 @@
-# Claude Code로 ‘오늘의 판’ Mac 앱 만들기
+# Claude Code로 TurnTable Mac 앱 만들기
 
 이 폴더를 Claude Code에 그대로 넘기면, 명세서를 읽고 단계별로 앱을 만들어요.
 

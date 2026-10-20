@@ -111,10 +111,6 @@ Music doesn't give track numbers for streamed songs that aren't in your library,
 
 The app needs to be in a folder it can write to, usually `/Applications`. If it's running from Downloads it will offer to move itself. When an update fails, it shows the reason; you can always download the zip from the releases page instead.
 
-### Upgrading from TodaysRecord
-
-TodaysRecord is TurnTable's old name. Updating from 0.4.x renames `TodaysRecord.app` to `TurnTable.app` and keeps your settings and permissions.
-
 ### How do I uninstall it?
 
 Quit the app and delete it from `/Applications`. To remove its settings too:

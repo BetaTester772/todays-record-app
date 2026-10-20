@@ -1,7 +1,5 @@
 # TurnTable — macOS 앱 명세서
 
-(옛 이름 “오늘의 판”. 0.25에서 이름을 바꿨다. 아래 본문의 “오늘의 판”은 이 앱을 말한다.)
-
 버전 0.25 · 2026-10-21 (0.2: LP 면 나누기, iTunes 검색 국가 대체 · 0.3: 음량 노브, 면 램프 · 0.4: 색 섞기 전환, 곡 안 위치 이동 · 0.5: 화면 문구 영어 · 0.6: 긴 이름 흐르기 · 0.7: 메뉴 막대·Dock 피하기 · 0.8: 오늘 들은 곡 수만, 노란 강조색 피하기 · 0.9: M2 설정 메뉴, 창문 빛, 잔상 · 0.10: 판 색 고르기, 시간대 색감 · 0.11: 배경색, 선 색 고르기 · 0.12: 그레인 세기 · 0.13: M4 절전, 여러 화면, 그리기 최적화 · 0.14: Spotify 지원 · 0.15: 설정 창, 화면별 켜기, 앱 아이콘 · 0.16: 배포 zip, README · 0.17: M5 뺌 · 0.18: 긴 앨범 LP 세트 · 0.19: 면 바꾸기 동작 · 0.20: 자연스러운 움직임, 글자 색 · 0.21: 앱 안 업데이트, 배포 인증서 · 0.22: 업데이트 설치 자리, 실패 이유, 응용 프로그램 폴더로 옮기기 · 0.23: 컬러 바이닐, 톤암·받침판 색, 색 설정 정리, 이 Mac에 설치 · 0.24: 모여드는 사람들(crowd.js), 받침 높이, 캐릭터 포즈, Characters 탭 · 0.25: 이름을 TurnTable로)
 
 ## 1. 개요
@@ -250,7 +248,7 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
 - 누르면 확인 창(Update / Later / Release Notes)을 띄우고, Update면: 릴리스의 `TurnTable-<버전>.zip`과 `TurnTable-<버전>.sha256`(없으면 옛 이름 `TodaysRecord-<버전>.zip`과 `.zip.sha256`)을 받아 SHA-256을 맞춰 보고 → `ditto`로 풀고 → 번들 ID가 같은지, 서명이 정상인지 확인하고 → **지금 앱이 인증서로 서명돼 있으면 새 앱도 같은 designated requirement(같은 인증서)를 만족하는지** 확인한 뒤(`SecStaticCodeCheckValidity`) → 설치할 자리에 바꿔 넣고 → 지금 앱이 끝나면 새 앱을 연다.
 - 설치할 자리: 지금 앱 자리에 쓸 수 있고 App Translocation(경로에 `/AppTranslocation/`, 다운로드한 앱을 옮기지 않고 열면 macOS가 읽기 전용 임시 자리에서 실행함) 중이 아니면 지금 자리(`FileManager.replaceItemAt`로 원자적으로 바꿈). 아니면 `/Applications/TurnTable.app`. 옛 이름 앱(`TodaysRecord.app`)은 같은 폴더에 `TurnTable.app`으로 설치하고 옛 앱은 휴지통으로 보낸다. 그 자리에 쓸 권한이 없으면 `NSAppleScript`의 `do shell script … with administrator privileges`로 macOS 관리자 암호 창을 띄워 `rm -rf` 후 `ditto --noqtn`으로 넣는다. 암호 창에서 취소하면(-128) 취소로 본다.
 - 어느 단계든 실패하면 아무것도 바꾸지 않고, 실패 이유(받기 실패, 체크섬 다름, 서명 다름, 쓸 권한 없음 등)를 알림 창으로 보여 준다(Open Download Page / OK). 릴리스 페이지를 말없이 열지 않는다.
-- 앱 시작 때 App Translocation 중이거나 `~/Downloads` 안에서 실행 중이면 “Move 오늘의 판 to the Applications folder?”(Move to Applications / Not Now)를 묻는다. 옮기면 `/Applications`에 넣고(필요하면 관리자 암호), 원래 자리의 앱은 휴지통으로 보낸 뒤(Translocation이면 원본을 모르므로 그대로 둠) 새 자리에서 다시 연다.
+- 앱 시작 때 App Translocation 중이거나 `~/Downloads` 안에서 실행 중이면 “Move TurnTable to the Applications folder?”(Move to Applications / Not Now)를 묻는다. 옮기면 `/Applications`에 넣고(필요하면 관리자 암호), 원래 자리의 앱은 휴지통으로 보낸 뒤(Translocation이면 원본을 모르므로 그대로 둠) 새 자리에서 다시 연다.
 - **이름 바꾸기(0.25, TurnTable).** 화면에 보이는 이름(`CFBundleName`, `CFBundleDisplayName`, 메뉴·창·알림 문구)과 앱 파일 이름을 TurnTable로 바꿨다. 번들 ID, 실행 파일 이름(`TodaysRecord`), UserDefaults 영역, 저장소 이름은 그대로다.
   - 릴리스에는 `TurnTable-<버전>.zip`과 `TurnTable-<버전>.sha256`, 그리고 0.4.x 앱용 `TodaysRecord-<버전>.zip`과 `.zip.sha256`(안의 앱 폴더 이름만 `TodaysRecord.app`, 같은 서명)을 함께 올린다. 0.4.x 업데이트 코드는 `TodaysRecord-`로 시작하는 zip과 처음 보이는 `.zip.sha256`을 쓰므로, 새 체크섬 파일 이름에는 `.zip`을 넣지 않는다.
   - 앱이 시작할 때 자기 파일 이름이 `TodaysRecord.app`이고 그 폴더에 쓸 수 있으며 옆에 `TurnTable.app`이 없으면, `TurnTable.app`으로 이름을 바꾸고 새 자리에서 다시 연다. 다시 열린 앱은 로그인 항목이 켜져 있으면 새 위치로 다시 등록한다(`renamedApp` 표시). `scripts/install.sh`도 옛 앱을 지울 때 이 표시를 남긴다.
