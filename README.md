@@ -73,7 +73,7 @@ Click the record icon in the menu bar:
 
 - **General**: Show Wallpaper, Open at Login, Frame Rate (Auto uses 30 fps on battery), Clear This Record, automatic update checks
 - **Displays**: choose which displays show the record
-- **Appearance**: record position, transparent background, **Colored Vinyl** (the record takes the album's main color), record / background / line / text colors (from the album or your own), tonearm color
+- **Appearance**: record position, transparent background, **Colored Vinyl** (the record takes the album's main color), record / background / line / text colors (from the album or your own), tonearm and arm base colors. Each color is **Album** (or **Default**) until you pick **Custom**; **Reset Colors** puts them all back.
 - **Effects**: window light that follows the time of day, line trail (keep or afterglow), grain
 - **Players**: permission status for Music and Spotify
 
@@ -108,12 +108,13 @@ Needs Xcode or the Command Line Tools (`xcode-select --install`).
 ```bash
 swift build                     # build
 swift test                      # unit tests
-scripts/run.sh                  # assemble the .app, ad-hoc sign, and run
+scripts/run.sh                  # assemble the .app, install it in /Applications, and run
+scripts/install.sh              # assemble, install in /Applications, and open
 scripts/run.sh --demo           # run with preview data (no Music needed)
 scripts/package.sh              # universal release zip in dist/
 ```
 
-When you run the app from Terminal with `scripts/run.sh`, macOS attaches the Music/Spotify permission to Terminal instead of the app. To test the app's own permission, open it with `open build/TodaysRecord.app`. Each ad-hoc rebuild has a new signature, so macOS may ask for permission again.
+When you run the app from Terminal with `scripts/run.sh`, macOS attaches the Music/Spotify permission to Terminal instead of the app. To test the app's own permission, use `scripts/install.sh`, which opens the installed app normally. Both scripts sign with the release certificate when it's in your keychain; otherwise each ad-hoc rebuild has a new signature, so macOS may ask for permission again.
 
 Docs: [`docs/SPEC.md`](docs/SPEC.md) (full spec, in Korean) · [`docs/claude-code-guide.md`](docs/claude-code-guide.md) (how this app was built with Claude Code)
 

@@ -39,11 +39,12 @@ Apple Music 또는 Spotify에서 재생 중인 곡을 레코드 턴테이블 그
 ```bash
 swift build                     # 빌드
 swift test                      # 단위 테스트 (고르기 규칙, 상태 해석, 곡 위치)
-scripts/run.sh                  # .app 조립, 애드혹 서명, 실행
+scripts/run.sh                  # .app 조립 → /Applications에 설치(인증서 서명) → 실행. NO_INSTALL=1이면 build/에서 애드혹으로 실행
+scripts/install.sh              # .app 조립 → /Applications에 설치(인증서 서명) → 열기 (이 Mac에서 쓰는 앱을 최신 코드로)
 scripts/run.sh --demo           # Music 없이 미리보기 데이터로 실행
 scripts/run.sh --windowed       # 일반 창으로 띄워 디버깅 (Safari 웹 속성 검사기 연결 가능)
 scripts/run.sh --log-nowplaying # Music·Spotify 알림과 AppleScript 결과 출력
-scripts/run.sh --settings       # 시작할 때 설정 창 열기
+scripts/run.sh --settings       # 시작할 때 설정 창 열기 (--settings=Appearance처럼 탭 지정 가능)
 # 업데이트 시험: 버전을 낮춘 사본을 --install-update로 실행하면 GitHub 최신 릴리스로 스스로 바뀐다
 swift scripts/make-icon.swift   # 앱 아이콘(Resources/AppIcon.icns) 다시 만들기
 scripts/package.sh              # 배포용 Universal zip (dist/)

@@ -73,7 +73,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         volume.start()
 
-        if options.openSettings { settingsWindow.show() }
+        if options.openSettings { settingsWindow.show(tab: options.settingsTab) }
         offerMoveToApplications()
 
         // --demo면 index.html의 미리보기 데이터를 쓰므로 Music, Spotify를 보지 않는다.

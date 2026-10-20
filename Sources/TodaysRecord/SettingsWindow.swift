@@ -12,7 +12,8 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         self.model = model
     }
 
-    func show() {
+    /// `tab`: 처음 보일 탭 이름(General, Displays, …). 없으면 마지막에 보던 탭.
+    func show(tab: String? = nil) {
         model.refresh()
         if window == nil {
             // macOS 설정 창처럼 위쪽 도구 막대 아이콘을 누르면 아래 내용이 바뀐다.
@@ -42,6 +43,10 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
             window.delegate = self
             window.center()
             self.window = window
+        }
+        if let tab, let tabs = window?.contentViewController as? NSTabViewController,
+           let index = tabs.tabViewItems.firstIndex(where: { $0.label.caseInsensitiveCompare(tab) == .orderedSame }) {
+            tabs.selectedTabViewItemIndex = index
         }
         // 메뉴 막대 앱이라 창을 열 때 앱을 앞으로 가져온다.
         NSApp.activate(ignoringOtherApps: true)
@@ -190,6 +195,11 @@ private struct AppearancePane: View {
     @AppStorage(Settings.ColorSlot.line.rawValue) private var lineColor = ""
     @AppStorage(Settings.ColorSlot.text.rawValue) private var textColor = ""
     @AppStorage(Settings.ColorSlot.arm.rawValue) private var armColor = ""
+    @AppStorage(Settings.ColorSlot.armBase.rawValue) private var armBaseColor = ""
+
+    private var colorsChanged: Bool {
+        coloredVinyl || ![recordColor, bgColor, lineColor, textColor, armColor, armBaseColor].allSatisfy(\.isEmpty)
+    }
 
     var body: some View {
         Pane {
@@ -207,19 +217,27 @@ private struct AppearancePane: View {
                 .pickerStyle(.segmented)
             }
             Section {
-                Toggle("Colored Vinyl", isOn: $coloredVinyl)
-                    .disabled(!recordColor.isEmpty)
-                Text(recordColor.isEmpty
-                     ? "The record takes the album's main color, like colored vinyl."
-                     : "Turn on From Album for Record Color to use this.")
+                ColorRow(slot: .record, title: "Record", hex: $recordColor, vinyl: $coloredVinyl)
+                ColorRow(slot: .background, title: "Background", hex: $bgColor)
+                ColorRow(slot: .line, title: "Line", hex: $lineColor)
+                ColorRow(slot: .text, title: "Text", hex: $textColor)
+                ColorRow(slot: .arm, title: "Tonearm", hex: $armColor)
+                ColorRow(slot: .armBase, title: "Arm Base", hex: $armBaseColor)
+                HStack {
+                    Spacer()
+                    Button("Reset Colors") {
+                        coloredVinyl = false
+                        for slot in Settings.ColorSlot.allCases { UserDefaults.standard.set("", forKey: slot.rawValue) }
+                    }
+                    .disabled(!colorsChanged)
+                }
+            } header: {
+                Text("Colors")
+            } footer: {
+                Text("Album colors come from the cover. Colored Vinyl paints the record in the album's main color. Custom colors stay the same for every album.")
                     .font(.caption).foregroundStyle(.secondary)
-            }
-            Section {
-                ColorRow(title: "Record Color", hex: $recordColor)
-                ColorRow(title: "Background Color", hex: $bgColor)
-                ColorRow(title: "Line Color", hex: $lineColor)
-                ColorRow(title: "Text Color", hex: $textColor)
-                ColorRow(title: "Arm Color", hex: $armColor, automatic: "Default")
+                    .multilineTextAlignment(.leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
     }
@@ -301,27 +319,50 @@ private struct Pane<Content: View>: View {
     }
 }
 
-/// "From Album"이 켜져 있으면 앨범 색, 끄면 직접 고른 색. 톤암처럼 기본 색이 앨범 색이 아니면 `automatic`에 다른 이름을 준다.
+/// 색 하나: 기본 색(앨범 색, 톤암·받침판은 Default) / Custom. 판은 Colored Vinyl도 고를 수 있다.
+/// 색 상자는 Custom일 때만 보인다(자리는 남겨 메뉴 줄을 맞춘다).
 private struct ColorRow: View {
+    let slot: Settings.ColorSlot
     let title: String
     @Binding var hex: String
-    var automatic = "From Album"
+    var vinyl: Binding<Bool>?
+
+    private enum Choice: Hashable { case automatic, vinyl, custom }
+
+    private var automaticTitle: String { slot == .arm || slot == .armBase ? "Default" : "Album" }
+
+    private var choice: Binding<Choice> {
+        Binding(
+            get: { !hex.isEmpty ? .custom : (vinyl?.wrappedValue == true ? .vinyl : .automatic) },
+            set: { new in
+                vinyl?.wrappedValue = new == .vinyl
+                if new == .custom {
+                    if hex.isEmpty { hex = slot.presets.dropFirst().first?.hex ?? "#808080" }
+                } else {
+                    hex = ""
+                }
+            }
+        )
+    }
 
     var body: some View {
-        HStack {
-            Text(title)
-            Spacer()
-            Toggle(automatic, isOn: Binding(
-                get: { hex.isEmpty },
-                set: { hex = $0 ? "" : (hex.isEmpty ? "#808080" : hex) }
-            ))
-            .toggleStyle(.checkbox)
-            ColorPicker("", selection: Binding(
-                get: { Color(nsColor: Self.color(hex) ?? .gray) },
-                set: { hex = Self.hex(NSColor($0)) }
-            ), supportsOpacity: false)
-            .labelsHidden()
-            .disabled(hex.isEmpty)
+        LabeledContent(title) {
+            HStack(spacing: 8) {
+                Picker(title, selection: choice) {
+                    Text(automaticTitle).tag(Choice.automatic)
+                    if vinyl != nil { Text("Colored Vinyl").tag(Choice.vinyl) }
+                    Text("Custom").tag(Choice.custom)
+                }
+                .labelsHidden()
+                .fixedSize()
+                ColorPicker(title, selection: Binding(
+                    get: { Color(nsColor: Self.color(hex) ?? .gray) },
+                    set: { hex = Self.hex(NSColor($0)) }
+                ), supportsOpacity: false)
+                .labelsHidden()
+                .disabled(hex.isEmpty)
+                .opacity(hex.isEmpty ? 0 : 1)
+            }
         }
     }
 

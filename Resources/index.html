@@ -164,7 +164,7 @@
   // options the app can change from its menu (setOptions)
   // colors '' = taken from the album
   // sideChange: how turning to the other side of the same record looks: 'turn' (lift and turn), 'swap' (like a new album), 'needle' (needle only)
-  const opts = { position: 'right', transparent: false, windowLight: true, trail: 'afterglow', grain: 'normal', fps: 60, sideChange: 'turn', coloredVinyl: false, recordColor: '', bgColor: '', lineColor: '', textColor: '', armColor: '' };
+  const opts = { position: 'right', transparent: false, windowLight: true, trail: 'afterglow', grain: 'normal', fps: 60, sideChange: 'turn', coloredVinyl: false, recordColor: '', bgColor: '', lineColor: '', textColor: '', armColor: '', armBaseColor: '' };
   const GRAIN = { off: 0, low: 0.45, normal: 1, high: 1.45 };   // multiplier on the original grain strength
   const glowPts = [];   // recent stylus points for the afterglow trail: { fr, a, t, c } or null for a lift
   let pal = palFromHex(DEMO[0].pal), targetPal = clonePal(pal);
@@ -615,7 +615,7 @@
         if (o.fps === 30 || o.fps === 60) opts.fps = o.fps;
         if (['turn', 'swap', 'needle'].includes(o.sideChange)) opts.sideChange = o.sideChange;
         if (typeof o.coloredVinyl === 'boolean') opts.coloredVinyl = o.coloredVinyl;
-        for (const k of ['recordColor', 'bgColor', 'lineColor', 'textColor', 'armColor']) {
+        for (const k of ['recordColor', 'bgColor', 'lineColor', 'textColor', 'armColor', 'armBaseColor']) {
           if (typeof o[k] === 'string') opts[k] = /^#[0-9a-f]{6}$/i.test(o[k]) ? o[k] : '';
         }
         if (typeof o.transparent === 'boolean') {
@@ -906,9 +906,10 @@
     c.edge = mix(c.record, [0, 0, 0], 0.16);
     c.metal = d ? [196, 192, 194] : [250, 245, 242];
     c.metalD = mix(c.metal, [0, 0, 0], 0.16);
-    // tonearm: post, arm tube, counterweight, headshell and stylus (the base plate and knobs stay metal)
+    // tonearm: post, arm tube, counterweight, headshell and stylus (the knobs stay metal)
     c.arm = opts.armColor ? hex(opts.armColor) : c.metal;
     c.armD = mix(c.arm, [0, 0, 0], 0.16);
+    c.armBase = opts.armBaseColor ? hex(opts.armBaseColor) : c.metal;   // the plate under the tonearm
     c.shade = mix(c.plinth, [0, 0, 0], 0.28);
     return c;
   }
@@ -939,8 +940,8 @@
     // tonearm base plate
     const bx = ARM.bx * R, by = ARM.by * R;
     ctx.fillStyle = css(C.shade); disc(ctx, bx + 0.015 * R, by + 0.035 * R, 0.13 * R);
-    ctx.fillStyle = css(C.metal); disc(ctx, bx, by, 0.125 * R);
-    ctx.fillStyle = css(mix(C.metal, C.plinth, 0.18)); disc(ctx, bx, by, 0.07 * R);
+    ctx.fillStyle = css(C.armBase); disc(ctx, bx, by, 0.125 * R);
+    ctx.fillStyle = css(mix(C.armBase, C.plinth, 0.18)); disc(ctx, bx, by, 0.07 * R);
     // controls sit on an arc around the record, from the tonearm side toward the front:
     // volume knob, speed knob, power lamp, then one lamp per LP side
     const ARC = 1.22 * R, onArc = a => ({ x: Math.cos(a) * ARC, y: Math.sin(a) * ARC });

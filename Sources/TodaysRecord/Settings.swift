@@ -25,13 +25,14 @@ final class Settings {
         case off, low, normal, high
     }
 
-    /// 사용자가 고를 수 있는 색. 빈 문자열이면 앨범에서 뽑은 색(톤암은 기본 금속색)을 쓴다.
+    /// 사용자가 고를 수 있는 색. 빈 문자열이면 기본 색(앨범에서 뽑은 색, 톤암과 받침판은 금속색)을 쓴다.
     enum ColorSlot: String, CaseIterable {
         case record = "recordColor"
         case background = "bgColor"
         case line = "lineColor"
         case text = "textColor"
         case arm = "armColor"
+        case armBase = "armBaseColor"
 
         var menuTitle: String {
             switch self {
@@ -40,10 +41,11 @@ final class Settings {
             case .line: return "Line Color"
             case .text: return "Text Color"
             case .arm: return "Arm Color"
+            case .armBase: return "Arm Base Color"
             }
         }
 
-        /// 첫 항목은 앨범 색.
+        /// 첫 항목은 기본 색. 둘째 항목은 설정 창에서 Custom을 처음 고를 때의 색.
         var presets: [(title: String, hex: String)] {
             switch self {
             case .record:
@@ -56,6 +58,8 @@ final class Settings {
                 return [("Album Colors", ""), ("White", "#FFFFFF"), ("Black", "#1A1A1A")]
             case .arm:
                 return [("Default", ""), ("Black", "#26262A"), ("Gold", "#C9A45C"), ("Red", "#B8323A")]
+            case .armBase:
+                return [("Default", ""), ("Black", "#26262A"), ("Gold", "#C9A45C")]
             }
         }
     }
@@ -184,6 +188,7 @@ final class Settings {
             "lineColor": color(.line),
             "textColor": color(.text),
             "armColor": color(.arm),
+            "armBaseColor": color(.armBase),
         ]
     }
 }
