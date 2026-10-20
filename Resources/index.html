@@ -299,12 +299,15 @@
     const cut = Math.max(1, Math.floor(px.length * 0.2));
     let dark = [0, 0, 0]; for (let i = 0; i < cut; i++) dark = mix(dark, px[i].col, 1 / (i + 1));
     const dh = rgb2hsl(dark), h = best[0], s = best[1];
+    // the accent (trail, lamps, ticks) avoids yellow, which washes out on the light record and background:
+    // hues of about 40-72 degrees move to amber or green, whichever is nearer
+    const ah = h > 0.11 && h < 0.2 ? (h < 0.155 ? 0.09 : 0.26) : h;
     const deep = hsl2rgb([dh[0], Math.min(0.55, dh[1] + 0.1), clamp(dh[2], 0.16, 0.28)]);
     return {
       bg: hsl2rgb([h, Math.min(0.45, s * 0.6 + 0.1), 0.89]),
       plinth: deep, label: deep.slice(),
       record: hsl2rgb([h, Math.min(0.35, s * 0.5 + 0.08), 0.94]),
-      accent: hsl2rgb([h, Math.max(0.55, s), clamp(best[2], 0.45, 0.58)]),
+      accent: hsl2rgb([ah, Math.max(0.55, s), clamp(best[2], 0.45, 0.58)]),
       ink: hsl2rgb([dh[0], Math.min(0.5, dh[1] + 0.1), 0.2]),
     };
   }
@@ -369,7 +372,6 @@
     }
     prevPt = null; lastBeat = -1;
     today.push({ t: media.title, a: media.artist, c: toHex(A.pal.accent), at: Date.now() });
-    if (today.length > 80) today.shift();
     save();
   }
 
@@ -1113,12 +1115,7 @@
       y += drawPix(clipPix(hint, sSmall, 600, maxCss / ps), x0, y, sSmall, ps, soft, 600).h + ps * 6;
     }
 
-    y += drawPix(`Played Today ${today.length}`, x0, y, sSmall, ps, soft, 600).h + ps;
-    const cs = ps * 3, cg = ps, perRow = 20;
-    today.slice(-60).forEach((tr, i) => {
-      ctx.fillStyle = tr.c || ink;
-      ctx.fillRect(x0 + (i % perRow) * (cs + cg), y + Math.floor(i / perRow) * (cs + cg), cs, cs);
-    });
+    drawPix(`Played Today ${today.length}`, x0, y, sSmall, ps, soft, 600);
   }
 
   function drawGrain() {
