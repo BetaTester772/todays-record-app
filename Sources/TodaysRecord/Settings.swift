@@ -194,7 +194,7 @@ final class Settings {
         set { defaults.set(newValue, forKey: Key.lineStyle) }
     }
 
-    /// 다른 앨범으로 바뀔 때 판 움직임: swap(빼고 갈아 끼우기) 또는 slide(옛 판을 왼쪽으로 빼며 새 판을 위로 밀어 넣기). 명세 6장 28.
+    /// 다른 앨범으로 바뀔 때 판 움직임: swap(빼고 갈아 끼우기) 또는 slide(옛 판을 왼쪽으로 빼고 새 판을 같은 왼쪽에서 그 위로 들여오기). 명세 6장 28.
     var albumChange: String {
         get { defaults.string(forKey: Key.albumChange) == "slide" ? "slide" : "swap" }
         set { defaults.set(newValue, forKey: Key.albumChange) }

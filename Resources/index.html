@@ -395,7 +395,7 @@
       swapRecord(A);
       cue = { kind: 'track', t0: now, dur: 1700, fromPhi: armPhi, fromLift: armLift };
     } else if (newAlbum) {
-      // Slide Over (albumChange 'slide'): the old record slides off to the left as the new one slides in on top of it
+      // Slide Over (albumChange 'slide'): the old record slides off to the left and the new one comes in from the left over it
       cue = { kind: 'album', t0: now, dur: 2900, fromPhi: armPhi, fromLift: armLift, next: A, swapped: false, slide: opts.albumChange === 'slide' };
     } else {
       cue = { kind: 'track', t0: now, dur: 1700, fromPhi: armPhi, fromLift: armLift };
@@ -755,14 +755,14 @@
         else armPhi = lerp(REST_PHI, onPhi, easeInOut(clamp((e - 0.7) / 0.16)));
         armLift = liftCurve(e, 0.12, 0.8, cue.fromLift);
         if (cue.slide) {
-          // both records float up a little; the old one leaves to the left while the new one comes in from the right
-          // over it and settles onto the platter
+          // the old record slides out to the left, and the new one comes in from that same side a moment later,
+          // passing over it a little higher, and settles onto the platter
           if (e >= 0.28 && !cue.swapped) { cue.out = { A: shown, C: sceneColors(), rot: spin }; swapRecord(cue.next); cue.swapped = true; }
-          if (cue.out) {
-            const k = easeInOut(clamp((e - 0.28) / 0.44));
-            cue.outOff = { x: -2.4 * k, y: -0.08 * k, lift: clamp(k * 4) };
-            recOff = { x: 2.4 * (1 - k), y: -0.08 * (1 - k), lift: clamp((1 - k) * 4) };
-            if (k >= 1) cue.out = null;
+          if (cue.swapped) {
+            const kOut = easeInOut(clamp((e - 0.28) / 0.34)), kIn = easeInOut(clamp((e - 0.38) / 0.34));
+            if (cue.out) cue.outOff = { x: -2.4 * kOut, y: -0.06 * kOut, lift: clamp(kOut * 4) };
+            recOff = { x: -2.4 * (1 - kIn), y: -0.12 * (1 - kIn), lift: clamp((1 - kIn) * 4) };
+            if (kOut >= 1) cue.out = null;
           }
         } else if (e >= 0.32 && e < 0.52) { const k = easeIn((e - 0.32) / 0.2); recOff = { x: k * 1.8, y: -k * 0.28, lift: k }; }
         else if (e >= 0.52 && e < 0.72 && !cue.slide) {

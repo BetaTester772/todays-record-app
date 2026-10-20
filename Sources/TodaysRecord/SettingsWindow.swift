@@ -286,7 +286,7 @@ private struct EffectsPane: View {
                     Text("Swap Record").tag("swap")
                     Text("Slide Over").tag("slide")
                 }
-                Text("How the record changes when the next song is from another album. Slide Over pushes the old record off to the left as the new one slides in on top.")
+                Text("How the record changes when the next song is from another album. Slide Over slides the old record out to the left and brings the new one in from the left, over it.")
                     .font(.caption).foregroundStyle(.secondary)
             }
         }
