@@ -1,6 +1,6 @@
 # 오늘의 판 — macOS 앱 명세서
 
-버전 0.19 · 2026-10-20 (0.2: LP 면 나누기, iTunes 검색 국가 대체 · 0.3: 음량 노브, 면 램프 · 0.4: 색 섞기 전환, 곡 안 위치 이동 · 0.5: 화면 문구 영어 · 0.6: 긴 이름 흐르기 · 0.7: 메뉴 막대·Dock 피하기 · 0.8: 오늘 들은 곡 수만, 노란 강조색 피하기 · 0.9: M2 설정 메뉴, 창문 빛, 잔상 · 0.10: 판 색 고르기, 시간대 색감 · 0.11: 배경색, 선 색 고르기 · 0.12: 그레인 세기 · 0.13: M4 절전, 여러 화면, 그리기 최적화 · 0.14: Spotify 지원 · 0.15: 설정 창, 화면별 켜기, 앱 아이콘 · 0.16: 배포 zip, README · 0.17: M5 뺌 · 0.18: 긴 앨범 LP 세트 · 0.19: 면 바꾸기 동작)
+버전 0.20 · 2026-10-20 (0.2: LP 면 나누기, iTunes 검색 국가 대체 · 0.3: 음량 노브, 면 램프 · 0.4: 색 섞기 전환, 곡 안 위치 이동 · 0.5: 화면 문구 영어 · 0.6: 긴 이름 흐르기 · 0.7: 메뉴 막대·Dock 피하기 · 0.8: 오늘 들은 곡 수만, 노란 강조색 피하기 · 0.9: M2 설정 메뉴, 창문 빛, 잔상 · 0.10: 판 색 고르기, 시간대 색감 · 0.11: 배경색, 선 색 고르기 · 0.12: 그레인 세기 · 0.13: M4 절전, 여러 화면, 그리기 최적화 · 0.14: Spotify 지원 · 0.15: 설정 창, 화면별 켜기, 앱 아이콘 · 0.16: 배포 zip, README · 0.17: M5 뺌 · 0.18: 긴 앨범 LP 세트 · 0.19: 면 바꾸기 동작 · 0.20: 자연스러운 움직임, 글자 색)
 
 ## 1. 개요
 
@@ -227,11 +227,11 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
 |---|---|
 | General | Show Wallpaper, Open at Login (`SMAppService.mainApp` 등록/해제), Frame Rate(Auto / 30 / 60, 4.7. Auto는 배터리일 때 30), Clear This Record |
 | Displays | 연결된 화면마다 켜기/끄기 (4.3). 화면이 바뀌면 목록을 다시 읽는다 |
-| Appearance | Record Position(Left / Center / Right), Background(Default / Transparent), Record·Background·Line Color(“From Album” 체크 또는 색 고르기) |
+| Appearance | Record Position(Left / Center / Right), Background(Default / Transparent), Record·Background·Line·Text Color(“From Album” 체크 또는 색 고르기) |
 | Effects | Window Light(6장 19), Trail(Keep / Afterglow, 6장 20), Grain(Off / Low / Normal / High), Side Change(Lift & Turn / Swap Record / Needle Only, 6장 23) |
 | Players | Music·Spotify 제어 권한 상태와 자동화 설정 열기 |
 
-설정은 `UserDefaults`에 저장한다(키 `enabled`, `position`, `transparent`, `windowLight`, `trail`, `grain`, `sideChange`, `recordColor`, `bgColor`, `lineColor`, `disabledDisplays`, `fps`). 설정 창은 `@AppStorage`로 같은 키(`Settings.Key`)에 바로 쓰고, 앱은 `UserDefaults.didChangeNotification`을 받아 한 번에 모아 창과 모든 웹뷰에 반영한다(`setOptions`). 앱 시작 시와 웹뷰가 준비될 때도 적용한다. 화면과 메뉴 문구는 영어로 쓴다. 로그인 항목이 사용자 승인을 기다리는 상태(`requiresApproval`)면 시스템 설정의 로그인 항목 화면을 연다.
+설정은 `UserDefaults`에 저장한다(키 `enabled`, `position`, `transparent`, `windowLight`, `trail`, `grain`, `sideChange`, `recordColor`, `bgColor`, `lineColor`, `textColor`, `disabledDisplays`, `fps`). 설정 창은 `@AppStorage`로 같은 키(`Settings.Key`)에 바로 쓰고, 앱은 `UserDefaults.didChangeNotification`을 받아 한 번에 모아 창과 모든 웹뷰에 반영한다(`setOptions`). 앱 시작 시와 웹뷰가 준비될 때도 적용한다. 화면과 메뉴 문구는 영어로 쓴다. 로그인 항목이 사용자 승인을 기다리는 상태(`requiresApproval`)면 시스템 설정의 로그인 항목 화면을 연다.
 
 **앱 아이콘.** `scripts/make-icon.swift`가 앱 화면과 같은 색(분홍 배경, 초록 받침, 크림색 판, 초록 라벨, 주황 바늘)으로 macOS 아이콘 격자(1024 안 824 둥근 사각형)에 그려 `iconutil`로 `Resources/AppIcon.icns`를 만든다. `Info.plist`의 `CFBundleIconFile`이 가리킨다.
 
@@ -250,7 +250,7 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
 | `TodaysRecord.nowPlaying(payload)` | 4.5의 JSON |
 | `TodaysRecord.art(dataURL, version)` | 앨범 커버 |
 | `TodaysRecord.setPaused(bool)` | 그리기 멈춤/재개 |
-| `TodaysRecord.setOptions({position, transparent, windowLight, trail, fps})` | position: `"left"`, `"center"`, `"right"` · transparent: bool · windowLight: bool · trail: `"keep"` 또는 `"afterglow"` · grain: `"off"`, `"low"`, `"normal"`, `"high"`(기존 세기의 0, 0.45, 1, 1.45배) · sideChange: `"turn"`, `"swap"`, `"needle"`(6장 23) · recordColor, bgColor, lineColor: `"#RRGGBB"` 또는 `""`(앨범 색) · fps: 30 또는 60(앱이 설정과 전원에 따라 정해 보낸다) |
+| `TodaysRecord.setOptions({position, transparent, windowLight, trail, fps})` | position: `"left"`, `"center"`, `"right"` · transparent: bool · windowLight: bool · trail: `"keep"` 또는 `"afterglow"` · grain: `"off"`, `"low"`, `"normal"`, `"high"`(기존 세기의 0, 0.45, 1, 1.45배) · sideChange: `"turn"`, `"swap"`, `"needle"`(6장 23) · recordColor, bgColor, lineColor, textColor: `"#RRGGBB"` 또는 `""`(앨범 색) · fps: 30 또는 60(앱이 설정과 전원에 따라 정해 보낸다) |
 | `TodaysRecord.clearRecord()` | 지금 판의 선 지우기 |
 | `TodaysRecord.setInsets({top, right, bottom, left})` | 메뉴 막대와 Dock이 덮는 화면 가장자리(4.3) |
 | `TodaysRecord.setVolume({level, muted})` | 시스템 음량. level: 0~1(모르면 생략), muted: bool (4.6.1) |
@@ -295,7 +295,7 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
 
 15. **긴 이름 흐르기.** 곡 제목, 아티스트, 앨범 이름이 곡 정보 너비를 넘으면 자르지 않고 옆으로 흐르게 한다. 처음 2초 멈춤 → 끝까지 초당 30px로 이동 → 2초 멈춤 → 되돌아옴을 반복한다. 곡이 바뀌면 처음부터 다시 시작한다. 안내 문구는 한 줄로 쓰도록 곡 정보보다 넓게(화면 너비의 절반, 최대 640px까지) 쓸 수 있고, 그래도 넘으면 자르지 않고 단어 단위로 줄을 바꾼다.
 
-16. **메뉴 막대·Dock 피하기.** `setInsets`로 받은 가장자리를 뺀 영역 안에서 `layout()`을 계산한다(배경 채우기는 화면 전체). 가로 화면의 판 크기 상한은 `0.62H`에서 `0.53H`로 낮춰, 판 앞쪽 원 위의 노브와 면 램프가 늘 보이는 영역 안에 들어오게 한다. 곡 정보는 원래 자리가 가장자리에 걸릴 때만 안쪽으로 민다.
+16. **메뉴 막대·Dock 피하기.** `setInsets`로 받은 가장자리를 뺀 영역 안에서 `layout()`을 계산한다(배경 채우기는 화면 전체). 가로 화면의 판 크기 상한은 `0.62H`에서 `0.53H`로 낮춰, 판 앞쪽 원 위의 노브와 면 램프가 늘 보이는 영역 안에 들어오게 한다. 판 중심 높이도 `0.6H`에서 `0.56H`로 올려 Dock 쪽 여유를 더 둔다(0.20). 곡 정보는 원래 자리가 가장자리에 걸릴 때만 안쪽으로 민다.
 
 17. **오늘 들은 곡.** 곡 정보 아래에는 `Played Today N`(오늘 들은 곡 수)만 쓴다. 곡별 색 칸(최대 3줄)은 그리지 않고, 기록 개수 상한(80곡)도 없앤다.
 18. **노란 강조색 피하기.** 커버에서 뽑은 강조색(판 위 선, 전원·면 램프, 음량 눈금)의 색상이 노란 계열(약 40~72°)이면 가까운 쪽인 주황(32°)이나 초록(94°)으로 옮긴다. 배경, 받침, 라벨 색은 그대로 둔다.
@@ -307,6 +307,7 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
     - `recordColor`: 판 색. 판이 어두우면(밝기 0.4 미만) 홈 무늬를 밝은 선으로 그린다.
     - `bgColor`: 턴테이블 주변 배경 색. 배경 밝기에 맞춰 곡 정보 글씨 색을 밝게/어둡게 바꾼다.
     - `lineColor`: 판 위 선과 잔상 색. 이미 그린 선은 그때 색 그대로 남는다.
+    - `textColor`: 왼쪽 위 곡 정보 글자 색. 고르면 받침 안팎을 나눠 그리지 않고(6장 5) 모든 줄을 그 색으로 쓴다.
 
 22. **그리기 최적화.** 그림은 그대로 두고 그리는 방식만 바꾼다. 잘 바뀌지 않는 부분은 화면 밖 캔버스(기기 픽셀)에 한 번 그려 두고, 입력(크기, 배치, 색, 내용)이 바뀔 때만 다시 그린다(`cachedLayer`).
     - 배경 + 받침(그림자 포함)
@@ -318,6 +319,12 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
     - `turn`(기본, Lift & Turn): 바늘이 쉬는 자리로 가고, 판이 살짝 떠올라(그림자가 커짐) 제자리에서 반 바퀴 더 돌며 판 위의 선과 띠가 새 면 것으로 서서히 섞여 바뀐 뒤, 부드럽게 내려앉고 바늘이 새 곡의 띠로 내려간다(약 2.6초). 반 바퀴는 회전 각도에 직접 더해 끝난 뒤에도 끊기지 않는다. 판을 옆으로 세우는(납작해지는) 뒤집기와 내려앉을 때 튀는 동작은 써 보고 뺐다(사용자 판단).
     - `swap`(Swap Record): 다른 앨범과 같은 판 바꾸기.
     - `needle`(Needle Only): 판은 그대로 두고 바늘만 새 곡의 띠로 옮긴다.
+
+24. **자연스러운 움직임.** 그림은 그대로 두고 움직임만 다듬는다.
+    - 회전 시작·멈춤: 판에 무게감을 준다. 임계 감쇠 스프링(ω = 9.5)으로 속도를 바꿔, 가속이 0에서 시작해 넘치지 않고 약 0.5초에 정속의 95%에 닿는다(멈출 때도 같음). 예전에는 지수 접근으로 정속까지 1~2초 걸렸다.
+    - 바늘 내리기(큐 레버): 들 때는 빠르게, 내릴 때는 `(1 - t)³`으로 처음보다 끝이 느리게 약 0.8초에 걸쳐 내려와 사뿐히 닿는다(곡 바꾸기 1.7초, 시작 2.1초, 판 바꾸기 2.9초, 반 바퀴 돌리기 3.0초로 늘림). 들기·옮기기·내리기 구간을 서로 겹쳐, 바늘이 위로 → 옆으로 → 아래로 꺾여 움직이지 않고 하나의 호를 그리게 한다. 바늘이 들릴 때 캐릭터가 두 팔을 위로 뻗던 동작과, 바늘이 닿을 때 캐릭터가 흔들리던 동작은 뺐다(사용자 판단).
+    - 캐릭터 발 흔들기: 규칙적으로 보이지 않게, 서로 나누어떨어지지 않는 주기의 사인파 몇 개를 섞은 부드러운 값(`wander`)으로 속도(BPM 기준 85~110%)와 폭(0.2~1, 가끔 거의 쉼)이 천천히 바뀌고, 두 발은 정확히 반대로 움직이지 않고 조금씩 엇갈린다.
+    - 판의 흔들림(워프): 판 중심이 아주 조금 어긋나 바늘이 한 바퀴에 한 번 안팎으로(판 반지름의 0.35%) 출렁이고, 판이 살짝 휘어 한 바퀴에 두 번 위아래로 움직인다. 회전 속도에 비례하고 바늘이 판 위에 있을 때만 보인다.
 
 ## 7. 성능 목표
 
