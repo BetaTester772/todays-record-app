@@ -10,11 +10,6 @@ final class Settings {
         case keep, afterglow
     }
 
-    /// 표시할 화면. 명세 4.3.
-    enum Displays: String, CaseIterable {
-        case main, all
-    }
-
     /// 초당 프레임. auto는 배터리일 때 30, 아니면 60. 명세 4.7.
     enum FrameRate: String, CaseIterable {
         case auto, fps30 = "30", fps60 = "60"
@@ -52,14 +47,15 @@ final class Settings {
         }
     }
 
-    private enum Key {
+    /// UserDefaults 키. 설정 창의 @AppStorage도 같은 키를 쓴다.
+    enum Key {
         static let enabled = "enabled"
         static let position = "position"
         static let transparent = "transparent"
         static let windowLight = "windowLight"
         static let trail = "trail"
         static let grain = "grain"
-        static let displays = "displays"
+        static let disabledDisplays = "disabledDisplays"
         static let fps = "fps"
     }
 
@@ -74,7 +70,7 @@ final class Settings {
             Key.windowLight: true,
             Key.trail: Trail.afterglow.rawValue,
             Key.grain: Grain.normal.rawValue,
-            Key.displays: Displays.main.rawValue,
+            Key.disabledDisplays: "",
             Key.fps: FrameRate.auto.rawValue,
         ])
     }
@@ -110,9 +106,11 @@ final class Settings {
         set { defaults.set(newValue.rawValue, forKey: Key.grain) }
     }
 
-    var displays: Displays {
-        get { Displays(rawValue: defaults.string(forKey: Key.displays) ?? "") ?? .main }
-        set { defaults.set(newValue.rawValue, forKey: Key.displays) }
+    /// 레코드를 띄우지 않을 화면의 UUID(`CGDisplayCreateUUIDFromDisplayID`). 비어 있으면 모든 화면에 띄운다. 명세 4.3.
+    /// 설정 창의 @AppStorage가 배열을 다루지 못해 쉼표로 이은 문자열로 저장한다.
+    var disabledDisplays: Set<String> {
+        get { Set((defaults.string(forKey: Key.disabledDisplays) ?? "").split(separator: ",").map(String.init)) }
+        set { defaults.set(newValue.sorted().joined(separator: ","), forKey: Key.disabledDisplays) }
     }
 
     var fps: FrameRate {

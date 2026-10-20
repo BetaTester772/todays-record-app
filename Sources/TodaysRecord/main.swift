@@ -5,6 +5,8 @@ struct LaunchOptions {
     var demo = false
     var windowed = false
     var logNowPlaying = false
+    /// 시작할 때 설정 창을 연다(디버깅용).
+    var openSettings = false
 
     init(arguments: [String]) {
         for arg in arguments.dropFirst() {
@@ -12,6 +14,7 @@ struct LaunchOptions {
             case "--demo": demo = true
             case "--windowed": windowed = true
             case "--log-nowplaying": logNowPlaying = true
+            case "--settings": openSettings = true
             default: break
             }
         }

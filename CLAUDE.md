@@ -43,6 +43,8 @@ scripts/run.sh                  # .app 조립, 애드혹 서명, 실행
 scripts/run.sh --demo           # Music 없이 미리보기 데이터로 실행
 scripts/run.sh --windowed       # 일반 창으로 띄워 디버깅 (Safari 웹 속성 검사기 연결 가능)
 scripts/run.sh --log-nowplaying # Music·Spotify 알림과 AppleScript 결과 출력
+scripts/run.sh --settings       # 시작할 때 설정 창 열기
+swift scripts/make-icon.swift   # 앱 아이콘(Resources/AppIcon.icns) 다시 만들기
 log stream --predicate 'subsystem == "com.todaysrecord"'   # 로그 보기
 ```
 

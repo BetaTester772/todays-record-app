@@ -1166,6 +1166,17 @@
     ctx.restore();
     return { w: maxW, h };
   }
+  // splits text into lines no wider than maxW (css px) at spaces; a single word that is still too long is clipped
+  function wrapPix(text, size, weight, ps, maxW) {
+    const lines = [];
+    let line = '';
+    for (const word of text.split(' ')) {
+      const next = line ? line + ' ' + word : word;
+      if (line && pixMask(next, size, weight).width * ps > maxW) { lines.push(line); line = word; } else line = next;
+    }
+    if (line) lines.push(line);
+    return lines.map(l => pixMask(l, size, weight).width * ps > maxW ? clipPix(l, size, weight, maxW / ps) : l);
+  }
   function clipPix(text, size, weight, maxUnits) { measure.font = `${weight} ${size}px ${FONT}`; return fitText(measure, text, maxUnits); }
   const ICONS = {
     play: ['10000', '11000', '11100', '11110', '11100', '11000', '10000'],
@@ -1205,8 +1216,9 @@
         slideOff(media.title, M.sTitle, 800, M.ps, M.maxCss), slideOff(media.artist, M.sSmall, 600, M.ps, M.maxCss),
         slideOff(media.album, M.sSmall, 600, M.ps, M.maxCss)].join('|') : '',
     ].join('|');
-    const x = M.toRight ? M.xR - M.maxCss - 8 : M.x0 - 8;
-    cachedLayer('hud', key, { x, y: 0, w: M.maxCss + 80, h: M.y0 + 360 }, () => paintHUD(C, L));
+    const wMax = Math.max(M.maxCss, Math.min(W * 0.5, 640));   // the hint line can be wider than the song info
+    const x = M.toRight ? M.xR - wMax - 8 : M.x0 - 8;
+    cachedLayer('hud', key, { x, y: 0, w: wMax + 80, h: M.y0 + 360 }, () => paintHUD(C, L));
   }
 
   // The text is drawn twice: dark ink clipped to the background, and a light metal tone clipped to the dark plinth,
@@ -1256,12 +1268,19 @@
       }
       y += ps * 5;
     } else {
-      const hint = clipPix((media.source === 'we' && !weEnabled) ? 'Turn on Media Integration in Wallpaper Engine settings'
+      const hint = (media.source === 'we' && !weEnabled) ? 'Turn on Media Integration in Wallpaper Engine settings'
         : (media.source === 'local' && !localOk) ? 'The helper (nowplaying.py) is not running'
-        : media.source === 'native' ? 'Play something in Music or Spotify to drop the needle'
+        : media.source === 'native' ? 'Play something to drop the needle'
         : media.source === 'local' ? 'Play something in Apple Music to drop the needle'
-        : 'Play some music to drop the needle', sSmall, 600, maxCss / ps);
-      y += drawPix(hint, ax(pw(hint, sSmall, 600)), y, sSmall, ps, T.soft, 600).h + ps * 6;
+        : 'Play some music to drop the needle';
+      // the hint wraps onto more lines at word breaks instead of being cut off
+      // the hint may run wider than the song info (up to half the screen) so it stays on one line
+      const hintW = Math.max(maxCss, Math.min(W * 0.5, 640));
+      for (const line of wrapPix(hint, sSmall, 600, ps, hintW)) {
+        const w = pw(line, sSmall, 600);
+        y += drawPix(line, toRight ? xR - w : x0, y, sSmall, ps, T.soft, 600).h;
+      }
+      y += ps * 6;
     }
 
     const count = `Played Today ${today.length}`;

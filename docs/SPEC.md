@@ -1,6 +1,6 @@
 # 오늘의 판 — macOS 앱 명세서
 
-버전 0.14 · 2026-10-20 (0.2: LP 면 나누기, iTunes 검색 국가 대체 · 0.3: 음량 노브, 면 램프 · 0.4: 색 섞기 전환, 곡 안 위치 이동 · 0.5: 화면 문구 영어 · 0.6: 긴 이름 흐르기 · 0.7: 메뉴 막대·Dock 피하기 · 0.8: 오늘 들은 곡 수만, 노란 강조색 피하기 · 0.9: M2 설정 메뉴, 창문 빛, 잔상 · 0.10: 판 색 고르기, 시간대 색감 · 0.11: 배경색, 선 색 고르기 · 0.12: 그레인 세기 · 0.13: M4 절전, 여러 화면, 그리기 최적화 · 0.14: Spotify 지원)
+버전 0.15 · 2026-10-20 (0.2: LP 면 나누기, iTunes 검색 국가 대체 · 0.3: 음량 노브, 면 램프 · 0.4: 색 섞기 전환, 곡 안 위치 이동 · 0.5: 화면 문구 영어 · 0.6: 긴 이름 흐르기 · 0.7: 메뉴 막대·Dock 피하기 · 0.8: 오늘 들은 곡 수만, 노란 강조색 피하기 · 0.9: M2 설정 메뉴, 창문 빛, 잔상 · 0.10: 판 색 고르기, 시간대 색감 · 0.11: 배경색, 선 색 고르기 · 0.12: 그레인 세기 · 0.13: M4 절전, 여러 화면, 그리기 최적화 · 0.14: Spotify 지원 · 0.15: 설정 창, 화면별 켜기, 앱 아이콘)
 
 ## 1. 개요
 
@@ -57,15 +57,17 @@ Sources/TodaysRecord/
 ├─ AlbumTracks.swift       앨범 디스크별 곡 길이 (LP 면 나누기용)
 ├─ SystemVolume.swift      시스템 출력 음량 (음량 노브용)
 ├─ PowerWatcher.swift      잠금, 잠자기, 가려짐 감지
+├─ SettingsWindow.swift    설정 창 (SwiftUI 폼을 담은 AppKit 창)
 └─ WallpaperSync.swift     시스템 배경화면 색 맞추기 (선택 기능)
 Resources/
 ├─ index.html              레코드 화면 (기존 파일, 6장에 따라 일부 수정)
 ├─ Info.plist              번들 정보
-└─ AppIcon.icns            (선택)
+└─ AppIcon.icns            앱 아이콘 (scripts/make-icon.swift로 만든다)
 Tests/TodaysRecordTests/    고르기 규칙, 상태 해석, 곡 위치 단위 테스트 (`swift test`)
 scripts/
 ├─ bundle.sh               .app 번들 조립과 애드혹 서명
-└─ run.sh                  빌드 후 실행
+├─ run.sh                  빌드 후 실행
+└─ make-icon.swift         앱 아이콘 그리기 (Core Graphics → iconutil)
 ```
 
 데이터 흐름: Music·Spotify 앱 → `NowPlaying` → `AppDelegate` → 각 `RecordWebView` → `index.html`. 설정 변경은 `StatusMenu` → `Settings` → 각 `RecordWebView`. 절전 상태는 `PowerWatcher` → 각 `RecordWebView`.
@@ -79,6 +81,7 @@ scripts/
   - `--demo`: Music, Spotify 대신 index.html 내장 미리보기 데이터로 동작 (Music 없이 테스트용)
   - `--log-nowplaying`: 받은 Music·Spotify 알림 내용과 AppleScript 결과를 표준 출력에 기록
   - `--windowed`: 바탕화면 층 대신 일반 창으로 띄워 디버깅 (Safari 웹 속성 검사기로 확인 가능하게 `isInspectable = true`)
+  - `--settings`: 시작할 때 설정 창을 연다 (디버깅용)
 
 ### 4.2 바탕화면 층 창 (`WallpaperWindow`)
 
@@ -92,11 +95,11 @@ scripts/
 
 ### 4.3 화면 관리 (`WallpaperController`)
 
-- 설정 `displays`: `main`(기본, 주 화면만) 또는 `all`(모든 화면).
-- 주 화면은 메뉴 막대가 있는 화면(`NSScreen.screens[0]`)이다. `NSScreen.main`은 키 창이 있는 화면이라 쓰지 않는다.
+- 기본은 연결된 **모든 화면**에 띄운다. 설정 창에서 화면마다 끌 수 있고, 끈 화면은 `disabledDisplays`(화면 UUID를 쉼표로 이은 문자열)에 저장한다. UUID는 `CGDisplayCreateUUIDFromDisplayID`로 얻어, 모니터를 다시 연결해도 끈 상태를 기억한다. (0.15에서 `displays` main/all 설정을 대신함. 처음에는 기본이 주 화면만이라 확장 모니터에 뜨지 않았다.)
+- 화면 순서는 메뉴 막대가 있는 화면(`NSScreen.screens[0]`)부터다. `NSScreen.main`은 키 창이 있는 화면이라 쓰지 않는다. 띄우는 화면 중 첫 번째가 `primary`다(주 화면을 끄면 다음 화면이 primary가 된다).
 - 화면 식별자(`NSScreenNumber`)마다 창과 웹뷰를 하나씩 둔다. 화면 설정이 바뀌면 새 화면에는 창을 만들고, 빠진 화면의 창은 닫고, 남은 창은 크기와 여백을 맞춘다. 주 화면이 바뀌어 역할(primary/mirror)이 달라진 창은 역할이 문서 시작 때 정해지므로 닫고 다시 만든다. `--windowed`에서는 주 화면에 하나만 띄운다.
 - `NSApplication.didChangeScreenParametersNotification`을 받으면 창을 다시 만들거나 크기를 맞춘다.
-- `all`일 때 주 화면의 창만 `role = primary`, 나머지는 `mirror`. 기록 저장은 primary만 한다(6장).
+- 띄우는 화면이 여럿이면 primary 하나만 `role = primary`, 나머지는 `mirror`. 기록 저장은 primary만 한다(6장).
 - 화면마다 `frame`과 `visibleFrame`의 차이로 메뉴 막대와 Dock이 덮는 가장자리(top, right, bottom, left, 포인트)를 구해 `TodaysRecord.setInsets`로 보낸다. 웹뷰가 준비될 때와 화면 설정이 바뀔 때(Dock 위치·크기 변경 포함) 보낸다. `--windowed`에서는 0이다.
 
 ### 4.4 웹 화면 (`RecordWebView`)
@@ -204,32 +207,33 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
 
 잠자기·잠금으로 전체가 멈춘 동안에는 Music 위치 확인(10초마다)도 쉬고, 풀리면 바로 한 번 묻는다.
 
-### 4.8 메뉴 막대 (`StatusMenu`)
+### 4.8 메뉴 막대 (`StatusMenu`)와 설정 창 (`SettingsWindow`)
 
-아이콘은 작은 레코드 모양의 템플릿 이미지(SF Symbols `opticaldisc` 등 대체 가능). 메뉴 항목:
+아이콘은 작은 레코드 모양의 템플릿 이미지(SF Symbols `opticaldisc`). 메뉴에는 자주 쓰는 동작만 둔다.
 
-| 항목 | 동작 |
+| 메뉴 항목 | 동작 |
 |---|---|
 | 지금 재생 중인 곡 (비활성 텍스트) | 제목 — 아티스트 표시. 없으면 “Nothing Playing” |
 | Player ▸ Music / Spotify | 둘 다 실행 중일 때만 표시. 보여줄 플레이어를 고른다(4.5.2) |
-| 배경화면 켜기 / 끄기 | 창 표시 여부 |
-| 레코드 위치 ▸ 왼쪽 / 가운데 / 오른쪽 | `setOptions({position})` |
-| 배경 ▸ 기본 / 투명 | 투명이면 원래 배경화면 위에 턴테이블만 표시 |
-| 레코드 색 ▸ 앨범 색 / Black / White / Red / Blue / Green / Custom… | 판 색. Custom…은 macOS 색상 창으로 직접 고른다. 기본 앨범 색 |
-| 배경색 ▸ 앨범 색 / Cream / Gray / Sage / Charcoal / Navy / Custom… | 턴테이블 주변 배경 색. 기본 앨범 색 |
-| 선 색 ▸ 앨범 색 / White / Black / Red / Orange / Blue / Green / Custom… | 판 위 선과 잔상 색. 기본 앨범 강조색 |
-| 효과 ▸ 창문 빛 (체크) | 시간대 조명(6장 19). 기본 켜짐 |
-| 효과 ▸ 선 ▸ 계속 남기기 / 잔상 | 6장 20. 기본 잔상 |
-| 효과 ▸ 그레인 ▸ Off / Low / Normal / High | 화면 잡음 무늬 세기. 기본 Normal(기존 세기) |
-| 표시할 화면 ▸ 주 화면 / 모든 화면 | 4.3 (Displays ▸ Main Display / All Displays) |
-| 초당 프레임 ▸ 자동 / 30 / 60 | 4.7 (Frame Rate ▸ Auto (30 on Battery) / 30 fps / 60 fps) |
-| 시스템 배경화면 색 맞추기 (체크) | 4.9 |
-| 이 판 비우기 | `clearRecord()` |
-| 로그인 시 실행 (체크) | `SMAppService.mainApp` 등록/해제 |
+| Show Wallpaper (체크) | 창 표시 여부 |
+| Clear This Record | `clearRecord()` |
+| Settings… (⌘,) | 설정 창을 연다 |
 | 제어 권한 열기 (“Allow Control of Music…” 등, 4.5) | 권한이 없는 플레이어가 있을 때만 표시 |
-| 종료 | 앱 종료 (4.9가 켜져 있으면 원래 배경화면 복원 후) |
+| Quit | 앱 종료 (4.9가 켜져 있으면 원래 배경화면 복원 후) |
 
-설정은 `UserDefaults`에 저장하고(키 `enabled`, `position`, `transparent`, `windowLight`, `trail`, `grain`, `recordColor`, `bgColor`, `lineColor`, `displays`, `fps`), 앱 시작 시와 웹뷰가 준비될 때 모든 웹뷰에 `setOptions`로 적용한다. 메뉴 문구는 영어로 쓴다(Player, Show Wallpaper, Record Position, Background, Effects ▸ Window Light / Trail ▸ Keep·Afterglow, Clear This Record, Open at Login, Quit). 로그인 항목이 사용자 승인을 기다리는 상태(`requiresApproval`)면 시스템 설정의 로그인 항목 화면을 연다. 시스템 배경화면 색 맞추기(4.9) 항목은 M5에서 기능과 함께 더한다.
+나머지 설정은 **설정 창**에서 한다. macOS 설정 창처럼 창 위쪽 도구 막대의 아이콘 탭을 누르면 아래 내용이 바뀐다(`NSTabViewController`의 `.toolbar` 스타일, 창 `toolbarStyle = .preference`). 각 탭 내용은 SwiftUI `Form`(grouped)을 `NSHostingController`로 담고, 탭마다 창 높이를 내용에 맞춘다(`sizingOptions = .preferredContentSize`). 메뉴 막대 앱이라 창을 열 때만 앱을 앞으로 가져온다.
+
+| 탭 | 항목 |
+|---|---|
+| General | Show Wallpaper, Open at Login (`SMAppService.mainApp` 등록/해제), Frame Rate(Auto / 30 / 60, 4.7. Auto는 배터리일 때 30), Clear This Record |
+| Displays | 연결된 화면마다 켜기/끄기 (4.3). 화면이 바뀌면 목록을 다시 읽는다 |
+| Appearance | Record Position(Left / Center / Right), Background(Default / Transparent), Record·Background·Line Color(“From Album” 체크 또는 색 고르기) |
+| Effects | Window Light(6장 19), Trail(Keep / Afterglow, 6장 20), Grain(Off / Low / Normal / High) |
+| Players | Music·Spotify 제어 권한 상태와 자동화 설정 열기 |
+
+설정은 `UserDefaults`에 저장한다(키 `enabled`, `position`, `transparent`, `windowLight`, `trail`, `grain`, `recordColor`, `bgColor`, `lineColor`, `disabledDisplays`, `fps`). 설정 창은 `@AppStorage`로 같은 키(`Settings.Key`)에 바로 쓰고, 앱은 `UserDefaults.didChangeNotification`을 받아 한 번에 모아 창과 모든 웹뷰에 반영한다(`setOptions`). 앱 시작 시와 웹뷰가 준비될 때도 적용한다. 화면과 메뉴 문구는 영어로 쓴다. 로그인 항목이 사용자 승인을 기다리는 상태(`requiresApproval`)면 시스템 설정의 로그인 항목 화면을 연다. 시스템 배경화면 색 맞추기(4.9) 항목은 M5에서 기능과 함께 더한다.
+
+**앱 아이콘.** `scripts/make-icon.swift`가 앱 화면과 같은 색(분홍 배경, 초록 받침, 크림색 판, 초록 라벨, 주황 바늘)으로 macOS 아이콘 격자(1024 안 824 둥근 사각형)에 그려 `iconutil`로 `Resources/AppIcon.icns`를 만든다. `Info.plist`의 `CFBundleIconFile`이 가리킨다.
 
 ### 4.9 시스템 배경화면 색 맞추기 (`WallpaperSync`, 선택 기능, 기본 꺼짐)
 
@@ -278,7 +282,7 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
 6. **투명 배경.** transparent면 배경 채우기와 받침(plinth)을 그리지 않고, 레코드·톤암·노브·곡 정보만 그린다. 그레인은 레코드 영역에만 적용하거나 생략한다.
 7. **역할.** `role`이 `mirror`면 localStorage에 쓰지 않는다(읽기만).
 8. **palette 메시지.** 앨범 색이 바뀔 때 `bg`, `plinth`, `accent`를 보낸다.
-9. 상태 문구: native에서 권한 오류 등으로 stopped일 때 “Play something in Music or Spotify to drop the needle”을 보여준다.
+9. 상태 문구: native에서 권한 오류 등으로 stopped일 때 “Play something to drop the needle”을 보여준다(한 줄에 들어가도록 짧게).
 10. **LP 면 나누기.** `trackNumber`, `trackCount`가 있으면 실제 LP처럼 디스크를 면으로 나눈다.
     - 한 면에 최대 6곡. 면 수는 `ceil(곡 수 / 6)`, 곡은 앞면부터 고르게 나눈다(2곡 → 1면, 12곡 → 6+6, 13곡 → 5+4+4).
     - 면 하나가 판 하나다(판 키 = 앨범 키 + 디스크 + 면). 면 안에서 곡마다 띠를 나누고, 띠 폭은 `trackDurations`가 있으면 곡 길이 비율, 없으면 같은 폭. 기존 미리보기 데이터의 `bandsFor`와 `beginTrack({band, gaps})`를 그대로 쓴다.
@@ -295,7 +299,7 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
 
 14. **화면 문구 영어.** 상태 문구, 안내 문구, 오늘 들은 곡 수 등 화면의 모든 문구를 영어로 쓴다(Now Playing, Paused, Nothing Playing, Played Today 등). 곡·앨범·아티스트 이름(미리보기 데이터 포함)은 그대로 둔다. 메뉴 막대 메뉴와 권한 설명(`NSAppleEventsUsageDescription`)도 영어로 쓴다.
 
-15. **긴 이름 흐르기.** 곡 제목, 아티스트, 앨범 이름이 곡 정보 너비를 넘으면 자르지 않고 옆으로 흐르게 한다. 처음 2초 멈춤 → 끝까지 초당 30px로 이동 → 2초 멈춤 → 되돌아옴을 반복한다. 곡이 바뀌면 처음부터 다시 시작한다. 안내 문구는 지금처럼 자른다.
+15. **긴 이름 흐르기.** 곡 제목, 아티스트, 앨범 이름이 곡 정보 너비를 넘으면 자르지 않고 옆으로 흐르게 한다. 처음 2초 멈춤 → 끝까지 초당 30px로 이동 → 2초 멈춤 → 되돌아옴을 반복한다. 곡이 바뀌면 처음부터 다시 시작한다. 안내 문구는 한 줄로 쓰도록 곡 정보보다 넓게(화면 너비의 절반, 최대 640px까지) 쓸 수 있고, 그래도 넘으면 자르지 않고 단어 단위로 줄을 바꾼다.
 
 16. **메뉴 막대·Dock 피하기.** `setInsets`로 받은 가장자리를 뺀 영역 안에서 `layout()`을 계산한다(배경 채우기는 화면 전체). 가로 화면의 판 크기 상한은 `0.62H`에서 `0.53H`로 낮춰, 판 앞쪽 원 위의 노브와 면 램프가 늘 보이는 영역 안에 들어오게 한다. 곡 정보는 원래 자리가 가장자리에 걸릴 때만 안쪽으로 민다.
 
