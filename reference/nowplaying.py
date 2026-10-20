@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-오늘의 판 — Apple Music 재생 정보 도우미 (macOS)
+TurnTable — Apple Music 재생 정보 도우미 (macOS)
 
 Music 앱에서 지금 재생 중인 곡 정보를 AppleScript로 읽어서,
 같은 폴더의 index.html(레코드 배경화면)에 로컬 주소로 전달합니다.
@@ -316,7 +316,7 @@ def main():
         return
     threading.Thread(target=poll_loop, daemon=True).start()
     server = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
-    print(f"오늘의 판 도우미가 켜졌어요 → http://localhost:{PORT}")
+    print(f"TurnTable 도우미가 켜졌어요 → http://localhost:{PORT}")
     print("이 주소를 Plash에 추가하면 배경화면이 돼요. 끄려면 Ctrl+C.")
     try:
         server.serve_forever()
