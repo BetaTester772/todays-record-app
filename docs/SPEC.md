@@ -1,6 +1,6 @@
 # 오늘의 판 — macOS 앱 명세서
 
-버전 0.16 · 2026-10-20 (0.2: LP 면 나누기, iTunes 검색 국가 대체 · 0.3: 음량 노브, 면 램프 · 0.4: 색 섞기 전환, 곡 안 위치 이동 · 0.5: 화면 문구 영어 · 0.6: 긴 이름 흐르기 · 0.7: 메뉴 막대·Dock 피하기 · 0.8: 오늘 들은 곡 수만, 노란 강조색 피하기 · 0.9: M2 설정 메뉴, 창문 빛, 잔상 · 0.10: 판 색 고르기, 시간대 색감 · 0.11: 배경색, 선 색 고르기 · 0.12: 그레인 세기 · 0.13: M4 절전, 여러 화면, 그리기 최적화 · 0.14: Spotify 지원 · 0.15: 설정 창, 화면별 켜기, 앱 아이콘 · 0.16: 배포 zip, README)
+버전 0.17 · 2026-10-20 (0.2: LP 면 나누기, iTunes 검색 국가 대체 · 0.3: 음량 노브, 면 램프 · 0.4: 색 섞기 전환, 곡 안 위치 이동 · 0.5: 화면 문구 영어 · 0.6: 긴 이름 흐르기 · 0.7: 메뉴 막대·Dock 피하기 · 0.8: 오늘 들은 곡 수만, 노란 강조색 피하기 · 0.9: M2 설정 메뉴, 창문 빛, 잔상 · 0.10: 판 색 고르기, 시간대 색감 · 0.11: 배경색, 선 색 고르기 · 0.12: 그레인 세기 · 0.13: M4 절전, 여러 화면, 그리기 최적화 · 0.14: Spotify 지원 · 0.15: 설정 창, 화면별 켜기, 앱 아이콘 · 0.16: 배포 zip, README · 0.17: M5 뺌)
 
 ## 1. 개요
 
@@ -57,8 +57,7 @@ Sources/TodaysRecord/
 ├─ AlbumTracks.swift       앨범 디스크별 곡 길이 (LP 면 나누기용)
 ├─ SystemVolume.swift      시스템 출력 음량 (음량 노브용)
 ├─ PowerWatcher.swift      잠금, 잠자기, 가려짐 감지
-├─ SettingsWindow.swift    설정 창 (SwiftUI 폼을 담은 AppKit 창)
-└─ WallpaperSync.swift     시스템 배경화면 색 맞추기 (선택 기능)
+└─ SettingsWindow.swift    설정 창 (SwiftUI 폼을 담은 AppKit 창)
 Resources/
 ├─ index.html              레코드 화면 (기존 파일, 6장에 따라 일부 수정)
 ├─ Info.plist              번들 정보
@@ -220,7 +219,7 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
 | Clear This Record | `clearRecord()` |
 | Settings… (⌘,) | 설정 창을 연다 |
 | 제어 권한 열기 (“Allow Control of Music…” 등, 4.5) | 권한이 없는 플레이어가 있을 때만 표시 |
-| Quit | 앱 종료 (4.9가 켜져 있으면 원래 배경화면 복원 후) |
+| Quit | 앱 종료 |
 
 나머지 설정은 **설정 창**에서 한다. macOS 설정 창처럼 창 위쪽 도구 막대의 아이콘 탭을 누르면 아래 내용이 바뀐다(`NSTabViewController`의 `.toolbar` 스타일, 창 `toolbarStyle = .preference`). 각 탭 내용은 SwiftUI `Form`(grouped)을 `NSHostingController`로 담고, 탭마다 창 높이를 내용에 맞춘다(`sizingOptions = .preferredContentSize`). 메뉴 막대 앱이라 창을 열 때만 앱을 앞으로 가져온다.
 
@@ -232,18 +231,13 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
 | Effects | Window Light(6장 19), Trail(Keep / Afterglow, 6장 20), Grain(Off / Low / Normal / High) |
 | Players | Music·Spotify 제어 권한 상태와 자동화 설정 열기 |
 
-설정은 `UserDefaults`에 저장한다(키 `enabled`, `position`, `transparent`, `windowLight`, `trail`, `grain`, `recordColor`, `bgColor`, `lineColor`, `disabledDisplays`, `fps`). 설정 창은 `@AppStorage`로 같은 키(`Settings.Key`)에 바로 쓰고, 앱은 `UserDefaults.didChangeNotification`을 받아 한 번에 모아 창과 모든 웹뷰에 반영한다(`setOptions`). 앱 시작 시와 웹뷰가 준비될 때도 적용한다. 화면과 메뉴 문구는 영어로 쓴다. 로그인 항목이 사용자 승인을 기다리는 상태(`requiresApproval`)면 시스템 설정의 로그인 항목 화면을 연다. 시스템 배경화면 색 맞추기(4.9) 항목은 M5에서 기능과 함께 더한다.
+설정은 `UserDefaults`에 저장한다(키 `enabled`, `position`, `transparent`, `windowLight`, `trail`, `grain`, `recordColor`, `bgColor`, `lineColor`, `disabledDisplays`, `fps`). 설정 창은 `@AppStorage`로 같은 키(`Settings.Key`)에 바로 쓰고, 앱은 `UserDefaults.didChangeNotification`을 받아 한 번에 모아 창과 모든 웹뷰에 반영한다(`setOptions`). 앱 시작 시와 웹뷰가 준비될 때도 적용한다. 화면과 메뉴 문구는 영어로 쓴다. 로그인 항목이 사용자 승인을 기다리는 상태(`requiresApproval`)면 시스템 설정의 로그인 항목 화면을 연다.
 
 **앱 아이콘.** `scripts/make-icon.swift`가 앱 화면과 같은 색(분홍 배경, 초록 받침, 크림색 판, 초록 라벨, 주황 바늘)으로 macOS 아이콘 격자(1024 안 824 둥근 사각형)에 그려 `iconutil`로 `Resources/AppIcon.icns`를 만든다. `Info.plist`의 `CFBundleIconFile`이 가리킨다.
 
-### 4.9 시스템 배경화면 색 맞추기 (`WallpaperSync`, 선택 기능, 기본 꺼짐)
+### 4.9 (뺌) 시스템 배경화면 색 맞추기
 
-메뉴 막대 색, 위젯 색, 잠금 화면이 레코드 화면과 어울리도록 시스템 배경화면을 현재 앨범 색의 단색 이미지로 바꾼다.
-
-- 켤 때 화면별 현재 배경화면 주소(`NSWorkspace.shared.desktopImageURL(for:)`)와 옵션을 저장한다.
-- 웹 화면이 보내는 `palette` 메시지(6장)를 받으면 `bg` 색의 작은 PNG를 Application Support 폴더에 만들어 `setDesktopImageURL(_:for:options:)`로 지정한다. 같은 색이면 다시 하지 않는다.
-- 끄거나 앱을 종료할 때 저장해둔 원래 배경화면으로 되돌린다.
-- 원래 배경화면이 동적 배경화면이나 에어리얼이어서 주소로 복원이 안 되는 경우를 확인하고, 안 되면 메뉴에 그 사실을 알리고 이 기능을 끈다.
+0.17에서 뺐다(사용자 결정, 필요 없음). 앱은 시스템 배경화면을 바꾸지 않는다. 레코드 화면은 배경화면 위에 창을 덮어 보여 주므로, 메뉴 막대·위젯·잠금 화면은 원래 배경화면 색을 따른다.
 
 ## 5. 브리지 계약 (Swift ↔ JavaScript)
 
@@ -268,7 +262,6 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
 | type | 내용 |
 |---|---|
 | `ready` | 화면 준비 완료. Swift는 이걸 받은 뒤에 첫 상태와 설정을 보낸다 |
-| `palette` | `{ type, bg, plinth, accent }` 16진수 색. 앨범이 바뀌어 색이 확정될 때 |
 | `log` | `{ type, message }` 디버그용 |
 
 ## 6. index.html 수정 사항
@@ -282,7 +275,7 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
 5. **레코드 위치.** `layout()`의 가로 중심을 left ≈ 0.32W, center ≈ 0.5W, right ≈ 0.57W(현재값)로 바꾼다. 곡 정보 표시는 레코드 반대쪽 위에 둔다(left일 때 오른쪽 위, 오른쪽 정렬). 곡 정보는 받침 바깥은 진한 글씨, 받침 위는 밝은 금속색 글씨로 두 번 잘라 그려서, 받침 경계에 걸친 줄도 읽히게 한다.
 6. **투명 배경.** transparent면 배경 채우기와 받침(plinth)을 그리지 않고, 레코드·톤암·노브·곡 정보만 그린다. 그레인은 레코드 영역에만 적용하거나 생략한다.
 7. **역할.** `role`이 `mirror`면 localStorage에 쓰지 않는다(읽기만).
-8. **palette 메시지.** 앨범 색이 바뀔 때 `bg`, `plinth`, `accent`를 보낸다.
+8. (뺌) palette 메시지. 4.9와 함께 0.17에서 뺐다.
 9. 상태 문구: native에서 권한 오류 등으로 stopped일 때 “Play something to drop the needle”을 보여준다(한 줄에 들어가도록 짧게).
 10. **LP 면 나누기.** `trackNumber`, `trackCount`가 있으면 실제 LP처럼 디스크를 면으로 나눈다.
     - 한 면에 최대 6곡. 면 수는 `ceil(곡 수 / 6)`, 곡은 앞면부터 고르게 나눈다(2곡 → 1면, 12곡 → 6+6, 13곡 → 5+4+4).
@@ -371,8 +364,7 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
 - 잠금, 잠자기, 전체 화면 앱으로 가려질 때 그리기가 멈추고 돌아오면 이어진다.
 - 모든 화면 모드에서 모니터를 꽂고 빼도 창이 맞게 다시 생긴다.
 
-**M5. 시스템 배경화면 색 맞추기**
-- 켜면 앨범이 바뀔 때 시스템 배경화면이 그 색으로 바뀌고, 끄거나 종료하면 원래대로 돌아온다.
+**M5. (뺌) 시스템 배경화면 색 맞추기** — 0.17에서 뺐다(사용자 결정).
 
 **M6. 마무리**
 - README에 빌드, 설치(/Applications로 복사), 권한, 문제 해결을 적는다.
@@ -383,5 +375,5 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
 
 - 애드혹 서명은 빌드할 때마다 서명이 바뀌어 Music·Spotify 제어 권한을 다시 물을 수 있다. 계속 거슬리면 키체인 접근에서 자체 서명 인증서를 만들어 그 인증서로 서명한다.
 - 서명·공증 없는 앱은 처음 열 때 “확인되지 않은 개발자” 경고가 뜬다. 다른 사람에게 배포하려면 Apple 개발자 프로그램 서명과 공증이 필요하다.
-- 시스템 메뉴 막대와 위젯 색은 실제 시스템 배경화면을 따른다(4.9가 이를 보완).
+- 시스템 메뉴 막대와 위젯 색은 실제 시스템 배경화면을 따른다(레코드 화면과 맞추는 4.9는 뺐다).
 - 바탕화면 층 창의 정확한 층 값과 동작은 macOS 버전마다 다를 수 있어 M1에서 실제로 확인한다.
