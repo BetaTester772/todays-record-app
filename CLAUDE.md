@@ -1,4 +1,4 @@
-# 오늘의 판 (macOS 메뉴 막대 앱)
+# TurnTable (macOS 메뉴 막대 앱, 옛 이름 오늘의 판)
 
 Apple Music 또는 Spotify에서 재생 중인 곡을 레코드 턴테이블 그림으로 바탕화면에 보여주는 앱이다.
 전체 명세는 아래 문서에 있다. 작업 전에 반드시 읽는다.
@@ -27,7 +27,8 @@ Apple Music 또는 Spotify에서 재생 중인 곡을 레코드 턴테이블 그
 - Music이나 Spotify가 꺼져 있을 때 그 앱을 실행시키는 코드를 만들지 않는다. AppleScript 전에 `com.apple.Music`, `com.spotify.client` 실행 여부를 확인한다.
 - AppleScript와 네트워크 요청은 메인 스레드 밖에서 실행한다.
 - 로그는 `os.Logger`(subsystem `com.todaysrecord`)로 남긴다.
-- 사용자에게 보이는 문구(화면, 메뉴, 권한 설명)는 영어로, 짧고 쉬운 말로 쓴다. 곡·앨범·아티스트 이름과 앱 이름 “오늘의 판”은 그대로 둔다. (2026-10-20 사용자 요청으로 한국어에서 변경)
+- 사용자에게 보이는 문구(화면, 메뉴, 권한 설명)는 영어로, 짧고 쉬운 말로 쓴다. 곡·앨범·아티스트 이름은 그대로 둔다. (2026-10-20 사용자 요청으로 한국어에서 변경)
+- 앱 이름은 **TurnTable**(2026-10-21 사용자 요청, 옛 이름 “오늘의 판”). 앱 파일은 `TurnTable.app`, 배포 zip은 `TurnTable-<버전>.zip`. 번들 ID `com.todaysrecord.app`, 실행 파일·SwiftPM 이름 `TodaysRecord`, 저장소 이름은 그대로 둔다(설정·권한·업데이트가 이어지게).
 
 ## index.html 수정 규칙
 

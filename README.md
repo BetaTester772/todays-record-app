@@ -1,4 +1,6 @@
-# 오늘의 판 (Today's Record)
+# TurnTable
+
+*(formerly 오늘의 판 / Today's Record)*
 
 A macOS menu bar app that turns your desktop into a record player for whatever is playing in **Apple Music** or **Spotify**.
 
@@ -16,8 +18,8 @@ The record spins, the tonearm moves inward as the song plays and leaves a trail 
 
 ## Install
 
-1. Download `TodaysRecord-<version>.zip` from [Releases](https://github.com/soysaucecrab/todays-record-app/releases) and unzip it.
-2. Move **TodaysRecord.app** to your **Applications** folder.
+1. Download `TurnTable-<version>.zip` from [Releases](https://github.com/soysaucecrab/todays-record-app/releases) and unzip it.
+2. Move **TurnTable.app** to your **Applications** folder.
 3. Open it. A record icon appears in the menu bar.
 
 ### First launch: "Apple could not verify…"
@@ -26,7 +28,7 @@ The app is not notarized by Apple (it is ad-hoc signed), so macOS blocks it the 
 
 1. Open the app. When the warning appears, click **Done** (or **OK**).
 2. Open **System Settings → Privacy & Security**.
-3. Scroll down to the message about TodaysRecord and click **Open Anyway**.
+3. Scroll down to the message about TurnTable and click **Open Anyway**.
 4. Confirm with **Open Anyway** again and enter your password if asked.
 
 After this, the app opens normally.
@@ -35,7 +37,7 @@ After this, the app opens normally.
 <summary>Alternative: Terminal</summary>
 
 ```bash
-xattr -dr com.apple.quarantine /Applications/TodaysRecord.app
+xattr -dr com.apple.quarantine /Applications/TurnTable.app
 ```
 
 This removes the "downloaded from the internet" mark so macOS no longer blocks it. Only do this for apps you trust.
@@ -43,9 +45,9 @@ This removes the "downloaded from the internet" mark so macOS no longer blocks i
 
 ### Allow access to Music or Spotify
 
-The first time a song plays, macOS asks whether **TodaysRecord** may control **Music** (or **Spotify**). Click **Allow**. The app only reads what is playing; it never starts, stops, or changes your music, and it never opens Music or Spotify by itself.
+The first time a song plays, macOS asks whether **TurnTable** may control **Music** (or **Spotify**). Click **Allow**. The app only reads what is playing; it never starts, stops, or changes your music, and it never opens Music or Spotify by itself.
 
-If you clicked **Don't Allow**, turn it on in **System Settings → Privacy & Security → Automation → TodaysRecord**, or use **Allow Control of …** in the app's menu.
+If you clicked **Don't Allow**, turn it on in **System Settings → Privacy & Security → Automation → TurnTable**, or use **Allow Control of …** in the app's menu.
 
 ## Updates
 
@@ -54,6 +56,10 @@ The app checks GitHub for a new release once a day. When one is out, **Update to
 Keep the app in **Applications** so it can update itself. If you open it straight from Downloads, the app offers to move itself there. If it needs permission to write to Applications, macOS asks for your password. If an update fails, the app tells you why and links to the download page.
 
 Updates installed this way don't need **Open Anyway** again. From 0.4.0 on, releases are signed with the same certificate, so macOS also keeps your Music/Spotify permission across updates.
+
+### Renamed from 오늘의 판
+
+From 0.5.0 the app is called **TurnTable**. If you have 0.4.x installed, just update as usual: the app renames itself from **TodaysRecord.app** to **TurnTable.app** and keeps your settings, Music/Spotify permission and Open at Login.
 
 ## Using it
 
@@ -84,7 +90,7 @@ Click the record icon in the menu bar:
 
 **It doesn't show on my external display.** Turn the display on in **Settings → Displays**. The list updates when you plug a display in.
 
-**The song doesn't appear.** Make sure Music or Spotify is playing, then check **Settings → Players**. If it says *Not Allowed*, click **Open Automation Settings…** and turn TodaysRecord on. If the switch is missing, quit the app and play a song again to get the prompt back, or reset the permission in Terminal and reopen the app:
+**The song doesn't appear.** Make sure Music or Spotify is playing, then check **Settings → Players**. If it says *Not Allowed*, click **Open Automation Settings…** and turn TurnTable on. If the switch is missing, quit the app and play a song again to get the prompt back, or reset the permission in Terminal and reopen the app:
 
 ```bash
 tccutil reset AppleEvents com.todaysrecord.app
@@ -92,7 +98,7 @@ tccutil reset AppleEvents com.todaysrecord.app
 
 **Songs from Apple Music streaming don't split into LP sides.** Music doesn't report track numbers for songs that aren't in your library, so the app looks the album up in the iTunes catalog. If it can't find the same edition, the record still plays, just without sides.
 
-**An update fails or only opens the download page.** Versions before 0.4.2 can't update themselves when they run from Downloads. Quit the app, move **TodaysRecord.app** to **Applications**, open it again, and use **Check for Updates…**. Or download the new zip and replace the app by hand.
+**An update fails or only opens the download page.** Versions before 0.4.2 can't update themselves when they run from Downloads. Quit the app, move **TodaysRecord.app** (the old name) to **Applications**, open it again, and use **Check for Updates…**. Or download the new zip and replace the app by hand.
 
 **Open at Login doesn't stick.** Keep the app in the Applications folder, and check **System Settings → General → Login Items**.
 
@@ -125,7 +131,7 @@ Docs: [`docs/SPEC.md`](docs/SPEC.md) (full spec, in Korean) · [`docs/claude-cod
 
 Apple Music이나 Spotify에서 재생 중인 곡을 바탕화면의 레코드 턴테이블로 보여 주는 macOS 메뉴 막대 앱이에요.
 
-1. [Releases](https://github.com/soysaucecrab/todays-record-app/releases)에서 zip을 받아 풀고, **TodaysRecord.app**을 **응용 프로그램** 폴더로 옮겨요.
+1. [Releases](https://github.com/soysaucecrab/todays-record-app/releases)에서 zip을 받아 풀고, **TurnTable.app**을 **응용 프로그램** 폴더로 옮겨요.
 2. 처음 열 때 "Apple이 확인할 수 없음" 경고가 뜨면 **완료**를 누르고, **시스템 설정 → 개인정보 보호 및 보안**에서 **그래도 열기**를 눌러요. Apple 공증을 받지 않은 앱이라 한 번만 필요해요.
 3. 곡을 틀면 "Music(또는 Spotify)을 제어하려고 합니다" 창이 떠요. **허용**을 눌러요. 앱은 재생 정보를 읽기만 하고, 음악을 바꾸거나 Music·Spotify를 대신 켜지 않아요.
 4. 메뉴 막대의 레코드 아이콘 → **Settings…**에서 화면, 색, 효과를 바꿀 수 있어요.

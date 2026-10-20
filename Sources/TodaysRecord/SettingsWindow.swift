@@ -39,7 +39,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
             let window = NSWindow(contentViewController: tabs)
             window.styleMask = [.titled, .closable, .miniaturizable]
             window.toolbarStyle = .preference
-            window.title = "오늘의 판 Settings"
+            window.title = "TurnTable Settings"
             window.isReleasedWhenClosed = false
             window.delegate = self
             window.center()
@@ -358,7 +358,7 @@ private struct PlayersPane: View {
                     }
                 }
             } footer: {
-                Text("오늘의 판 needs permission to read what Music or Spotify is playing.")
+                Text("TurnTable needs permission to read what Music or Spotify is playing.")
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section {

@@ -1,11 +1,12 @@
 #!/bin/bash
-# .app 번들 조립과 애드혹 서명. 결과: build/TodaysRecord.app
+# .app 번들 조립과 애드혹 서명. 결과: build/TurnTable.app (실행 파일 이름은 TodaysRecord 그대로)
 # UNIVERSAL=1이면 Apple Silicon과 Intel이 함께 든 실행 파일로 만든다(배포용, scripts/package.sh).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CONFIG="${CONFIG:-release}"
-APP="$ROOT/build/TodaysRecord.app"
+APP="$ROOT/build/TurnTable.app"
+rm -rf "$ROOT/build/TodaysRecord.app"   # 이름을 바꾸기 전에 만든 번들
 
 cd "$ROOT"
 ARCH_FLAGS=()

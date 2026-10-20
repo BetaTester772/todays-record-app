@@ -1,4 +1,5 @@
 import AppKit
+import ServiceManagement
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let options: LaunchOptions
@@ -21,6 +22,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // 옛 이름(TodaysRecord.app)으로 깔린 앱은 TurnTable.app으로 이름을 바꾸고 다시 연다.
+        if let renamed = Updater.renameIfNeeded(Bundle.main.bundleURL) {
+            Log.app.info("앱 이름 바꿈 \(renamed.path, privacy: .public)")
+            UserDefaults.standard.set(true, forKey: "renamedApp")
+            Updater.relaunch(renamed)
+            return
+        }
+        // 이름을 바꾼 뒤 처음 실행: 로그인 항목을 새 위치로 다시 등록한다.
+        if UserDefaults.standard.bool(forKey: "renamedApp") {
+            UserDefaults.standard.removeObject(forKey: "renamedApp")
+            if SMAppService.mainApp.status == .enabled { try? SMAppService.mainApp.unregister(); try? SMAppService.mainApp.register() }
+        }
         let menu = StatusMenu(settings: settings)
         let clearRecord: () -> Void = { [weak self] in self?.wallpaper?.webViews.forEach { $0.clearRecord() } }
         menu.onClearRecord = clearRecord
@@ -119,7 +132,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard Updater.shouldOfferMove(appURL) else { return }
         NSApp.activate(ignoringOtherApps: true)
         let alert = NSAlert()
-        alert.messageText = "Move 오늘의 판 to the Applications folder?"
+        alert.messageText = "Move TurnTable to the Applications folder?"
         alert.informativeText = "It's running from your Downloads folder or a temporary location, where it can't update itself."
         alert.addButton(withTitle: "Move to Applications")
         alert.addButton(withTitle: "Not Now")
@@ -135,7 +148,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     Log.app.error("옮기기 실패 \(String(describing: error), privacy: .public)")
                     let fail = NSAlert()
                     fail.alertStyle = .warning
-                    fail.messageText = "Couldn't move 오늘의 판"
+                    fail.messageText = "Couldn't move TurnTable"
                     fail.informativeText = ((error as? Updater.InstallError)?.message ?? error.localizedDescription)
                         + "\n\nYou can drag it into the Applications folder in Finder instead."
                     fail.runModal()
@@ -162,7 +175,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 alert.informativeText = message
             } else {
                 alert.messageText = "You're up to date"
-                alert.informativeText = "오늘의 판 v\(version) is the latest version."
+                alert.informativeText = "TurnTable v\(version) is the latest version."
             }
             alert.runModal()
         }
@@ -173,7 +186,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard case .available(let release) = updater.state else { return }
         NSApp.activate(ignoringOtherApps: true)
         let alert = NSAlert()
-        alert.messageText = "Update to 오늘의 판 v\(release.version)?"
+        alert.messageText = "Update to TurnTable v\(release.version)?"
         alert.informativeText = "The app will download the update, replace itself, and restart."
         alert.addButton(withTitle: "Update")
         alert.addButton(withTitle: "Later")
