@@ -178,7 +178,7 @@
   let cue = null;          // tonearm / record-change animation
   let armPhi = REST_PHI, armLift = 0.1;
   let spin = 0, spinVel = 0, spinAcc = 0, beatEnv = 0, lastBeat = -1, legPhase = 0;
-  let warpLift = 0, touchAt = 0, prevLift = 1;   // record warp under the needle; when the needle last touched down
+  let warpLift = 0;   // how far the record's warp lifts the needle right now
   let recOff = { x: 0, y: 0, lift: 0 };
   let sideFade = 1;        // while turning to the other side: how far the new side's lines have faded in (0..1)
   let prevPt = null, prog = 0, posNow = 0;
@@ -762,8 +762,6 @@
     spin += spinVel * dt;
     // ...and slightly warped, so the needle rides up and down a little twice per turn
     warpLift = !cue && armLift < 0.03 ? Math.min(1, spinVel / (TAU * RPS)) * 0.025 * (0.5 + 0.5 * Math.sin(2 * spin + 1.3)) : 0;
-    if (prevLift >= 0.03 && armLift < 0.03 && media.state === 'playing') touchAt = now;
-    prevLift = armLift;
 
     const onRecord = !cue && armLift < 0.03 && shown === album;
     if (playing && onRecord) {
@@ -1110,9 +1108,7 @@
     const swing = st === 'playing' && !sleeping ? Math.sin(legPhase) : st === 'paused' ? Math.sin(now / 900) * 0.3 : 0;
     const bob = beatEnv * 1.6 * u;
 
-    // a small wobble when the needle touches down
-    const since = now - touchAt, touch = touchAt && since < 700 ? (1 - since / 700) ** 2 * Math.sin(since / 55) : 0;
-    ctx.save(); ctx.translate(x, y - bob + touch * 1.5 * u); ctx.rotate(touch * 0.1); ctx.scale(-1, 1);
+    ctx.save(); ctx.translate(x, y - bob); ctx.scale(-1, 1);
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     const limb = (x1, y1, mx, my, x2, y2, col, w) => {
       ctx.strokeStyle = col; ctx.lineWidth = w;
