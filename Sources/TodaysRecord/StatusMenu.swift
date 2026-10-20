@@ -7,6 +7,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
 
     var onClearRecord: (() -> Void)?
     var onOpenSettings: (() -> Void)?
+    var onInstallUpdate: (() -> Void)?
     /// 메뉴를 열 때 불린다. 실행 중인 플레이어와 지금 보여주는 플레이어(4.5.2). 없으면 Player 항목을 숨긴다.
     var playerChoice: (() -> (running: [PlayerKind], shown: PlayerKind?))?
     var onChoosePlayer: ((PlayerKind) -> Void)?
@@ -18,6 +19,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     private var playerItems: [PlayerKind: NSMenuItem] = [:]
     private let permissionItem = NSMenuItem(title: "Allow Control of Music…", action: nil, keyEquivalent: "")
     private let enabledItem = NSMenuItem(title: "Show Wallpaper", action: nil, keyEquivalent: "")
+    private let updateItem = NSMenuItem(title: "Update Available…", action: nil, keyEquivalent: "")
 
     init(settings: Settings) {
         self.settings = settings
@@ -48,6 +50,10 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         menu.addItem(target(NSMenuItem(title: "Settings…", action: nil, keyEquivalent: ","), #selector(openSettings)))
         menu.addItem(.separator())
 
+        target(updateItem, #selector(installUpdate))
+        updateItem.isHidden = true
+        menu.addItem(updateItem)
+
         target(permissionItem, #selector(openAutomationSettings))
         permissionItem.isHidden = true
         menu.addItem(permissionItem)
@@ -76,7 +82,27 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         }
     }
 
+    /// 새 버전이 있을 때만 업데이트 항목을 보인다. 명세 4.10.
+    func setUpdate(_ state: Updater.State) {
+        switch state {
+        case .available(let release):
+            updateItem.title = "Update to v\(release.version)…"
+            updateItem.isEnabled = true
+            updateItem.isHidden = false
+        case .installing(let release):
+            updateItem.title = "Updating to v\(release.version)…"
+            updateItem.isEnabled = false
+            updateItem.isHidden = false
+        default:
+            updateItem.isHidden = true
+        }
+    }
+
     // MARK: - 메뉴 동작
+
+    @objc private func installUpdate() {
+        onInstallUpdate?()
+    }
 
     @objc private func toggleEnabled() {
         settings.enabled.toggle()   // UserDefaults 변경 알림으로 화면에 반영된다

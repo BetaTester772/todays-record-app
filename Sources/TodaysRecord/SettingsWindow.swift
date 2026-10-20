@@ -60,8 +60,12 @@ final class SettingsModel: ObservableObject {
     @Published private(set) var displays: [Display] = []
     @Published private(set) var loginEnabled = false
     @Published var deniedPlayers: Set<PlayerKind> = []
+    @Published var update: Updater.State = .idle
 
     var onClearRecord: (() -> Void)?
+    var onCheckForUpdates: (() -> Void)?
+    var onInstallUpdate: (() -> Void)?
+    let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
 
     func refresh() {
         displays = NSScreen.screens.enumerated().map { index, screen in
@@ -96,6 +100,7 @@ private struct GeneralPane: View {
     @ObservedObject var model: SettingsModel
     @AppStorage(Settings.Key.enabled) private var enabled = true
     @AppStorage(Settings.Key.fps) private var fps = Settings.FrameRate.auto.rawValue
+    @AppStorage(Settings.Key.autoUpdateCheck) private var autoUpdateCheck = true
 
     var body: some View {
         Pane {
@@ -116,6 +121,26 @@ private struct GeneralPane: View {
             Section {
                 LabeledContent("Lines on the record") {
                     Button("Clear This Record") { model.onClearRecord?() }
+                }
+            }
+            Section {
+                Toggle("Check for Updates Automatically", isOn: $autoUpdateCheck)
+                LabeledContent("Version \(model.version)") {
+                    switch model.update {
+                    case .checking:
+                        ProgressView().controlSize(.small)
+                    case .available(let release):
+                        Button("Update to v\(release.version)") { model.onInstallUpdate?() }
+                    case .installing:
+                        Text("Updating…").foregroundStyle(.secondary)
+                    default:
+                        Button("Check Now") { model.onCheckForUpdates?() }
+                    }
+                }
+                switch model.update {
+                case .upToDate: Text("You're up to date.").font(.caption).foregroundStyle(.secondary)
+                case .failed(let message): Text(message).font(.caption).foregroundStyle(.secondary)
+                default: EmptyView()
                 }
             }
         }

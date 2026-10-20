@@ -65,6 +65,8 @@ final class Settings {
         static let trail = "trail"
         static let grain = "grain"
         static let sideChange = "sideChange"
+        static let autoUpdateCheck = "autoUpdateCheck"
+        static let lastUpdateCheck = "lastUpdateCheck"
         static let disabledDisplays = "disabledDisplays"
         static let fps = "fps"
     }
@@ -81,6 +83,7 @@ final class Settings {
             Key.trail: Trail.afterglow.rawValue,
             Key.grain: Grain.normal.rawValue,
             Key.sideChange: SideChange.turn.rawValue,
+            Key.autoUpdateCheck: true,
             Key.disabledDisplays: "",
             Key.fps: FrameRate.auto.rawValue,
         ])
@@ -127,6 +130,17 @@ final class Settings {
     var fps: FrameRate {
         get { FrameRate(rawValue: defaults.string(forKey: Key.fps) ?? "") ?? .auto }
         set { defaults.set(newValue.rawValue, forKey: Key.fps) }
+    }
+
+    /// 하루에 한 번 GitHub 릴리스를 확인할지. 명세 4.10.
+    var autoUpdateCheck: Bool {
+        get { defaults.bool(forKey: Key.autoUpdateCheck) }
+        set { defaults.set(newValue, forKey: Key.autoUpdateCheck) }
+    }
+
+    var lastUpdateCheck: Date? {
+        get { defaults.object(forKey: Key.lastUpdateCheck) as? Date }
+        set { defaults.set(newValue, forKey: Key.lastUpdateCheck) }
     }
 
     var sideChange: SideChange {

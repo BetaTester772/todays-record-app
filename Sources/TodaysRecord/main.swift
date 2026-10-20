@@ -7,6 +7,8 @@ struct LaunchOptions {
     var logNowPlaying = false
     /// 시작할 때 설정 창을 연다(디버깅용).
     var openSettings = false
+    /// 시작하자마자 업데이트를 확인하고, 새 버전이 있으면 묻지 않고 설치한다(업데이트 시험용).
+    var installUpdate = false
 
     init(arguments: [String]) {
         for arg in arguments.dropFirst() {
@@ -15,6 +17,7 @@ struct LaunchOptions {
             case "--windowed": windowed = true
             case "--log-nowplaying": logNowPlaying = true
             case "--settings": openSettings = true
+            case "--install-update": installUpdate = true
             default: break
             }
         }

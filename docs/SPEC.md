@@ -1,6 +1,6 @@
 # 오늘의 판 — macOS 앱 명세서
 
-버전 0.20 · 2026-10-20 (0.2: LP 면 나누기, iTunes 검색 국가 대체 · 0.3: 음량 노브, 면 램프 · 0.4: 색 섞기 전환, 곡 안 위치 이동 · 0.5: 화면 문구 영어 · 0.6: 긴 이름 흐르기 · 0.7: 메뉴 막대·Dock 피하기 · 0.8: 오늘 들은 곡 수만, 노란 강조색 피하기 · 0.9: M2 설정 메뉴, 창문 빛, 잔상 · 0.10: 판 색 고르기, 시간대 색감 · 0.11: 배경색, 선 색 고르기 · 0.12: 그레인 세기 · 0.13: M4 절전, 여러 화면, 그리기 최적화 · 0.14: Spotify 지원 · 0.15: 설정 창, 화면별 켜기, 앱 아이콘 · 0.16: 배포 zip, README · 0.17: M5 뺌 · 0.18: 긴 앨범 LP 세트 · 0.19: 면 바꾸기 동작 · 0.20: 자연스러운 움직임, 글자 색)
+버전 0.21 · 2026-10-20 (0.2: LP 면 나누기, iTunes 검색 국가 대체 · 0.3: 음량 노브, 면 램프 · 0.4: 색 섞기 전환, 곡 안 위치 이동 · 0.5: 화면 문구 영어 · 0.6: 긴 이름 흐르기 · 0.7: 메뉴 막대·Dock 피하기 · 0.8: 오늘 들은 곡 수만, 노란 강조색 피하기 · 0.9: M2 설정 메뉴, 창문 빛, 잔상 · 0.10: 판 색 고르기, 시간대 색감 · 0.11: 배경색, 선 색 고르기 · 0.12: 그레인 세기 · 0.13: M4 절전, 여러 화면, 그리기 최적화 · 0.14: Spotify 지원 · 0.15: 설정 창, 화면별 켜기, 앱 아이콘 · 0.16: 배포 zip, README · 0.17: M5 뺌 · 0.18: 긴 앨범 LP 세트 · 0.19: 면 바꾸기 동작 · 0.20: 자연스러운 움직임, 글자 색 · 0.21: 앱 안 업데이트, 배포 인증서)
 
 ## 1. 개요
 
@@ -57,7 +57,8 @@ Sources/TodaysRecord/
 ├─ AlbumTracks.swift       앨범 디스크별 곡 길이 (LP 면 나누기용)
 ├─ SystemVolume.swift      시스템 출력 음량 (음량 노브용)
 ├─ PowerWatcher.swift      잠금, 잠자기, 가려짐 감지
-└─ SettingsWindow.swift    설정 창 (SwiftUI 폼을 담은 AppKit 창)
+├─ SettingsWindow.swift    설정 창 (SwiftUI 폼을 담은 AppKit 창)
+└─ Updater.swift           GitHub 릴리스로 업데이트 확인·설치
 Resources/
 ├─ index.html              레코드 화면 (기존 파일, 6장에 따라 일부 수정)
 ├─ Info.plist              번들 정보
@@ -82,6 +83,7 @@ scripts/
   - `--log-nowplaying`: 받은 Music·Spotify 알림 내용과 AppleScript 결과를 표준 출력에 기록
   - `--windowed`: 바탕화면 층 대신 일반 창으로 띄워 디버깅 (Safari 웹 속성 검사기로 확인 가능하게 `isInspectable = true`)
   - `--settings`: 시작할 때 설정 창을 연다 (디버깅용)
+  - `--install-update`: 시작하자마자 업데이트를 확인하고, 새 버전이 있으면 묻지 않고 설치한다 (업데이트 시험용)
 
 ### 4.2 바탕화면 층 창 (`WallpaperWindow`)
 
@@ -218,6 +220,7 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
 | Show Wallpaper (체크) | 창 표시 여부 |
 | Clear This Record | `clearRecord()` |
 | Settings… (⌘,) | 설정 창을 연다 |
+| Update to vX… | 새 버전이 있을 때만 표시(4.10) |
 | 제어 권한 열기 (“Allow Control of Music…” 등, 4.5) | 권한이 없는 플레이어가 있을 때만 표시 |
 | Quit | 앱 종료 |
 
@@ -225,7 +228,7 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
 
 | 탭 | 항목 |
 |---|---|
-| General | Show Wallpaper, Open at Login (`SMAppService.mainApp` 등록/해제), Frame Rate(Auto / 30 / 60, 4.7. Auto는 배터리일 때 30), Clear This Record |
+| General | Show Wallpaper, Open at Login (`SMAppService.mainApp` 등록/해제), Frame Rate(Auto / 30 / 60, 4.7. Auto는 배터리일 때 30), Clear This Record, Check for Updates Automatically와 버전·Check Now·업데이트 버튼(4.10) |
 | Displays | 연결된 화면마다 켜기/끄기 (4.3). 화면이 바뀌면 목록을 다시 읽는다 |
 | Appearance | Record Position(Left / Center / Right), Background(Default / Transparent), Record·Background·Line·Text Color(“From Album” 체크 또는 색 고르기) |
 | Effects | Window Light(6장 19), Trail(Keep / Afterglow, 6장 20), Grain(Off / Low / Normal / High), Side Change(Lift & Turn / Swap Record / Needle Only, 6장 23) |
@@ -234,6 +237,13 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
 설정은 `UserDefaults`에 저장한다(키 `enabled`, `position`, `transparent`, `windowLight`, `trail`, `grain`, `sideChange`, `recordColor`, `bgColor`, `lineColor`, `textColor`, `disabledDisplays`, `fps`). 설정 창은 `@AppStorage`로 같은 키(`Settings.Key`)에 바로 쓰고, 앱은 `UserDefaults.didChangeNotification`을 받아 한 번에 모아 창과 모든 웹뷰에 반영한다(`setOptions`). 앱 시작 시와 웹뷰가 준비될 때도 적용한다. 화면과 메뉴 문구는 영어로 쓴다. 로그인 항목이 사용자 승인을 기다리는 상태(`requiresApproval`)면 시스템 설정의 로그인 항목 화면을 연다.
 
 **앱 아이콘.** `scripts/make-icon.swift`가 앱 화면과 같은 색(분홍 배경, 초록 받침, 크림색 판, 초록 라벨, 주황 바늘)으로 macOS 아이콘 격자(1024 안 824 둥근 사각형)에 그려 `iconutil`로 `Resources/AppIcon.icns`를 만든다. `Info.plist`의 `CFBundleIconFile`이 가리킨다.
+
+### 4.10 업데이트 (`Updater`)
+
+- 설정 `autoUpdateCheck`(기본 켜짐)면 앱 시작 10초 뒤와, 그 뒤 마지막 확인에서 24시간이 지날 때마다 `https://api.github.com/repos/soysaucecrab/todays-record-app/releases/latest`를 확인한다(메인 스레드 밖, 마지막 확인 시각은 `lastUpdateCheck`). 설정 창 General의 **Check Now**로 바로 확인할 수도 있다.
+- 태그(`v0.4.0`)를 숫자 단위로 지금 버전(`CFBundleShortVersionString`)과 비교해, 새 버전이면 메뉴에 “Update to v0.4.0…”, 설정 창에 업데이트 버튼을 보인다.
+- 누르면 확인 창(Update / Later / Release Notes)을 띄우고, Update면: 릴리스의 `TodaysRecord-<버전>.zip`과 `.sha256`을 받아 SHA-256을 맞춰 보고 → `ditto`로 풀고 → 번들 ID가 같은지, 서명이 정상인지 확인하고 → **지금 앱이 인증서로 서명돼 있으면 새 앱도 같은 designated requirement(같은 인증서)를 만족하는지** 확인한 뒤(`SecStaticCodeCheckValidity`) → 지금 앱 자리에 원자적으로 바꿔 넣고(`FileManager.replaceItemAt`) → 지금 앱이 끝나면 새 앱을 연다. 어느 단계든 실패하면 아무것도 바꾸지 않고 릴리스 페이지를 연다. 앱 폴더에 쓸 권한이 없어도 같다.
+- 앱이 직접 받은 파일에는 “인터넷에서 받음” 표시(quarantine)가 붙지 않아, 업데이트 뒤에는 “그래도 열기”가 다시 필요 없다(확인함).
 
 ### 4.9 (뺌) 시스템 배경화면 색 맞추기
 
@@ -385,7 +395,7 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
 
 ## 9. 알려진 주의점
 
-- 애드혹 서명은 빌드할 때마다 서명이 바뀌어 Music·Spotify 제어 권한을 다시 물을 수 있다. 계속 거슬리면 키체인 접근에서 자체 서명 인증서를 만들어 그 인증서로 서명한다.
+- 애드혹 서명은 빌드할 때마다 서명이 바뀌어 Music·Spotify 제어 권한을 다시 물을 수 있다. 그래서 0.4.0부터 배포판은 자체 서명 인증서 “Todays Record Code Signing”(RSA 3072, 2036년까지, 코드 서명 전용)으로 서명한다. 비밀 키는 배포하는 Mac의 로그인 키체인에만 있고 `codesign`만 쓸 수 있으며, 저장소에는 올리지 않는다. 앱은 이름이 아니라 인증서 해시로 구분되므로(designated requirement `certificate root = H"3324a118…"`) 같은 인증서로 서명한 버전끼리는 권한이 유지된다. 인증서를 잃으면 다음 버전에서 사용자가 권한을 다시 허용해야 하므로 `.p12`로 백업해 둔다. `scripts/package.sh`는 이 인증서가 없으면 애드혹으로 서명한다.
 - 서명·공증 없는 앱은 처음 열 때 “확인되지 않은 개발자” 경고가 뜬다. 다른 사람에게 배포하려면 Apple 개발자 프로그램 서명과 공증이 필요하다.
 - 시스템 메뉴 막대와 위젯 색은 실제 시스템 배경화면을 따른다(레코드 화면과 맞추는 4.9는 뺐다).
 - 바탕화면 층 창의 정확한 층 값과 동작은 macOS 버전마다 다를 수 있어 M1에서 실제로 확인한다.

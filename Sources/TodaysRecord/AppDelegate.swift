@@ -11,6 +11,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let settingsModel = SettingsModel()
     private lazy var settingsWindow = SettingsWindowController(model: settingsModel)
     private var defaultsObserver: NSObjectProtocol?
+    private lazy var updater = Updater(settings: settings)
     private var applyScheduled = false
 
     init(options: LaunchOptions) {
@@ -24,6 +25,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.onOpenSettings = { [weak self] in self?.settingsWindow.show() }
         settingsModel.onClearRecord = clearRecord
         statusMenu = menu
+
+        updater.onChange = { [weak self] state in
+            guard let self else { return }
+            self.statusMenu?.setUpdate(state)
+            self.settingsModel.update = state
+            if self.options.installUpdate, case .available(let release) = state { self.updater.install(release) }
+        }
+        menu.onInstallUpdate = { [weak self] in self?.confirmUpdate() }
+        settingsModel.onInstallUpdate = { [weak self] in self?.confirmUpdate() }
+        settingsModel.onCheckForUpdates = { [weak self] in self?.updater.check() }
+        updater.start()
+        if options.installUpdate { updater.check() }
 
         // 메뉴와 설정 창은 UserDefaults에 바로 쓴다. 바뀌면 한 번에 모아 화면에 반영한다.
         defaultsObserver = NotificationCenter.default.addObserver(
@@ -76,6 +89,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         self.nowPlaying = nowPlaying
         nowPlaying.start()
+    }
+
+    /// 설치 전에 한 번 묻는다. 앱이 바뀌고 다시 실행된다.
+    private func confirmUpdate() {
+        guard case .available(let release) = updater.state else { return }
+        NSApp.activate(ignoringOtherApps: true)
+        let alert = NSAlert()
+        alert.messageText = "Update to 오늘의 판 v\(release.version)?"
+        alert.informativeText = "The app will download the update, replace itself, and restart."
+        alert.addButton(withTitle: "Update")
+        alert.addButton(withTitle: "Later")
+        alert.addButton(withTitle: "Release Notes")
+        switch alert.runModal() {
+        case .alertFirstButtonReturn: updater.install(release)
+        case .alertThirdButtonReturn: NSWorkspace.shared.open(release.pageURL)
+        default: break
+        }
     }
 
     private func scheduleApplySettings() {
