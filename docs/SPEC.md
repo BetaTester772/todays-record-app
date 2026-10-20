@@ -234,7 +234,7 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
 | Displays | 연결된 화면마다 켜기/끄기 (4.3). 화면이 바뀌면 목록을 다시 읽는다 |
 | Appearance | Record Position(Left / Center / Right), Background(Default / Transparent). 그 아래 **Colors** 묶음 하나에 색을 모은다(6장 21): Record(Album / Colored Vinyl / Custom), Background·Line·Text(Album / Custom), Tonearm·Arm Base(Default / Custom). 기본은 지금 색 그대로이고, Custom일 때만 오른쪽에 색 상자가 보인다. Custom을 처음 고르면 미리 정한 색(판 검정, 배경 크림 등)에서 시작한다. Reset Colors는 모두 기본으로 되돌린다(바꾼 것이 없으면 비활성) |
 | Effects | Window Light(6장 19), Trail(Keep / Afterglow, 6장 20), Grain(Off / Low / Normal / High), Side Change(Lift & Turn / Swap Record / Needle Only, 6장 23) |
-| Characters | Rider(바늘 위 캐릭터): Pose(Auto / Sit / Lean Back / Cross-Legged / Hug Knees, 6장 27), Shirt·Pants(Album / Custom), Hat(Default / Custom), Reset Rider. Crowd: Crowd(켜기/끄기, 기본 켬), Crowd Pace(1× / 2× / 5× / 10×, 6장 25) |
+| Characters | Rider(바늘 위 캐릭터): Pose(Auto / Sit / Lean Back / Cross-Legged / Hug Knees, 6장 27). Rider Colors(따로 아래 칸): Shirt·Pants(Album / Custom), Hat(Default / Custom), Reset Colors. Crowd: Crowd(켜기/끄기, 기본 켬), Crowd Pace(1× / 2× / 5× / 10×, 6장 25) |
 | Players | Music·Spotify 제어 권한 상태와 자동화 설정 열기 |
 
 설정은 `UserDefaults`에 저장한다(키 `enabled`, `position`, `transparent`, `windowLight`, `trail`, `grain`, `sideChange`, `coloredVinyl`, `crowd`, `crowdPace`, `riderPose`, `hatColor`, `recordColor`, `bgColor`, `lineColor`, `textColor`, `armColor`, `armBaseColor`, `shirtColor`, `pantsColor`, `disabledDisplays`, `fps`). 설정 창은 `@AppStorage`로 같은 키(`Settings.Key`)에 바로 쓰고, 앱은 `UserDefaults.didChangeNotification`을 받아 한 번에 모아 창과 모든 웹뷰에 반영한다(`setOptions`). 앱 시작 시와 웹뷰가 준비될 때도 적용한다. 화면과 메뉴 문구는 영어로 쓴다. 로그인 항목이 사용자 승인을 기다리는 상태(`requiresApproval`)면 시스템 설정의 로그인 항목 화면을 연다.

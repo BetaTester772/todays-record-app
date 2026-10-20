@@ -303,17 +303,6 @@ private struct CharactersPane: View {
                     Text("Cross-Legged").tag(Settings.RiderPose.cross.rawValue)
                     Text("Hug Knees").tag(Settings.RiderPose.hug.rawValue)
                 }
-                ColorRow(slot: .shirt, title: "Shirt", hex: $shirtColor)
-                ColorRow(slot: .pants, title: "Pants", hex: $pantsColor)
-                ColorRow(slot: .hat, title: "Hat", hex: $hatColor)
-                HStack {
-                    Spacer()
-                    Button("Reset Rider") {
-                        riderPose = Settings.RiderPose.auto.rawValue
-                        shirtColor = ""; pantsColor = ""; hatColor = ""
-                    }
-                    .disabled(riderPose == Settings.RiderPose.auto.rawValue && shirtColor.isEmpty && pantsColor.isEmpty && hatColor.isEmpty)
-                }
             } header: {
                 Text("Rider")
             } footer: {
@@ -321,6 +310,18 @@ private struct CharactersPane: View {
                     .font(.caption).foregroundStyle(.secondary)
                     .multilineTextAlignment(.leading)
                     .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            Section {
+                ColorRow(slot: .shirt, title: "Shirt", hex: $shirtColor)
+                ColorRow(slot: .pants, title: "Pants", hex: $pantsColor)
+                ColorRow(slot: .hat, title: "Hat", hex: $hatColor)
+                HStack {
+                    Spacer()
+                    Button("Reset Colors") { shirtColor = ""; pantsColor = ""; hatColor = "" }
+                        .disabled(shirtColor.isEmpty && pantsColor.isEmpty && hatColor.isEmpty)
+                }
+            } header: {
+                Text("Rider Colors")
             }
             Section {
                 Toggle("Crowd", isOn: $crowd)
