@@ -75,6 +75,10 @@ final class RecordWebView: WKWebView {
         call("art", [dataURL, version])
     }
 
+    func sendVolume(_ payload: [String: Any]) {
+        call("setVolume", [payload])
+    }
+
     /// 인자를 JSON 배열로 직렬화해서 넘긴다. 따옴표와 줄바꿈이 안전하게 이스케이프된다.
     private func call(_ function: String, _ arguments: [Any]) {
         guard isReady else { return }

@@ -1,6 +1,6 @@
 # 오늘의 판 — macOS 앱 명세서
 
-버전 0.2 · 2026-10-20 (0.2: LP 면 나누기, iTunes 검색 국가 대체 추가)
+버전 0.3 · 2026-10-20 (0.2: LP 면 나누기, iTunes 검색 국가 대체 · 0.3: 음량 노브, 면 램프)
 
 ## 1. 개요
 
@@ -51,6 +51,7 @@ Sources/TodaysRecord/
 ├─ Artwork.swift           앨범 커버 가져오기 (Music → 검색 대체)
 ├─ ITunesSearch.swift      iTunes Search API (커버 검색, 앨범 곡 목록)
 ├─ AlbumTracks.swift       앨범 디스크별 곡 길이 (LP 면 나누기용)
+├─ SystemVolume.swift      시스템 출력 음량 (음량 노브용)
 ├─ PowerWatcher.swift      잠금, 잠자기, 가려짐 감지
 └─ WallpaperSync.swift     시스템 배경화면 색 맞추기 (선택 기능)
 Resources/
@@ -155,6 +156,12 @@ Music 앱의 재생 정보를 다음 두 가지 방법을 합쳐서 얻는다.
 - 2026-10 확인 결과 `country=KR`은 search, lookup 모두 결과가 0건이다(한국 iTunes Store는 음악을 팔지 않음). 그래서 설정 국가로 찾지 못하면 `US`로 한 번 더 찾는다. 찾은 앨범의 `collectionId`로 `lookup?id=<id>&entity=song`을 불러 곡 목록과 길이(`trackTimeMillis`)도 얻는다(4.5의 (3)).
 - PNG/JPEG 바이트를 base64 data URL로 바꿔 `TodaysRecord.art(dataURL, version)`으로 보낸다. 같은 커버를 다시 보내지 않는다.
 
+### 4.6.1 시스템 음량 (`SystemVolume`)
+
+- CoreAudio 공개 API로 기본 출력 장치의 음량(`kAudioHardwareServiceDeviceProperty_VirtualMainVolume`, 0~1)과 음소거(`kAudioDevicePropertyMute`)를 읽는다.
+- 속성 알림(`AudioObjectAddPropertyListenerBlock`)으로 바뀔 때마다 바로 받는다. 기본 출력 장치가 바뀌면 새 장치에 다시 붙는다. 주기적으로 묻지 않는다.
+- 값이 바뀌면 `TodaysRecord.setVolume({level, muted})`로 보낸다. 장치에 음량 조절이 없으면 `level`을 빼고 보낸다. `--demo`에서도 보낸다.
+
 ### 4.7 절전 (`PowerWatcher`)
 
 다음 중 하나라도 해당하면 모든 웹뷰에 `setPaused(true)`, 모두 풀리면 `setPaused(false)`.
@@ -208,6 +215,7 @@ Music 앱의 재생 정보를 다음 두 가지 방법을 합쳐서 얻는다.
 | `TodaysRecord.setPaused(bool)` | 그리기 멈춤/재개 |
 | `TodaysRecord.setOptions({position, transparent, fps})` | position: `"left"`, `"center"`, `"right"` · transparent: bool · fps: 30 또는 60 |
 | `TodaysRecord.clearRecord()` | 지금 판의 선 지우기 |
+| `TodaysRecord.setVolume({level, muted})` | 시스템 음량. level: 0~1(모르면 생략), muted: bool (4.6.1) |
 
 ### JavaScript → Swift
 
@@ -238,6 +246,11 @@ Music 앱의 재생 정보를 다음 두 가지 방법을 합쳐서 얻는다.
     - 같은 면의 다른 곡이면 바늘만 그 곡의 띠로 옮기고, 같은 앨범의 다른 면이나 다른 앨범이면 기존 판 바꾸기 동작을 쓴다.
     - 같은 앨범의 다른 면은 커버(라벨, 색)를 함께 쓴다.
     - 곡 번호나 곡 수가 없으면 기존 동작(곡 길이를 `SIDE_LEN` 기준으로 이어 그림)을 쓴다.
+11. **음량 노브와 면 표시.** 기존 속도 노브, 전원 램프와 같은 모양과 색을 쓴다.
+    - 음량 노브: 속도 노브 오른쪽(판 평면 좌표 1.0R, 1.0R)의 같은 금속 노브. 바늘이 0~100%를 왼쪽 아래에서 오른쪽 아래까지 270도로 가리키고, 둘레의 눈금 점 10개 중 음량만큼을 앨범 색(accent)으로 켠다. 음소거면 눈금을 모두 끈다. 값이 바뀌면 바늘이 부드럽게 따라간다. 미리보기에서는 60%로 보인다.
+    - 면 램프: 판과 전원 램프 사이(0.18R, 1.06R부터)에 이 디스크의 면 수만큼(최대 4개) 작은 램프와 A·B·C… 픽셀 글자를 두고, 지금 면만 앨범 색으로 켠다. 정지 중이거나 면을 모르면 그리지 않는다.
+    - 곡 정보: 진행 막대 아래에 `B면 · 4/6`(면 글자, 면 안의 곡 번호/곡 수)을 기존 픽셀 글씨로 쓴다.
+    - 매우 넓은 화면(21:9)에서도 잘리지 않는 위치인지 확인했다.
 
 ## 7. 성능 목표
 
