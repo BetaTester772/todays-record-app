@@ -1094,10 +1094,15 @@
 
     // shadow on the surface
     const sx = 0.03 * R + lp * 0.35, sy = 0.035 * R + lp * 0.45;
-    ctx.strokeStyle = 'rgba(0,0,0,0.15)'; ctx.lineWidth = aw; ctx.lineCap = 'round';
-    ctx.beginPath(); ctx.moveTo(G.x + 0.02 * R, G.y + 0.02 * R); ctx.lineTo(T.x + sx, T.y + sy); ctx.stroke();
-    ctx.fillStyle = 'rgba(0,0,0,0.14)';
-    ctx.beginPath(); ctx.ellipse(T.x + sx, T.y + sy, 0.05 * R, 0.022 * R, 0, 0, TAU); ctx.fill();
+    // the arm's shadow and the head's are one shape filled once, so where they meet isn't darker
+    const ax0 = G.x + 0.02 * R, ay0 = G.y + 0.02 * R, ax1 = T.x + sx, ay1 = T.y + sy;
+    const al = Math.hypot(ax1 - ax0, ay1 - ay0) || 1, nx = -(ay1 - ay0) / al * aw / 2, ny = (ax1 - ax0) / al * aw / 2;
+    ctx.fillStyle = 'rgba(0,0,0,0.15)'; ctx.beginPath();
+    ctx.moveTo(ax0 + nx, ay0 + ny); ctx.lineTo(ax1 + nx, ay1 + ny); ctx.lineTo(ax1 - nx, ay1 - ny); ctx.lineTo(ax0 - nx, ay0 - ny); ctx.closePath();
+    ctx.moveTo(ax0 + aw / 2, ay0); ctx.arc(ax0, ay0, aw / 2, 0, TAU);
+    ctx.moveTo(ax1 + 0.05 * R, ay1); ctx.ellipse(ax1, ay1, 0.05 * R, 0.022 * R, 0, 0, TAU);
+    ctx.fill('nonzero');
+    ctx.lineCap = 'round';
 
     // pivot post
     const pw = 0.06 * R;

@@ -3,7 +3,7 @@
 // The longer the music plays without a break, the more little people drop by: one 3-7 minutes in, then one every
 // 3-5 minutes, up to 6. They walk around the turntable and the desk, sit on the plinth's edge swinging their feet,
 // dance, headbang, breakdance, read, doze off, take phone calls, play together and run on the spinning record.
-// A break of more than 2 minutes sends them home one by one.
+// When the music stops they go home one by one, every 30-60 seconds; whoever is still there when it starts again stays.
 //
 // index.html creates it with TodaysRecordCrowd(scene) and calls update(dt, now) and draw(L, C, now) every frame.
 // `scene` gives read access to the page's state and drawing helpers (see makeCrowd in index.html).
@@ -18,7 +18,7 @@
 
     const MAX = 6;
     const PLINTH = { x0: -1.22, y0: -1.18, x1: 5.78, y1: 5.82 };   // in record radii, record-plane coordinates
-    const crowd = { people: [], play: 0, idle: 0, nextAt: rand(180, 420), leaveAt: 120, beat: 0, spots: null, spotsKey: '', hud: null, fx: [], prot: [], trackKey: '' };
+    const crowd = { people: [], play: 0, idle: 0, nextAt: rand(180, 420), leaveAt: rand(30, 60), stopped: false, beat: 0, spots: null, spotsKey: '', hud: null, fx: [], prot: [], trackKey: '' };
     // Crowd Pace in the settings (1, 2, 5 or 10 times as fast); test copies can speed it up further
     const speed = () => (S.opts.crowdPace || 1) * ((S.NATIVE && S.NATIVE.crowdSpeed) || 1);
 
@@ -63,7 +63,7 @@
     const toward = (L, p) => (L.cx > p.x ? 1 : -1);
 
     // A desk point covered by the plinth's side face: how far up the plinth's top edge is (0 if not on the side face).
-    // Someone walking there climbs the side, so they are drawn that much higher.
+    // Nobody stands there (walking across it, straight up the screen, already looks like climbing the side).
     function wallLift(L, x, y) {
       if (onPlinth(toPlane(L, x, y))) return 0;
       const t = PLINTH_T * L.R;
@@ -134,16 +134,25 @@
       return best;
     }
 
-    // a straight walk unless it would cross the record; then around it
+    const onScreen = (L, x, y, m = 0) => x > S.inset.left + m && x < S.W - S.inset.right - m && y > S.inset.top + m && y < S.H - S.inset.bottom - m;
+    // A straight walk unless it would cross the record; then around it, along whichever side stays on screen
+    // (the front of the record often runs into the bottom of the screen). Waypoints never leave the screen.
     function route(L, ax, ay, bx, by) {
       let hit = false;
       for (let t = 0.05; t < 1; t += 0.05) { const q = toPlane(L, lerp(ax, bx, t), lerp(ay, by, t)); if (Math.hypot(q.x, q.y) < 1.14) { hit = true; break; } }
       if (!hit) return [{ x: bx, y: by }];
-      const A = toPlane(L, ax, ay), B = toPlane(L, bx, by);
+      const A = toPlane(L, ax, ay), B = toPlane(L, bx, by), u = unitOf(L);
       const a0 = Math.atan2(A.y, A.x); let d = Math.atan2(B.y, B.x) - a0;
       while (d > Math.PI) d -= TAU; while (d < -Math.PI) d += TAU;
-      const n = Math.max(2, Math.ceil(Math.abs(d) / 0.4)), pts = [];
-      for (let i = 1; i < n; i++) { const a = a0 + d * i / n; pts.push(toScreen(L, Math.cos(a) * 1.5 * L.R, Math.sin(a) * 1.5 * L.R)); }
+      const way = dd => {
+        const n = Math.max(2, Math.ceil(Math.abs(dd) / 0.4)), pts = [];
+        for (let i = 1; i < n; i++) { const a = a0 + dd * i / n; pts.push(toScreen(L, Math.cos(a) * 1.42 * L.R, Math.sin(a) * 1.42 * L.R)); }
+        return pts;
+      };
+      const ways = [way(d), way(d > 0 ? d - TAU : d + TAU)];
+      const off = pts => pts.filter(q => !onScreen(L, q.x, q.y, 6 * u)).length;
+      const best = off(ways[0]) <= off(ways[1]) ? ways[0] : ways[1];
+      const m = 8 * u, pts = best.map(q => ({ x: clamp(q.x, S.inset.left + m, S.W - S.inset.right - m), y: clamp(q.y, S.inset.top + 36 * u, S.H - S.inset.bottom - m) }));
       pts.push({ x: bx, y: by });
       return pts;
     }
@@ -164,11 +173,14 @@
       for (let i = 0; i < 20; i++) {
         const a = chance(0.6) ? rand(-2.3, -0.9) : rand(1.25, 1.95), d = surfaceDir(a), q = recordPoint(L, a, RUN_R);
         if (Math.abs(d.x) < 0.8 * Math.hypot(d.x, d.y)) continue;
-        if (spotOK(L, q.x, q.y, 'run', u) && clearOf(u, p, q.x, q.y, 16)) return a;
+        const near = recordPoint(L, a, 1.3);   // where they walk to before stepping on: on screen
+        if (spotOK(L, q.x, q.y, 'run', u) && clearOf(u, p, q.x, q.y, 16) && onScreen(L, near.x, near.y, 8 * u) && near.y - 36 * u > S.inset.top) return a;
       }
       return null;
     }
     const runFace = a => (surfaceDir(a).x > 0 ? -1 : 1);
+    // stepping between the record's edge area (1.3 radii) and the running track, at the usual walking speed
+    const stepTime = (L, p, a) => { const A = recordPoint(L, a, 1.3), B = recordPoint(L, a, RUN_R); return Math.max(0.4, Math.hypot(A.x - B.x, A.y - B.y) / (30 * unitOf(L) * p.k * p.pace)); };
 
     // ---------- comings and goings ----------
     const FRONT_OK = ['idle', 'hello', 'bye', 'dance', 'headbang', 'phone'];
@@ -241,7 +253,7 @@
         const a = runAngle(L, p);
         if (a === null) { startAct(L, p, 'idle', 3); return; }
         const near = toScreen(L, Math.cos(a) * 1.3 * L.R, Math.sin(a) * 1.3 * L.R);
-        goTo(L, p, near.x, near.y, () => { p.kind = 'stand'; p.ra = a; p.from = { x: p.x, y: p.y }; p.runs = true; startAct(L, p, 'stepon', 0.9); });
+        goTo(L, p, near.x, near.y, () => { p.kind = 'stand'; p.ra = a; p.from = { x: p.x, y: p.y }; p.runs = true; startAct(L, p, 'stepon', stepTime(L, p, a)); });
         return;
       }
       if (act === 'play') {
@@ -285,18 +297,20 @@
       if (!opts.crowd || opts.transparent) {
         for (const p of people) if (!p.leaving) sendHome(L, p);
       } else if (playing) {
-        crowd.idle = 0; crowd.play += dt * k;
+        // back from a break: those still here stay, and the next arrival comes after the usual wait
+        if (crowd.stopped) {
+          crowd.stopped = false; crowd.play = 0;
+          crowd.nextAt = people.some(p => !p.leaving) ? rand(180, 300) : rand(180, 420);
+        }
+        crowd.idle = 0; crowd.leaveAt = rand(30, 60); crowd.play += dt * k;
         if (crowd.play >= crowd.nextAt && people.filter(p => !p.leaving).length < MAX) {
           spawn(L, S.sceneColors()); crowd.nextAt = crowd.play + rand(180, 300);
         }
       } else {
-        crowd.idle += dt * k;
-        // a long break (2 minutes) ends the session: people go home one by one and the count starts over
-        if (crowd.idle > 120) {
-          crowd.play = 0; crowd.nextAt = rand(180, 420);
-          const stay = people.filter(p => !p.leaving);
-          if (stay.length && crowd.idle >= crowd.leaveAt) { sendHome(L, pick(stay)); crowd.leaveAt = crowd.idle + rand(12, 25); }
-        } else crowd.leaveAt = 120;
+        // no music: one person goes home every 30-60 seconds
+        crowd.idle += dt * k; crowd.stopped = true;
+        const stay = people.filter(p => !p.leaving);
+        if (stay.length && crowd.idle >= crowd.leaveAt) { sendHome(L, pick(stay)); crowd.leaveAt = crowd.idle + rand(30, 60); }
       }
       // a new song: whoever is standing around cheers
       const tk = media.title + '|' + media.artist;
@@ -368,7 +382,7 @@
       if (p.act === 'stepon') {
         const e = clamp(p.t / p.dur), q = recordPoint(L, p.ra, lerp(1.3, RUN_R, e));
         if (Math.abs(q.x - p.x) > 0.3) p.face = q.x > p.x ? 1 : -1;
-        p.walkPhase += dt * 30 * u / (5.5 * u); p.x = q.x; p.y = q.y;
+        p.walkPhase += dt * 30 * p.k * p.pace / 5.5; p.x = q.x; p.y = q.y;
         if (e >= 1) { startAct(L, p, 'run', rand(8, 16)); p.face = runFace(p.ra); }
         return;
       }
@@ -380,13 +394,13 @@
         if (chance(dt * 0.25)) crowd.fx.push({ type: 'drop', x: p.x - p.face * 5 * u * p.k, y: p.y - 30 * u * p.k, t: 0, life: 0.8 });
         // the record is lifted off for a swap: flung off. It slowed down or the time is up: walk off.
         if (S.cue && S.recOff.lift) { startAct(L, p, 'tumble', 1); p.from = { x: p.x, y: p.y }; }
-        else if (S.spinVel < 0.35 * TAU * RPS || p.t >= p.dur) { startAct(L, p, 'stepoff', 0.9); p.from = { x: p.x, y: p.y }; }
+        else if (S.spinVel < 0.35 * TAU * RPS || p.t >= p.dur) { startAct(L, p, 'stepoff', stepTime(L, p, p.ra)); p.from = { x: p.x, y: p.y }; }
         return;
       }
       if (p.act === 'stepoff') {
         const e = clamp(p.t / p.dur), q = recordPoint(L, p.ra, lerp(RUN_R, 1.32, e));
         if (Math.abs(q.x - p.x) > 0.3) p.face = q.x > p.x ? 1 : -1;
-        p.walkPhase += dt * 30 * u / (5.5 * u); p.x = q.x; p.y = q.y;
+        p.walkPhase += dt * 30 * p.k * p.pace / 5.5; p.x = q.x; p.y = q.y;
         if (e >= 1) { p.runs = false; p.kind = 'stand'; if (p.leaving) { startAct(L, p, 'bye', 0.6); p.after = goHome(L, p); } else startAct(L, p, 'idle', rand(1, 2)); }
         return;
       }
@@ -672,7 +686,7 @@
 
     function drawPerson(p, L, now) {
       const u = unitOf(L) * p.k; p.u = u;
-      const lift = (p.act === 'walk' ? wallLift(L, p.x, p.y) : 0) + (p.hopArc || 0);
+      const lift = p.hopArc || 0;
       ctx.save(); ctx.translate(p.x, p.y);
       ctx.lineCap = 'round'; ctx.lineJoin = 'round';
       if (p.view === 'front' && !p.runs) drawFront(p, L, now, u, lift);
