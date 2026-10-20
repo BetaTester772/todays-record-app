@@ -1,6 +1,6 @@
 # 오늘의 판 — macOS 앱 명세서
 
-버전 0.8 · 2026-10-20 (0.2: LP 면 나누기, iTunes 검색 국가 대체 · 0.3: 음량 노브, 면 램프 · 0.4: 색 섞기 전환, 곡 안 위치 이동 · 0.5: 화면 문구 영어 · 0.6: 긴 이름 흐르기 · 0.7: 메뉴 막대·Dock 피하기 · 0.8: 오늘 들은 곡 수만, 노란 강조색 피하기)
+버전 0.9 · 2026-10-20 (0.2: LP 면 나누기, iTunes 검색 국가 대체 · 0.3: 음량 노브, 면 램프 · 0.4: 색 섞기 전환, 곡 안 위치 이동 · 0.5: 화면 문구 영어 · 0.6: 긴 이름 흐르기 · 0.7: 메뉴 막대·Dock 피하기 · 0.8: 오늘 들은 곡 수만, 노란 강조색 피하기 · 0.9: M2 설정 메뉴, 창문 빛, 잔상)
 
 ## 1. 개요
 
@@ -185,6 +185,8 @@ Music 앱의 재생 정보를 다음 두 가지 방법을 합쳐서 얻는다.
 | 배경화면 켜기 / 끄기 | 창 표시 여부 |
 | 레코드 위치 ▸ 왼쪽 / 가운데 / 오른쪽 | `setOptions({position})` |
 | 배경 ▸ 기본 / 투명 | 투명이면 원래 배경화면 위에 턴테이블만 표시 |
+| 효과 ▸ 창문 빛 (체크) | 시간대 조명(6장 19). 기본 켜짐 |
+| 효과 ▸ 선 ▸ 계속 남기기 / 잔상 | 6장 20. 기본 잔상 |
 | 표시할 화면 ▸ 주 화면 / 모든 화면 | 4.3 |
 | 시스템 배경화면 색 맞추기 (체크) | 4.9 |
 | 이 판 비우기 | `clearRecord()` |
@@ -192,7 +194,7 @@ Music 앱의 재생 정보를 다음 두 가지 방법을 합쳐서 얻는다.
 | Music 제어 권한 열기 (“Allow Control of Music…”) | 권한이 없을 때만 표시 |
 | 종료 | 앱 종료 (4.9가 켜져 있으면 원래 배경화면 복원 후) |
 
-설정은 `UserDefaults`에 저장하고, 앱 시작 시 모든 웹뷰에 `setOptions`로 적용한다.
+설정은 `UserDefaults`에 저장하고(키 `enabled`, `position`, `transparent`, `windowLight`, `trail`), 앱 시작 시와 웹뷰가 준비될 때 모든 웹뷰에 `setOptions`로 적용한다. 메뉴 문구는 영어로 쓴다(Show Wallpaper, Record Position, Background, Effects ▸ Window Light / Trail ▸ Keep·Afterglow, Clear This Record, Open at Login, Quit). 로그인 항목이 사용자 승인을 기다리는 상태(`requiresApproval`)면 시스템 설정의 로그인 항목 화면을 연다. 표시할 화면(4.3)과 시스템 배경화면 색 맞추기(4.9) 항목은 M4, M5에서 기능과 함께 더한다.
 
 ### 4.9 시스템 배경화면 색 맞추기 (`WallpaperSync`, 선택 기능, 기본 꺼짐)
 
@@ -214,7 +216,7 @@ Music 앱의 재생 정보를 다음 두 가지 방법을 합쳐서 얻는다.
 | `TodaysRecord.nowPlaying(payload)` | 4.5의 JSON |
 | `TodaysRecord.art(dataURL, version)` | 앨범 커버 |
 | `TodaysRecord.setPaused(bool)` | 그리기 멈춤/재개 |
-| `TodaysRecord.setOptions({position, transparent, fps})` | position: `"left"`, `"center"`, `"right"` · transparent: bool · fps: 30 또는 60 |
+| `TodaysRecord.setOptions({position, transparent, windowLight, trail, fps})` | position: `"left"`, `"center"`, `"right"` · transparent: bool · windowLight: bool · trail: `"keep"` 또는 `"afterglow"` · fps: 30 또는 60(M4) |
 | `TodaysRecord.clearRecord()` | 지금 판의 선 지우기 |
 | `TodaysRecord.setInsets({top, right, bottom, left})` | 메뉴 막대와 Dock이 덮는 화면 가장자리(4.3) |
 | `TodaysRecord.setVolume({level, muted})` | 시스템 음량. level: 0~1(모르면 생략), muted: bool (4.6.1) |
@@ -237,7 +239,7 @@ Music 앱의 재생 정보를 다음 두 가지 방법을 합쳐서 얻는다.
 2. **앱 실행 인자 `--demo`.** Swift가 `__TR_NATIVE__.demo = true`를 넣으면 미리보기 데이터로 동작한다.
 3. **멈춤.** `setPaused(true)`면 `requestAnimationFrame` 루프를 멈추고, false면 시간 차이를 건너뛰고 재개한다(멈춘 동안의 시간이 한꺼번에 흐르지 않게).
 4. **프레임 제한.** `fps`가 30이면 프레임을 하나 걸러 그린다.
-5. **레코드 위치.** `layout()`의 가로 중심을 left ≈ 0.32W, center ≈ 0.5W, right ≈ 0.57W(현재값)로 바꾼다. 곡 정보 표시는 레코드 반대쪽 위에 둔다(left일 때 오른쪽 위).
+5. **레코드 위치.** `layout()`의 가로 중심을 left ≈ 0.32W, center ≈ 0.5W, right ≈ 0.57W(현재값)로 바꾼다. 곡 정보 표시는 레코드 반대쪽 위에 둔다(left일 때 오른쪽 위, 오른쪽 정렬). 곡 정보는 받침 바깥은 진한 글씨, 받침 위는 밝은 금속색 글씨로 두 번 잘라 그려서, 받침 경계에 걸친 줄도 읽히게 한다.
 6. **투명 배경.** transparent면 배경 채우기와 받침(plinth)을 그리지 않고, 레코드·톤암·노브·곡 정보만 그린다. 그레인은 레코드 영역에만 적용하거나 생략한다.
 7. **역할.** `role`이 `mirror`면 localStorage에 쓰지 않는다(읽기만).
 8. **palette 메시지.** 앨범 색이 바뀔 때 `bg`, `plinth`, `accent`를 보낸다.
@@ -264,6 +266,9 @@ Music 앱의 재생 정보를 다음 두 가지 방법을 합쳐서 얻는다.
 
 17. **오늘 들은 곡.** 곡 정보 아래에는 `Played Today N`(오늘 들은 곡 수)만 쓴다. 곡별 색 칸(최대 3줄)은 그리지 않고, 기록 개수 상한(80곡)도 없앤다.
 18. **노란 강조색 피하기.** 커버에서 뽑은 강조색(판 위 선, 전원·면 램프, 음량 눈금)의 색상이 노란 계열(약 40~72°)이면 가까운 쪽인 주황(32°)이나 초록(94°)으로 옮긴다. 배경, 받침, 라벨 색은 그대로 둔다.
+
+19. **창문 빛(시간대 조명).** Mac 시계를 기준으로, 네 칸 창문(십자 창틀)을 지난 햇빛이 탁자와 턴테이블 위에 비스듬히 비친다. 키프레임(0·5시 밤, 6.5시 새벽, 9시 아침, 13시 낮, 16.5시 오후, 18.5시 노을, 20시 밤) 사이를 이어서 색, 세기, 방향(아침 왼쪽 → 저녁 오른쪽), 길이가 바뀌고, 밤에는 화면을 푸르스름하게 어둡게 한다. 빛 조각은 반 해상도 캔버스에 1분마다 다시 그려 두고(가장자리는 여러 겹을 겹쳐 부드럽게, 캔버스 `filter`는 Safari 18 미만에서 지원되지 않아 쓰지 않음) 매 프레임 `screen` 합성으로 얹는다. 투명 배경이면 그리지 않는다.
+20. **잔상.** `trail`이 `afterglow`면 판에 쌓인 선 대신, 바늘이 지난 최근 약 1.1초의 점들만 판과 함께 돌며 옅어지는 꼬리로 그린다(반 바퀴 정도). 영구 선 기록은 계속 쌓아 두므로 `keep`으로 바꾸면 다시 보인다. `clearRecord`는 영구 선과 잔상을 모두 지운다.
 
 ## 7. 성능 목표
 

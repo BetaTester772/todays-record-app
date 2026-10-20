@@ -31,6 +31,12 @@ final class WallpaperWindow: NSWindow {
     override var canBecomeKey: Bool { windowed }
     override var canBecomeMain: Bool { windowed }
 
+    /// 투명 배경 설정. 명세 4.2.
+    func setTransparent(_ transparent: Bool) {
+        isOpaque = !transparent
+        backgroundColor = transparent ? .clear : (windowed ? .windowBackgroundColor : .black)
+    }
+
     /// 화면 크기가 바뀌었을 때 창을 다시 맞춘다.
     func fit(to screen: NSScreen) {
         guard !windowed else { return }

@@ -4,6 +4,7 @@ import AppKit
 /// M1에서는 주 화면에만 창을 띄운다. 모든 화면 모드는 M4에서 붙인다.
 final class WallpaperController {
     private let options: LaunchOptions
+    private let settings: Settings
     private let onReady: (RecordWebView) -> Void
     private var window: WallpaperWindow?
     private var webView: RecordWebView?
@@ -12,8 +13,9 @@ final class WallpaperController {
     var webViews: [RecordWebView] { webView.map { [$0] } ?? [] }
 
     /// onReady: 웹뷰가 준비되면 불린다. 여기서 첫 상태를 보낸다.
-    init(options: LaunchOptions, onReady: @escaping (RecordWebView) -> Void) {
+    init(options: LaunchOptions, settings: Settings, onReady: @escaping (RecordWebView) -> Void) {
         self.options = options
+        self.settings = settings
         self.onReady = onReady
     }
 
@@ -48,14 +50,23 @@ final class WallpaperController {
         webView.onReady = onReady
         webView.insets = insets(for: screen)
         window.contentView = webView
-        if options.windowed {
-            window.makeKeyAndOrderFront(nil)
-        } else {
-            window.orderFront(nil)
-        }
-        Log.window.info("창 생성 level=\(window.level.rawValue) frame=\(NSStringFromRect(window.frame), privacy: .public)")
         self.window = window
         self.webView = webView
+        applySettings()
+        Log.window.info("창 생성 level=\(window.level.rawValue) frame=\(NSStringFromRect(window.frame), privacy: .public)")
+    }
+
+    /// 보이기/숨기기와 투명 배경을 창에 반영하고, 화면 옵션을 웹뷰에 보낸다.
+    func applySettings() {
+        guard let window, let webView else { return }
+        window.setTransparent(settings.transparent)
+        webView.setTransparent(settings.transparent)
+        webView.sendOptions(settings.webOptions)
+        if settings.enabled {
+            if options.windowed { window.makeKeyAndOrderFront(nil) } else { window.orderFront(nil) }
+        } else {
+            window.orderOut(nil)
+        }
     }
 
     private func screensChanged() {

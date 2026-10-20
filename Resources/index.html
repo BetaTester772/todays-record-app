@@ -160,6 +160,9 @@
 
   let W = 0, H = 0, DPR = 1, safeTop = 0;
   const inset = { top: 0, right: 0, bottom: 0, left: 0 };   // screen edges under the menu bar and Dock (set by the app)
+  // options the app can change from its menu (setOptions)
+  const opts = { position: 'right', transparent: false, windowLight: true, trail: 'afterglow' };
+  const glowPts = [];   // recent stylus points for the afterglow trail: { fr, a, t, c } or null for a lift
   let pal = palFromHex(DEMO[0].pal), targetPal = clonePal(pal);
   const PREVIEW_SPEED = 6;          // the preview feed runs faster than real time
   let booted = false;
@@ -573,6 +576,17 @@
   if (NATIVE) {
     window.TodaysRecord = {
       nowPlaying(d) { if (media.source === 'native') applyNowPlaying(d); },
+      setOptions(o) {
+        if (!o) return;
+        if (['left', 'center', 'right'].includes(o.position)) opts.position = o.position;
+        if (typeof o.windowLight === 'boolean') opts.windowLight = o.windowLight;
+        if (o.trail === 'keep' || o.trail === 'afterglow') opts.trail = o.trail;
+        if (typeof o.transparent === 'boolean') {
+          opts.transparent = o.transparent;
+          document.documentElement.style.background = document.body.style.background = o.transparent ? 'transparent' : '';
+        }
+      },
+      clearRecord,
       setInsets(v) { for (const k of ['top', 'right', 'bottom', 'left']) inset[k] = Math.max(0, +(v && v[k]) || 0); },
       setVolume(v) {
         vol.level = v && typeof v.level === 'number' ? clamp(v.level) : null;
@@ -711,7 +725,12 @@
       const pt = { fr: Math.hypot(tip.x, tip.y) - 0.004 * beatEnv, a: Math.atan2(tip.y, tip.x) - spin };
       if (prevPt) strokeTrail(prevPt, pt);
       prevPt = pt;
-    } else prevPt = null;
+      glowPts.push({ fr: pt.fr, a: pt.a, t: now, c: css(targetPal.accent) });
+    } else {
+      if (prevPt) glowPts.push(null);
+      prevPt = null;
+    }
+    while (glowPts.length && (!glowPts[0] || now - glowPts[0].t > GLOW_MS)) glowPts.shift();
 
     for (const p of particles) { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 170 * dt; p.life -= dt; }
     particles = particles.filter(p => p.life > 0);
@@ -728,7 +747,35 @@
 
   // colors blend into the new album's palette in update() instead of switching at once
   function swapRecord(A) {
-    shown = A; targetPal = clonePal(A.pal); prevPt = null;
+    shown = A; targetPal = clonePal(A.pal); prevPt = null; glowPts.length = 0;
+  }
+
+  // "Clear This Record": wipe the lines on the record that is on the platter
+  function clearRecord() {
+    if (!shown) return;
+    shown.tctx.clearRect(0, 0, S, S);
+    if (!shown.fixedGaps) { shown.gaps = []; shown.cursor = R_OUT; }
+    glowPts.length = 0; prevPt = null;
+    save();
+  }
+
+  // Afterglow trail: the last GLOW_MS of the needle's path, fading out behind it (in record coordinates).
+  const GLOW_MS = 1100;
+  function drawGlow(R, now) {
+    ctx.lineWidth = 1.8 * R / R_LOCAL * 1.4; ctx.lineCap = 'round';
+    for (let i = 1; i < glowPts.length; i++) {
+      const p0 = glowPts[i - 1], p1 = glowPts[i];
+      if (!p0 || !p1) continue;
+      const f = 1 - (now - p1.t) / GLOW_MS;
+      if (f <= 0) continue;
+      ctx.globalAlpha = f * f;
+      ctx.strokeStyle = p1.c;
+      ctx.beginPath();
+      ctx.moveTo(p0.fr * R * Math.cos(p0.a), p0.fr * R * Math.sin(p0.a));
+      ctx.lineTo(p1.fr * R * Math.cos(p1.a), p1.fr * R * Math.sin(p1.a));
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
   }
 
   function strokeTrail(p0, p1) {
@@ -753,7 +800,7 @@
     let cx, cy, R;
     if (portrait) { R = Math.min(Wv * 0.52, Hv * 0.4); cx = Wv * 0.46; cy = Hv * 0.6; }
     // 0.53 (was 0.62) keeps the knobs and side lamps on the record's front arc inside the visible area
-    else { R = Math.min(Wv * 0.32, Hv * 0.53); cx = Wv * 0.57; cy = Hv * 0.6; }
+    else { R = Math.min(Wv * 0.32, Hv * 0.53); cx = Wv * ({ left: 0.32, center: 0.5, right: 0.57 }[opts.position] || 0.57); cy = Hv * 0.6; }
     return { cx: cx + inset.left, cy: cy + inset.top, R, k: R / R_LOCAL };
   }
   function toScreen(L, lx, ly, ox = 0, oy = 0) {
@@ -879,7 +926,8 @@
     ctx.strokeStyle = css(mix(C.record, [255, 255, 255], 0.5)); ctx.lineWidth = GAP * 0.7 * R;
     for (const g of shown.gaps) { ctx.beginPath(); ctx.arc(0, 0, g * R, 0, TAU); ctx.stroke(); }
     ctx.rotate(spin);
-    ctx.drawImage(shown.trail, -S / 2 * k, -S / 2 * k, S * k, S * k);
+    if (opts.trail === 'afterglow') drawGlow(R, performance.now());
+    else ctx.drawImage(shown.trail, -S / 2 * k, -S / 2 * k, S * k, S * k);
     if (shown.label) { const lr = LABEL_R * R; ctx.drawImage(shown.label, -lr, -lr, 2 * lr, 2 * lr); }
     ctx.restore();
     const gr = ctx.createLinearGradient(-R, -R, R, R), sheen = isDark() ? 0.07 : 0.16;
@@ -1078,44 +1126,119 @@
     ICONS[name].forEach((row, j) => { for (let i = 0; i < row.length; i++) if (row[i] === '1') ctx.fillRect(x + i * ps, y + j * ps, ps, ps); });
   }
 
+  // The info text is drawn twice: dark ink clipped to the background, and a light metal tone clipped to the dark plinth,
+  // so a line that crosses the plinth edge stays readable on both sides.
   function drawHUD(C) {
+    const DARK = { ink: css(C.ink), soft: css(C.ink, 0.62), dim: css(C.ink, 0.42), faint: css(C.ink, 0.2) };
+    if (opts.transparent) { hudPass(C, DARK); return; }
+    const LIGHT = { ink: css(C.metal), soft: css(C.metal, 0.78), dim: css(C.metal, 0.58), faint: css(C.metal, 0.25) };
+    const L = layout(), R = L.R;
+    const plinthPath = () => {
+      ctx.save(); plane(L); ctx.beginPath(); rrect(ctx, -1.22 * R, -1.18 * R, 7 * R, 7 * R, 0.14 * R); ctx.restore();
+    };
+    ctx.save(); plinthPath(); ctx.rect(0, 0, W, H); ctx.clip('evenodd'); hudPass(C, DARK); ctx.restore();
+    ctx.save(); plinthPath(); ctx.clip(); hudPass(C, LIGHT); ctx.restore();
+  }
+
+  function hudPass(C, T) {
     const big = W >= 1200, ps = 2;
     const sTitle = big ? 21 : (W < 420 ? 16 : 18), sSmall = big ? 14 : 12;
     const x0 = Math.round(Math.max(inset.left + 20, W * 0.045));
+    const xR = Math.round(W - Math.max(inset.right + 20, W * 0.045));
     let y = Math.round(Math.max(inset.top + 18, Math.max(18, H * 0.055) + safeTop));
     const portrait = W / H < 0.9;
     const maxCss = portrait ? W - x0 * 2 : Math.min(W * 0.36, 560);
-    const ink = css(C.ink), soft = css(C.ink, 0.62), faint = css(C.ink, 0.2);
+    // with the record on the left the info sits top right, right-aligned
+    const toRight = !portrait && opts.position === 'left';
+    const ax = w => toRight ? xR - Math.min(w, maxCss) : x0;
+    const pw = (text, size, weight) => pixMask(text, size, weight).width * ps;
     const st = media.state;
     const rowSmall = (Math.ceil(sSmall * 1.35) + 2) * ps;
 
-    drawIcon(st === 'playing' ? 'play' : st === 'paused' ? 'pause' : 'stop', x0, y + Math.round(rowSmall / 2 - 3.5 * ps), ps, ink);
     const pre = media.source === 'demo' ? 'Preview · ' : '';
-    drawPix(st === 'playing' ? pre + 'Now Playing' : st === 'paused' ? pre + 'Paused' : 'Nothing Playing', x0 + ps * 8, y, sSmall, ps, soft, 600);
+    const status = st === 'playing' ? pre + 'Now Playing' : st === 'paused' ? pre + 'Paused' : 'Nothing Playing';
+    const sx = ax(ps * 8 + pw(status, sSmall, 600));
+    drawIcon(st === 'playing' ? 'play' : st === 'paused' ? 'pause' : 'stop', sx, y + Math.round(rowSmall / 2 - 3.5 * ps), ps, T.ink);
+    drawPix(status, sx + ps * 8, y, sSmall, ps, T.soft, 600);
     y += rowSmall + ps * 3;
 
     if (st !== 'stopped' && media.title) {
       const mk = media.title + '|' + media.artist + '|' + media.album;
       if (mk !== marquee.key) { marquee.key = mk; marquee.t0 = performance.now(); }
-      y += drawPixSlide(media.title, x0, y, sTitle, ps, ink, 800, maxCss).h;
-      if (media.artist) y += drawPixSlide(media.artist, x0, y, sSmall, ps, soft, 600, maxCss).h;
-      if (media.album) y += drawPixSlide(media.album, x0, y, sSmall, ps, css(C.ink, 0.42), 600, maxCss).h;
+      const line = (text, size, weight, key) => drawPixSlide(text, ax(pw(text, size, weight)), y, size, ps, T[key], weight, maxCss).h;
+      y += line(media.title, sTitle, 800, 'ink');
+      if (media.artist) y += line(media.artist, sSmall, 600, 'soft');
+      if (media.album) y += line(media.album, sSmall, 600, 'dim');
       y += ps * 3;
       const n = 20, bw = ps * 3, gap = ps, filled = Math.round(prog * n);
-      for (let i = 0; i < n; i++) { ctx.fillStyle = i < filled ? ink : faint; ctx.fillRect(x0 + i * (bw + gap), y, bw, bw); }
-      drawPix(fmt(posNow) + ' / ' + fmt(media.duration), x0 + n * (bw + gap) + ps * 3, y + bw / 2 - rowSmall / 2, sSmall, ps, soft, 600);
+      const time = fmt(posNow) + ' / ' + fmt(media.duration);
+      const bx = ax(n * (bw + gap) + ps * 3 + pw(time, sSmall, 600));
+      for (let i = 0; i < n; i++) { ctx.fillStyle = i < filled ? T.ink : T.faint; ctx.fillRect(bx + i * (bw + gap), y, bw, bw); }
+      drawPix(time, bx + n * (bw + gap) + ps * 3, y + bw / 2 - rowSmall / 2, sSmall, ps, T.soft, 600);
       y += bw + ps * 4;
-      if (side) y += drawPix(`Side ${String.fromCharCode(65 + side.first + side.index)} · ${side.number}/${side.total}`, x0, y, sSmall, ps, soft, 600).h;
+      if (side) {
+        const label = `Side ${String.fromCharCode(65 + side.first + side.index)} · ${side.number}/${side.total}`;
+        y += drawPix(label, ax(pw(label, sSmall, 600)), y, sSmall, ps, T.soft, 600).h;
+      }
       y += ps * 5;
     } else {
-      const hint = (media.source === 'we' && !weEnabled) ? 'Turn on Media Integration in Wallpaper Engine settings'
+      const hint = clipPix((media.source === 'we' && !weEnabled) ? 'Turn on Media Integration in Wallpaper Engine settings'
         : (media.source === 'local' && !localOk) ? 'The helper (nowplaying.py) is not running'
         : (media.source === 'local' || media.source === 'native') ? 'Play something in Apple Music to drop the needle'
-        : 'Play some music to drop the needle';
-      y += drawPix(clipPix(hint, sSmall, 600, maxCss / ps), x0, y, sSmall, ps, soft, 600).h + ps * 6;
+        : 'Play some music to drop the needle', sSmall, 600, maxCss / ps);
+      y += drawPix(hint, ax(pw(hint, sSmall, 600)), y, sSmall, ps, T.soft, 600).h + ps * 6;
     }
 
-    drawPix(`Played Today ${today.length}`, x0, y, sSmall, ps, soft, 600);
+    const count = `Played Today ${today.length}`;
+    drawPix(count, ax(pw(count, sSmall, 600)), y, sSmall, ps, T.soft, 600);
+  }
+
+  // ---------- window light ----------
+  // Sunlight through a four-pane window falls across the table; its direction, length and color follow the clock.
+  // Keyframes: [hour, color, strength, sweep (0 = light from the left .. 1 = from the right), length, night dimming]
+  const LIGHT_KEYS = [
+    [0, [120, 150, 235], 0.12, 0.5, 1.0, 1], [5, [120, 150, 235], 0.12, 0.5, 1.0, 1],
+    [6.5, [255, 176, 130], 0.18, 0.04, 1.8, 0.3], [9, [255, 222, 184], 0.26, 0.25, 1.35, 0],
+    [13, [255, 248, 236], 0.2, 0.5, 1.0, 0], [16.5, [255, 210, 156], 0.26, 0.75, 1.35, 0],
+    [18.5, [255, 146, 98], 0.24, 0.96, 1.8, 0.25], [20, [120, 150, 235], 0.12, 0.5, 1.0, 1],
+    [24, [120, 150, 235], 0.12, 0.5, 1.0, 1],
+  ];
+  function lightAt(h) {
+    let i = 1; while (i < LIGHT_KEYS.length - 1 && LIGHT_KEYS[i][0] <= h) i++;
+    const a = LIGHT_KEYS[i - 1], b = LIGHT_KEYS[i], t = clamp((h - a[0]) / (b[0] - a[0]));
+    return { color: mix(a[1], b[1], t), strength: lerp(a[2], b[2], t), sweep: lerp(a[3], b[3], t), len: lerp(a[4], b[4], t), dim: lerp(a[5], b[5], t) };
+  }
+  const lightCanvas = document.createElement('canvas');
+  let lightKey = '';
+  function buildLight(L, P) {
+    const sc = 0.5, g = lightCanvas.getContext('2d');
+    lightCanvas.width = Math.max(1, Math.ceil(W * sc)); lightCanvas.height = Math.max(1, Math.ceil(H * sc));
+    g.setTransform(sc, 0, 0, sc, 0, 0);
+    const th = lerp(0.4, Math.PI - 0.4, P.sweep), d = { x: Math.cos(th), y: Math.sin(th) }, n = { x: -d.y, y: d.x };
+    const len = L.R * 1.3 * P.len, wid = L.R * 1.0;
+    const cen = { x: L.cx - d.x * L.R * 0.1, y: L.cy - L.R * 0.08 };
+    const O = { x: cen.x - d.x * len / 2 - n.x * wid / 2, y: cen.y - d.y * len / 2 - n.y * wid / 2 };
+    const at = (u, v) => ({ x: O.x + d.x * len * u + n.x * wid * v, y: O.y + d.y * len * u + n.y * wid * v });
+    g.fillStyle = css(P.color);
+    const m = 0.03, LAYERS = 7;   // mullion half width; stacked layers give the patch soft edges
+    for (let k = 0; k < LAYERS; k++) {
+      const e = 0.07 * k / LAYERS;
+      g.globalAlpha = 1 / LAYERS;
+      for (const [u0, u1] of [[0, 0.5 - m], [0.5 + m, 1]]) for (const [v0, v1] of [[0, 0.5 - m], [0.5 + m, 1]]) {
+        const p = [at(u0 + e, v0 + e), at(u1 - e, v0 + e), at(u1 - e, v1 - e), at(u0 + e, v1 - e)];
+        g.beginPath(); g.moveTo(p[0].x, p[0].y); for (let j = 1; j < 4; j++) g.lineTo(p[j].x, p[j].y); g.closePath(); g.fill();
+      }
+    }
+  }
+  function drawLight(L) {
+    const d = new Date(), h = d.getHours() + d.getMinutes() / 60, P = lightAt(h);
+    const key = [Math.round(h * 60), W, H, Math.round(L.cx), Math.round(L.R)].join('|');
+    if (key !== lightKey) { buildLight(L, P); lightKey = key; }
+    ctx.save();
+    if (P.dim > 0) { ctx.globalCompositeOperation = 'multiply'; ctx.fillStyle = `rgba(150,160,200,${0.35 * P.dim})`; ctx.fillRect(0, 0, W, H); }
+    ctx.globalCompositeOperation = 'screen'; ctx.globalAlpha = P.strength;
+    ctx.drawImage(lightCanvas, 0, 0, W, H);
+    ctx.restore();
   }
 
   function drawGrain() {
@@ -1129,15 +1252,15 @@
   function draw(now) {
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
     const C = sceneColors(), L = layout();
-    ctx.fillStyle = css(C.bg); ctx.fillRect(0, 0, W, H);
-    drawPlinth(L, C);
-    drawSpecks(now);
+    if (opts.transparent) ctx.clearRect(0, 0, W, H);
+    else { ctx.fillStyle = css(C.bg); ctx.fillRect(0, 0, W, H); drawPlinth(L, C); drawSpecks(now); }
     drawDeck(L, C);
     drawRecord(L, C);
     drawArm(L, C, now);
     drawParticles(C);
+    if (opts.windowLight && !opts.transparent) drawLight(L);
     drawHUD(C);
-    drawGrain();
+    if (!opts.transparent) drawGrain();
   }
 
   // ---------- lifecycle ----------

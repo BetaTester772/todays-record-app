@@ -83,6 +83,20 @@ final class RecordWebView: WKWebView {
         call("setInsets", [["top": insets.top, "right": insets.right, "bottom": insets.bottom, "left": insets.left]])
     }
 
+    func sendOptions(_ options: [String: Any]) {
+        call("setOptions", [options])
+    }
+
+    func clearRecord() {
+        call("clearRecord", [])
+    }
+
+    /// 투명 배경이면 웹뷰도 배경을 그리지 않는다. 명세 4.4.
+    func setTransparent(_ transparent: Bool) {
+        underPageBackgroundColor = transparent ? .clear : nil
+        setValue(!transparent, forKey: "drawsBackground")
+    }
+
     func sendVolume(_ payload: [String: Any]) {
         call("setVolume", [payload])
     }
