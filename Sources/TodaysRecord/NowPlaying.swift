@@ -128,7 +128,7 @@ final class NowPlaying {
     /// 메뉴에서 플레이어를 골랐을 때.
     func choose(_ kind: PlayerKind) {
         guard chooser.shown != kind else { return }
-        Log.nowPlaying.info("보여줄 플레이어 선택 \(kind.name, privacy: .public)")
+        logSwitch(from: chooser.shown, to: kind, reason: "메뉴에서 선택")
         chooser.choose(kind)
         resultGeneration += 1
         query(kind)
@@ -179,6 +179,9 @@ final class NowPlaying {
 
         let before = chooser.shown
         chooser.update(kind, info.state)
+        if chooser.shown != before {
+            logSwitch(from: before, to: chooser.shown, reason: "\(kind.name) \(info.state.rawValue)")
+        }
         guard let shown = chooser.shown, shown != kind else {
             // 이 플레이어를 보여주거나, 보여줄 플레이어가 없다(정지).
             present(info, from: kind)
@@ -186,11 +189,16 @@ final class NowPlaying {
         }
         if shown != before {
             // 다른 플레이어로 넘어갔다. 최신 위치를 다시 묻는다.
-            Log.nowPlaying.info("보여줄 플레이어 \(kind.name, privacy: .public) → \(shown.name, privacy: .public)")
             resultGeneration += 1
             query(shown)
         }
         // 그 밖에는 보이지 않는 플레이어의 변화라 내보내지 않는다.
+    }
+
+    private func logSwitch(from old: PlayerKind?, to new: PlayerKind?, reason: String) {
+        let text = "보여줄 플레이어 \(old?.name ?? "없음") → \(new?.name ?? "없음") (\(reason))"
+        Log.nowPlaying.info("\(text, privacy: .public)")
+        if logToStdout { stdout("[플레이어] \(text)") }
     }
 
     private func setPermission(_ kind: PlayerKind, denied: Bool) {
