@@ -1,6 +1,8 @@
-# 오늘의 판 — macOS 앱 명세서
+# TurnTable — macOS 앱 명세서
 
-버전 0.22 · 2026-10-21 (0.2: LP 면 나누기, iTunes 검색 국가 대체 · 0.3: 음량 노브, 면 램프 · 0.4: 색 섞기 전환, 곡 안 위치 이동 · 0.5: 화면 문구 영어 · 0.6: 긴 이름 흐르기 · 0.7: 메뉴 막대·Dock 피하기 · 0.8: 오늘 들은 곡 수만, 노란 강조색 피하기 · 0.9: M2 설정 메뉴, 창문 빛, 잔상 · 0.10: 판 색 고르기, 시간대 색감 · 0.11: 배경색, 선 색 고르기 · 0.12: 그레인 세기 · 0.13: M4 절전, 여러 화면, 그리기 최적화 · 0.14: Spotify 지원 · 0.15: 설정 창, 화면별 켜기, 앱 아이콘 · 0.16: 배포 zip, README · 0.17: M5 뺌 · 0.18: 긴 앨범 LP 세트 · 0.19: 면 바꾸기 동작 · 0.20: 자연스러운 움직임, 글자 색 · 0.21: 앱 안 업데이트, 배포 인증서 · 0.22: 업데이트 설치 자리, 실패 이유, 응용 프로그램 폴더로 옮기기)
+(옛 이름 “오늘의 판”. 0.25에서 이름을 바꿨다. 아래 본문의 “오늘의 판”은 이 앱을 말한다.)
+
+버전 0.25 · 2026-10-21 (0.2: LP 면 나누기, iTunes 검색 국가 대체 · 0.3: 음량 노브, 면 램프 · 0.4: 색 섞기 전환, 곡 안 위치 이동 · 0.5: 화면 문구 영어 · 0.6: 긴 이름 흐르기 · 0.7: 메뉴 막대·Dock 피하기 · 0.8: 오늘 들은 곡 수만, 노란 강조색 피하기 · 0.9: M2 설정 메뉴, 창문 빛, 잔상 · 0.10: 판 색 고르기, 시간대 색감 · 0.11: 배경색, 선 색 고르기 · 0.12: 그레인 세기 · 0.13: M4 절전, 여러 화면, 그리기 최적화 · 0.14: Spotify 지원 · 0.15: 설정 창, 화면별 켜기, 앱 아이콘 · 0.16: 배포 zip, README · 0.17: M5 뺌 · 0.18: 긴 앨범 LP 세트 · 0.19: 면 바꾸기 동작 · 0.20: 자연스러운 움직임, 글자 색 · 0.21: 앱 안 업데이트, 배포 인증서 · 0.22: 업데이트 설치 자리, 실패 이유, 응용 프로그램 폴더로 옮기기 · 0.23: 컬러 바이닐, 톤암·받침판 색, 색 설정 정리, 이 Mac에 설치 · 0.24: 모여드는 사람들(crowd.js), 받침 높이, 캐릭터 포즈, Characters 탭 · 0.25: 이름을 TurnTable로)
 
 ## 1. 개요
 
@@ -61,6 +63,7 @@ Sources/TodaysRecord/
 └─ Updater.swift           GitHub 릴리스로 업데이트 확인·설치
 Resources/
 ├─ index.html              레코드 화면 (기존 파일, 6장에 따라 일부 수정)
+├─ crowd.js                모여드는 사람들 (6장 25). 없으면 index.html은 사람 없이 그대로 동작
 ├─ Info.plist              번들 정보
 └─ AppIcon.icns            앱 아이콘 (scripts/make-icon.swift로 만든다)
 Tests/TodaysRecordTests/    고르기 규칙, 상태 해석, 곡 위치 단위 테스트 (`swift test`)
@@ -82,7 +85,7 @@ scripts/
   - `--demo`: Music, Spotify 대신 index.html 내장 미리보기 데이터로 동작 (Music 없이 테스트용)
   - `--log-nowplaying`: 받은 Music·Spotify 알림 내용과 AppleScript 결과를 표준 출력에 기록
   - `--windowed`: 바탕화면 층 대신 일반 창으로 띄워 디버깅 (Safari 웹 속성 검사기로 확인 가능하게 `isInspectable = true`)
-  - `--settings`: 시작할 때 설정 창을 연다 (디버깅용)
+  - `--settings`: 시작할 때 설정 창을 연다 (디버깅용). `--settings=Appearance`처럼 탭 이름을 붙이면 그 탭을 연다
   - `--install-update`: 시작하자마자 업데이트를 확인하고, 새 버전이 있으면 묻지 않고 설치한다 (업데이트 시험용)
 
 ### 4.2 바탕화면 층 창 (`WallpaperWindow`)
@@ -231,11 +234,12 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
 |---|---|
 | General | Show Wallpaper, Open at Login (`SMAppService.mainApp` 등록/해제), Frame Rate(Auto / 30 / 60, 4.7. Auto는 배터리일 때 30), Clear This Record, Check for Updates Automatically와 버전·Check Now·업데이트 버튼(4.10) |
 | Displays | 연결된 화면마다 켜기/끄기 (4.3). 화면이 바뀌면 목록을 다시 읽는다 |
-| Appearance | Record Position(Left / Center / Right), Background(Default / Transparent), Record·Background·Line·Text Color(“From Album” 체크 또는 색 고르기) |
+| Appearance | Record Position(Left / Center / Right), Background(Default / Transparent). 그 아래 **Colors** 묶음 하나에 색을 모은다(6장 21): Record(Album / Colored Vinyl / Custom), Background·Line·Text(Album / Custom), Tonearm·Arm Base(Default / Custom). 기본은 지금 색 그대로이고, Custom일 때만 오른쪽에 색 상자가 보인다. Custom을 처음 고르면 미리 정한 색(판 검정, 배경 크림 등)에서 시작한다. Reset Colors는 모두 기본으로 되돌린다(바꾼 것이 없으면 비활성) |
 | Effects | Window Light(6장 19), Trail(Keep / Afterglow, 6장 20), Grain(Off / Low / Normal / High), Side Change(Lift & Turn / Swap Record / Needle Only, 6장 23) |
+| Characters | Rider(바늘 위 캐릭터): Pose(Auto / Sit / Lean Back / Cross-Legged / Hug Knees, 6장 27). Rider Colors(따로 아래 칸): Shirt·Pants(Album / Custom), Hat(Default / Custom), Reset Colors. Crowd: Crowd(켜기/끄기, 기본 켬), Crowd Pace(1× / 2× / 5× / 10×, 6장 25) |
 | Players | Music·Spotify 제어 권한 상태와 자동화 설정 열기 |
 
-설정은 `UserDefaults`에 저장한다(키 `enabled`, `position`, `transparent`, `windowLight`, `trail`, `grain`, `sideChange`, `recordColor`, `bgColor`, `lineColor`, `textColor`, `disabledDisplays`, `fps`). 설정 창은 `@AppStorage`로 같은 키(`Settings.Key`)에 바로 쓰고, 앱은 `UserDefaults.didChangeNotification`을 받아 한 번에 모아 창과 모든 웹뷰에 반영한다(`setOptions`). 앱 시작 시와 웹뷰가 준비될 때도 적용한다. 화면과 메뉴 문구는 영어로 쓴다. 로그인 항목이 사용자 승인을 기다리는 상태(`requiresApproval`)면 시스템 설정의 로그인 항목 화면을 연다.
+설정은 `UserDefaults`에 저장한다(키 `enabled`, `position`, `transparent`, `windowLight`, `trail`, `grain`, `sideChange`, `coloredVinyl`, `crowd`, `crowdPace`, `riderPose`, `hatColor`, `recordColor`, `bgColor`, `lineColor`, `textColor`, `armColor`, `armBaseColor`, `shirtColor`, `pantsColor`, `disabledDisplays`, `fps`). 설정 창은 `@AppStorage`로 같은 키(`Settings.Key`)에 바로 쓰고, 앱은 `UserDefaults.didChangeNotification`을 받아 한 번에 모아 창과 모든 웹뷰에 반영한다(`setOptions`). 앱 시작 시와 웹뷰가 준비될 때도 적용한다. 화면과 메뉴 문구는 영어로 쓴다. 로그인 항목이 사용자 승인을 기다리는 상태(`requiresApproval`)면 시스템 설정의 로그인 항목 화면을 연다.
 
 **앱 아이콘.** `scripts/make-icon.swift`가 앱 화면과 같은 색(분홍 배경, 초록 받침, 크림색 판, 초록 라벨, 주황 바늘)으로 macOS 아이콘 격자(1024 안 824 둥근 사각형)에 그려 `iconutil`로 `Resources/AppIcon.icns`를 만든다. `Info.plist`의 `CFBundleIconFile`이 가리킨다.
 
@@ -243,10 +247,13 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
 
 - 설정 `autoUpdateCheck`(기본 켜짐)면 앱 시작 10초 뒤와, 그 뒤 마지막 확인에서 24시간이 지날 때마다 `https://api.github.com/repos/soysaucecrab/todays-record-app/releases/latest`를 확인한다(메인 스레드 밖, 마지막 확인 시각은 `lastUpdateCheck`). 설정 창 General의 **Check Now**로 바로 확인할 수도 있다.
 - 태그(`v0.4.0`)를 숫자 단위로 지금 버전(`CFBundleShortVersionString`)과 비교해, 새 버전이면 메뉴에 “Update to v0.4.0…”, 설정 창에 업데이트 버튼을 보인다.
-- 누르면 확인 창(Update / Later / Release Notes)을 띄우고, Update면: 릴리스의 `TodaysRecord-<버전>.zip`과 `.sha256`을 받아 SHA-256을 맞춰 보고 → `ditto`로 풀고 → 번들 ID가 같은지, 서명이 정상인지 확인하고 → **지금 앱이 인증서로 서명돼 있으면 새 앱도 같은 designated requirement(같은 인증서)를 만족하는지** 확인한 뒤(`SecStaticCodeCheckValidity`) → 설치할 자리에 바꿔 넣고 → 지금 앱이 끝나면 새 앱을 연다.
-- 설치할 자리: 지금 앱 자리에 쓸 수 있고 App Translocation(경로에 `/AppTranslocation/`, 다운로드한 앱을 옮기지 않고 열면 macOS가 읽기 전용 임시 자리에서 실행함) 중이 아니면 지금 자리(`FileManager.replaceItemAt`로 원자적으로 바꿈). 아니면 `/Applications/TodaysRecord.app`. 그 자리에 쓸 권한이 없으면 `NSAppleScript`의 `do shell script … with administrator privileges`로 macOS 관리자 암호 창을 띄워 `rm -rf` 후 `ditto --noqtn`으로 넣는다. 암호 창에서 취소하면(-128) 취소로 본다.
+- 누르면 확인 창(Update / Later / Release Notes)을 띄우고, Update면: 릴리스의 `TurnTable-<버전>.zip`과 `TurnTable-<버전>.sha256`(없으면 옛 이름 `TodaysRecord-<버전>.zip`과 `.zip.sha256`)을 받아 SHA-256을 맞춰 보고 → `ditto`로 풀고 → 번들 ID가 같은지, 서명이 정상인지 확인하고 → **지금 앱이 인증서로 서명돼 있으면 새 앱도 같은 designated requirement(같은 인증서)를 만족하는지** 확인한 뒤(`SecStaticCodeCheckValidity`) → 설치할 자리에 바꿔 넣고 → 지금 앱이 끝나면 새 앱을 연다.
+- 설치할 자리: 지금 앱 자리에 쓸 수 있고 App Translocation(경로에 `/AppTranslocation/`, 다운로드한 앱을 옮기지 않고 열면 macOS가 읽기 전용 임시 자리에서 실행함) 중이 아니면 지금 자리(`FileManager.replaceItemAt`로 원자적으로 바꿈). 아니면 `/Applications/TurnTable.app`. 옛 이름 앱(`TodaysRecord.app`)은 같은 폴더에 `TurnTable.app`으로 설치하고 옛 앱은 휴지통으로 보낸다. 그 자리에 쓸 권한이 없으면 `NSAppleScript`의 `do shell script … with administrator privileges`로 macOS 관리자 암호 창을 띄워 `rm -rf` 후 `ditto --noqtn`으로 넣는다. 암호 창에서 취소하면(-128) 취소로 본다.
 - 어느 단계든 실패하면 아무것도 바꾸지 않고, 실패 이유(받기 실패, 체크섬 다름, 서명 다름, 쓸 권한 없음 등)를 알림 창으로 보여 준다(Open Download Page / OK). 릴리스 페이지를 말없이 열지 않는다.
 - 앱 시작 때 App Translocation 중이거나 `~/Downloads` 안에서 실행 중이면 “Move 오늘의 판 to the Applications folder?”(Move to Applications / Not Now)를 묻는다. 옮기면 `/Applications`에 넣고(필요하면 관리자 암호), 원래 자리의 앱은 휴지통으로 보낸 뒤(Translocation이면 원본을 모르므로 그대로 둠) 새 자리에서 다시 연다.
+- **이름 바꾸기(0.25, TurnTable).** 화면에 보이는 이름(`CFBundleName`, `CFBundleDisplayName`, 메뉴·창·알림 문구)과 앱 파일 이름을 TurnTable로 바꿨다. 번들 ID, 실행 파일 이름(`TodaysRecord`), UserDefaults 영역, 저장소 이름은 그대로다.
+  - 릴리스에는 `TurnTable-<버전>.zip`과 `TurnTable-<버전>.sha256`, 그리고 0.4.x 앱용 `TodaysRecord-<버전>.zip`과 `.zip.sha256`(안의 앱 폴더 이름만 `TodaysRecord.app`, 같은 서명)을 함께 올린다. 0.4.x 업데이트 코드는 `TodaysRecord-`로 시작하는 zip과 처음 보이는 `.zip.sha256`을 쓰므로, 새 체크섬 파일 이름에는 `.zip`을 넣지 않는다.
+  - 앱이 시작할 때 자기 파일 이름이 `TodaysRecord.app`이고 그 폴더에 쓸 수 있으며 옆에 `TurnTable.app`이 없으면, `TurnTable.app`으로 이름을 바꾸고 새 자리에서 다시 연다. 다시 열린 앱은 로그인 항목이 켜져 있으면 새 위치로 다시 등록한다(`renamedApp` 표시). `scripts/install.sh`도 옛 앱을 지울 때 이 표시를 남긴다.
 - 앱이 직접 받은 파일에는 “인터넷에서 받음” 표시(quarantine)가 붙지 않아, 업데이트 뒤에는 “그래도 열기”가 다시 필요 없다(확인함).
 
 ### 4.9 (뺌) 시스템 배경화면 색 맞추기
@@ -264,7 +271,7 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
 | `TodaysRecord.nowPlaying(payload)` | 4.5의 JSON |
 | `TodaysRecord.art(dataURL, version)` | 앨범 커버 |
 | `TodaysRecord.setPaused(bool)` | 그리기 멈춤/재개 |
-| `TodaysRecord.setOptions({position, transparent, windowLight, trail, fps})` | position: `"left"`, `"center"`, `"right"` · transparent: bool · windowLight: bool · trail: `"keep"` 또는 `"afterglow"` · grain: `"off"`, `"low"`, `"normal"`, `"high"`(기존 세기의 0, 0.45, 1, 1.45배) · sideChange: `"turn"`, `"swap"`, `"needle"`(6장 23) · recordColor, bgColor, lineColor, textColor: `"#RRGGBB"` 또는 `""`(앨범 색) · fps: 30 또는 60(앱이 설정과 전원에 따라 정해 보낸다) |
+| `TodaysRecord.setOptions({position, transparent, windowLight, trail, fps})` | position: `"left"`, `"center"`, `"right"` · transparent: bool · windowLight: bool · trail: `"keep"` 또는 `"afterglow"` · grain: `"off"`, `"low"`, `"normal"`, `"high"`(기존 세기의 0, 0.45, 1, 1.45배) · sideChange: `"turn"`, `"swap"`, `"needle"`(6장 23) · coloredVinyl: bool(6장 21) · crowd: bool, crowdPace: 1·2·5·10(6장 25) · riderPose: `"auto"`, `"sit"`, `"lean"`, `"cross"`, `"hug"`(6장 27) · hatColor: `"#RRGGBB"` 또는 `""`(기본 흰색) · recordColor, bgColor, lineColor, textColor: `"#RRGGBB"` 또는 `""`(앨범 색) · armColor, armBaseColor: `"#RRGGBB"` 또는 `""`(기본 금속색) · shirtColor, pantsColor: `"#RRGGBB"` 또는 `""`(앨범 색) · fps: 30 또는 60(앱이 설정과 전원에 따라 정해 보낸다) |
 | `TodaysRecord.clearRecord()` | 지금 판의 선 지우기 |
 | `TodaysRecord.setInsets({top, right, bottom, left})` | 메뉴 막대와 Dock이 덮는 화면 가장자리(4.3) |
 | `TodaysRecord.setVolume({level, muted})` | 시스템 음량. level: 0~1(모르면 생략), muted: bool (4.6.1) |
@@ -322,6 +329,11 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
     - `bgColor`: 턴테이블 주변 배경 색. 배경 밝기에 맞춰 곡 정보 글씨 색을 밝게/어둡게 바꾼다.
     - `lineColor`: 판 위 선과 잔상 색. 이미 그린 선은 그때 색 그대로 남는다.
     - `textColor`: 왼쪽 위 곡 정보 글자 색. 고르면 받침 안팎을 나눠 그리지 않고(6장 5) 모든 줄을 그 색으로 쓴다.
+    - `coloredVinyl`(기본 꺼짐, 0.23 사용자 요청): 판을 실제 컬러 바이닐처럼 커버의 주된 색으로 칠한다. 앨범 색(팔레트 `vinyl`)은 배경과 같은 대표 색상에 채도 0.4~0.7, 밝기 0.38~0.52로 만든다. 커버에 색이 거의 없으면(채도 0.25 넘는 중간 밝기 픽셀이 10% 미만) 어두운 판(밝기 0.14)으로 한다. 강조색이 판 색과 겹쳐 선이 안 보일 수 있으므로, 선 색을 고르지 않았으면 판 색의 옅은 색(밝은 판이면 진한 색)으로 선을 그린다. `recordColor`가 있으면 그 색이 먼저다. 확인: C418 *Minecraft - Volume Alpha* → 초록 판, *Volume Beta*(거의 검은 커버) → 어두운 판.
+    - `armColor`(0.23 사용자 요청): 톤암 색. 기둥, 팔, 균형추, 헤드셸, 바늘을 이 색(그늘진 면은 16% 어둡게)으로 그린다. 노브는 금속색 그대로, 카트리지는 강조색 그대로다. 비어 있으면 기본 금속색.
+    - `armBaseColor`(0.23 사용자 요청): 톤암 아래 받침판 색(가운데 원은 받침 색을 18% 섞음). 톤암 색과 따로 고른다. 비어 있으면 기본 금속색.
+    - `shirtColor`, `pantsColor`(0.23 사용자 요청): 바늘 위 캐릭터의 윗옷(기본 강조색)과 바지(기본 받침 색). 그늘진 쪽은 지금처럼 어둡게 섞는다.
+    - 트랙 사이 띠는 밝은 판(밝기 0.8 이상, 기본 판)에서는 지금처럼 흰색 50%를 섞고, 그보다 어두운 판에서는 20%만 섞는다(진한 판에서 흰 고리가 너무 도드라져서).
 
 22. **그리기 최적화.** 그림은 그대로 두고 그리는 방식만 바꾼다. 잘 바뀌지 않는 부분은 화면 밖 캔버스(기기 픽셀)에 한 번 그려 두고, 입력(크기, 배치, 색, 내용)이 바뀔 때만 다시 그린다(`cachedLayer`).
     - 배경 + 받침(그림자 포함)
@@ -339,6 +351,18 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
     - 바늘 내리기(큐 레버): 들 때는 빠르게, 내릴 때는 `(1 - t)³`으로 처음보다 끝이 느리게 약 0.8초에 걸쳐 내려와 사뿐히 닿는다(곡 바꾸기 1.7초, 시작 2.1초, 판 바꾸기 2.9초, 반 바퀴 돌리기 3.0초로 늘림). 들기·옮기기·내리기 구간을 서로 겹쳐, 바늘이 위로 → 옆으로 → 아래로 꺾여 움직이지 않고 하나의 호를 그리게 한다. 바늘이 들릴 때 캐릭터가 두 팔을 위로 뻗던 동작과, 바늘이 닿을 때 캐릭터가 흔들리던 동작은 뺐다(사용자 판단).
     - 캐릭터 발 흔들기: 규칙적으로 보이지 않게, 서로 나누어떨어지지 않는 주기의 사인파 몇 개를 섞은 부드러운 값(`wander`)으로 속도(BPM 기준 85~110%)와 폭(0.2~1, 가끔 거의 쉼)이 천천히 바뀌고, 두 발은 정확히 반대로 움직이지 않고 조금씩 엇갈린다.
     - 판의 흔들림(워프): 판 중심이 아주 조금 어긋나 바늘이 한 바퀴에 한 번 안팎으로(판 반지름의 0.35%) 출렁이고, 판이 살짝 휘어 한 바퀴에 두 번 위아래로 움직인다. 회전 속도에 비례하고 바늘이 판 위에 있을 때만 보인다.
+
+25. **모여드는 사람들(`Resources/crowd.js`, 0.24 사용자 요청).** 쉬지 않고 오래 들을수록 작은 사람들이 하나씩 놀러 온다. 움직임 코드가 커서 `index.html`과 나눠 `crowd.js`에 두고, `index.html`은 `TodaysRecordCrowd(scene)`로 만들어 매 프레임 `update`, `draw`를 부른다. `scene`은 화면 상태(크기, 여백, 재생 상태, 판 회전, 판 바꾸기)와 그리기 도구를 읽기 전용으로 넘긴다. 파일이 없으면 사람 없이 그대로 동작한다.
+    - 오는 때: 재생 시간이 3~7분(랜덤)일 때 첫 사람, 그 뒤 한 명 올 때마다 3~5분(랜덤) 뒤 다음 사람. 최대 6명. 음악이 멈추거나 정지하면 30초~1분마다 한 명씩 손을 흔들고 화면 밖으로 걸어 나간다. 다시 재생하면 남아 있던 사람은 그대로 있고, 다음 사람은 3~5분(아무도 없으면 3~7분) 뒤에 온다. `crowdPace`(1·2·5·10배)는 사람들 시간 전체를 빠르게 한다: 오고 가는 시간, 걷기, 한 가지 일을 하는 시간, 작은 움직임, 효과. 춤 박자는 음악을 따르고, 판 위에서 뛰는 다리 빠르기는 판의 실제 속도를 따른다(사람들만의 시계 `crowd.clock`). Crowd를 끄면 모두 떠난다. 투명 배경에서는 그리지 않는다.
+    - 자리: 책상 위, 받침 위, 받침 왼쪽 가장자리(걸터앉기)에서, 사람 몸 전체가 판, 노브·램프, 톤암과 그 받침, 바늘이 지나는 길, 곡 정보를 가리지 않는 곳만 쓴다. 레코드 위치(left·center·right), 화면 크기, 여백이 바뀌면 자리를 다시 계산하므로 배치마다 보이는 바닥에 선다. 옆으로 가깝고 위아래로 몸 높이보다 가까우면 겹친다고 보고 그런 자리는 고르지 않으며, 그래도 겹쳐 서 있으면 한 명이 옮겨 간다. 판을 가로지르는 길은 판 둘레로 돌아가되, 양쪽 길 중 화면 안에 더 많이 남는 쪽을 고르고 화면 밖으로 나가지 않게 한다. 받침 옆면 위에는 서지 않고, 책상에서 받침으로 갈 때는 화면에서 곧게 걸어 올라가 튀지 않는다.
+    - 움직임은 여유롭게: 걸음은 천천히(초당 20u, u는 판 크기에 비례), 한 가지 일을 30초~1분 넘게 하고, 자리 옮기기는 드물다(사용자 요청).
+    - 하는 일(재생 중이면 춤 쪽, 멈추면 쉬는 쪽이 많음): 걸어다니기, 가장자리에 걸터앉아 발 흔들기, 춤(세 가지), 헤드뱅잉(4마디마다 손 들기), 비보잉(톱록 → 헤드스핀 → 프리즈), 책 읽기(책장 넘김), 졸기(꾸벅꾸벅, 음악이 다시 나오면 깜짝), 통화(말풍선, 웃음, 서성이기), 서로 놀기(하이파이브, 손잡고 폴짝, 술래잡기), 판 위 달리기, 그냥 서 있기(기지개, 둘러보기, 발 까딱, 컵 마시기). 새 곡이 시작되면 서 있던 사람들이 환호한다.
+    - 판 위 달리기: 판 앞쪽이나 뒤쪽(판 표면이 화면에서 좌우로 움직이는 곳, 올라가기 전 자리가 화면 안인 곳)까지 걸어가 같은 걸음 속도로 걸어 올라간 뒤, 러닝머신처럼 판이 도는 반대 방향으로 뛰며 제자리에 있다. 걸어 올라가는 동안과 내려오는 동안에는 판에 실려 도는 방향으로 밀린다(판 속도의 35%). 밀릴 거리만큼 앞에서 올라가 달릴 자리에 닿는다. 다리는 판 표면 속도에 맞춘 느긋한 빠르기(사람이 판보다 빨라 보이지 않게)다. 판이 느려지거나 시간이 다 되면 걸어서 내려오고, 판을 들어 바꾸면 튕겨 나가 구르고 어지러워한다.
+    - 다양함: 피부색 6, 머리 모양 9(짧은 머리, 단발, 긴 머리, 포니테일, 똥머리, 곱슬, 모자, 비니, 삐죽), 머리색, 옷·신발 색(일부는 앨범 강조색, 받침·배경과 비슷한 색은 피함), 안경·헤드폰·리본·목도리·가방·주근깨, 키(작은 사람 20%), 걸음 빠르기. 행동을 시작할 때마다 판 쪽이나 아무 쪽을 보고, 서서 하는 일(인사, 춤, 헤드뱅잉, 통화, 서 있기)은 40%쯤 앞(화면 쪽)을 본다. 눈을 깜빡인다. 하트, 음표, z, !, 말풍선, 땀방울, 반짝이 효과.
+    - 그리는 순서: 판 → 사람(발 위치 순서) → 톤암과 바늘. 톤암 받침판은 받침과 함께 사람 아래에 그린다.
+26. **받침 높이.** 받침이 책상보다 조금 높아 보이게, 받침 윗면 아래로 진한 옆면(판 반지름의 0.06)과 더 넓고 부드러운 그림자를 그린다.
+    - 톤암 그림자: 팔과 헤드 그림자를 한 도형으로 한 번에 칠해 겹친 곳이 진해지지 않게 한다.
+27. **캐릭터 포즈.** 바늘 위 캐릭터는 다리 늘어뜨리고 앉기(기본), 뒤로 기대기, 책상다리, 무릎 껴안기 중 하나로 앉는다. 설정 Pose가 Auto(기본)면 새 곡이 시작될 때 45% 확률로 다른 포즈로, 하나를 고르면 그 포즈로 0.5초에 걸쳐 바뀐다. 윗옷·바지·모자 색은 Characters 탭에서 고른다(`shirtColor`, `pantsColor`, `hatColor`). 박자에 맞춰 위아래로 튀던 동작은 뺐다(사용자 요청).
 
 ## 7. 성능 목표
 

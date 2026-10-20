@@ -1,4 +1,4 @@
-# 오늘의 판 (macOS 메뉴 막대 앱)
+# TurnTable (macOS 메뉴 막대 앱, 옛 이름 오늘의 판)
 
 Apple Music 또는 Spotify에서 재생 중인 곡을 레코드 턴테이블 그림으로 바탕화면에 보여주는 앱이다.
 전체 명세는 아래 문서에 있다. 작업 전에 반드시 읽는다.
@@ -8,6 +8,7 @@ Apple Music 또는 Spotify에서 재생 중인 곡을 레코드 턴테이블 그
 ## 참고 파일
 
 - `Resources/index.html` 레코드 화면. 이미 완성되어 있으며 WKWebView에서 그대로 쓴다.
+- `Resources/crowd.js` 모여드는 사람들(명세 6장 25). 사람 모양, 동작, 자리 고르기는 여기서 고친다.
 - `reference/nowplaying.py` Music 앱 AppleScript 질의의 검증된 참고 구현(`STATUS_SCRIPT`, `ART_SCRIPT`, 앨범 커버 검색 대체). Swift로 옮길 때 이 스크립트를 기준으로 한다.
 
 ## 작업 방식
@@ -26,7 +27,8 @@ Apple Music 또는 Spotify에서 재생 중인 곡을 레코드 턴테이블 그
 - Music이나 Spotify가 꺼져 있을 때 그 앱을 실행시키는 코드를 만들지 않는다. AppleScript 전에 `com.apple.Music`, `com.spotify.client` 실행 여부를 확인한다.
 - AppleScript와 네트워크 요청은 메인 스레드 밖에서 실행한다.
 - 로그는 `os.Logger`(subsystem `com.todaysrecord`)로 남긴다.
-- 사용자에게 보이는 문구(화면, 메뉴, 권한 설명)는 영어로, 짧고 쉬운 말로 쓴다. 곡·앨범·아티스트 이름과 앱 이름 “오늘의 판”은 그대로 둔다. (2026-10-20 사용자 요청으로 한국어에서 변경)
+- 사용자에게 보이는 문구(화면, 메뉴, 권한 설명)는 영어로, 짧고 쉬운 말로 쓴다. 곡·앨범·아티스트 이름은 그대로 둔다. (2026-10-20 사용자 요청으로 한국어에서 변경)
+- 앱 이름은 **TurnTable**(2026-10-21 사용자 요청, 옛 이름 “오늘의 판”). 앱 파일은 `TurnTable.app`, 배포 zip은 `TurnTable-<버전>.zip`. 번들 ID `com.todaysrecord.app`, 실행 파일·SwiftPM 이름 `TodaysRecord`, 저장소 이름은 그대로 둔다(설정·권한·업데이트가 이어지게).
 
 ## index.html 수정 규칙
 
@@ -39,11 +41,12 @@ Apple Music 또는 Spotify에서 재생 중인 곡을 레코드 턴테이블 그
 ```bash
 swift build                     # 빌드
 swift test                      # 단위 테스트 (고르기 규칙, 상태 해석, 곡 위치)
-scripts/run.sh                  # .app 조립, 애드혹 서명, 실행
+scripts/run.sh                  # .app 조립 → /Applications에 설치(인증서 서명) → 실행. NO_INSTALL=1이면 build/에서 애드혹으로 실행
+scripts/install.sh              # .app 조립 → /Applications에 설치(인증서 서명) → 열기 (이 Mac에서 쓰는 앱을 최신 코드로)
 scripts/run.sh --demo           # Music 없이 미리보기 데이터로 실행
 scripts/run.sh --windowed       # 일반 창으로 띄워 디버깅 (Safari 웹 속성 검사기 연결 가능)
 scripts/run.sh --log-nowplaying # Music·Spotify 알림과 AppleScript 결과 출력
-scripts/run.sh --settings       # 시작할 때 설정 창 열기
+scripts/run.sh --settings       # 시작할 때 설정 창 열기 (--settings=Appearance처럼 탭 지정 가능)
 # 업데이트 시험: 버전을 낮춘 사본을 --install-update로 실행하면 GitHub 최신 릴리스로 스스로 바뀐다
 swift scripts/make-icon.swift   # 앱 아이콘(Resources/AppIcon.icns) 다시 만들기
 scripts/package.sh              # 배포용 Universal zip (dist/)

@@ -1,132 +1,138 @@
-# 오늘의 판 (Today's Record)
+# TurnTable
 
-A macOS menu bar app that turns your desktop into a record player for whatever is playing in **Apple Music** or **Spotify**.
+[![Latest release](https://img.shields.io/github/v/release/soysaucecrab/todays-record-app)](https://github.com/soysaucecrab/todays-record-app/releases/latest)
+![macOS 14+](https://img.shields.io/badge/macOS-14%2B-lightgrey)
 
-The record spins, the tonearm moves inward as the song plays and leaves a trail in the album's colors, and a tiny character rides on the needle. Albums are split into LP sides, so the next song on the same side just moves the needle, and a new side or album swaps the record.
+A record player for your Mac's desktop. TurnTable shows whatever is playing in Apple Music or Spotify as a spinning record, drawn right on the desktop under your icons.
 
-- Sits on the desktop layer: your icons stay on top and clicks pass through
-- Album cover, colors, LP sides, volume knob, and time-of-day window light
-- Shows on every display (each one can be turned off)
-- Pauses when the screen is locked, asleep, or covered; 30 fps on battery
+![TurnTable](docs/images/hero.jpg)
 
 ## Requirements
 
 - macOS 14 Sonoma or later (Apple Silicon or Intel)
-- Apple Music or Spotify for Mac
+- Apple Music or Spotify
 
 ## Install
 
-1. Download `TodaysRecord-<version>.zip` from [Releases](https://github.com/soysaucecrab/todays-record-app/releases) and unzip it.
-2. Move **TodaysRecord.app** to your **Applications** folder.
-3. Open it. A record icon appears in the menu bar.
+Download `TurnTable-<version>.zip` from the [latest release](https://github.com/soysaucecrab/todays-record-app/releases/latest), unzip it and move `TurnTable.app` to `/Applications`.
 
-### First launch: "Apple could not verify…"
+The app isn't notarized, so the first time you open it macOS will say it can't verify the developer. Click **Done**, then go to **System Settings → Privacy & Security** and click **Open Anyway**. You only have to do this once. If you'd rather use Terminal:
 
-The app is not notarized by Apple (it is ad-hoc signed), so macOS blocks it the first time you open it. To allow it once:
-
-1. Open the app. When the warning appears, click **Done** (or **OK**).
-2. Open **System Settings → Privacy & Security**.
-3. Scroll down to the message about TodaysRecord and click **Open Anyway**.
-4. Confirm with **Open Anyway** again and enter your password if asked.
-
-After this, the app opens normally.
-
-<details>
-<summary>Alternative: Terminal</summary>
-
-```bash
-xattr -dr com.apple.quarantine /Applications/TodaysRecord.app
+```sh
+xattr -dr com.apple.quarantine /Applications/TurnTable.app
 ```
 
-This removes the "downloaded from the internet" mark so macOS no longer blocks it. Only do this for apps you trust.
-</details>
+When the first song plays, macOS asks if TurnTable can control Music (or Spotify). It needs this to read the current track. It doesn't control playback and won't launch either app.
 
-### Allow access to Music or Spotify
+After that, updates come through the app (**Check for Updates…** in the menu, or automatically once a day).
 
-The first time a song plays, macOS asks whether **TodaysRecord** may control **Music** (or **Spotify**). Click **Allow**. The app only reads what is playing; it never starts, stops, or changes your music, and it never opens Music or Spotify by itself.
+## Features
 
-If you clicked **Don't Allow**, turn it on in **System Settings → Privacy & Security → Automation → TodaysRecord**, or use **Allow Control of …** in the app's menu.
+- The album cover becomes the record label, and the colors of the whole scene come from it
+- The needle moves inward as the song plays and draws a line in the album's color
+- Albums are split into LP sides (up to 6 songs per side). Songs on the same side share a record; a new side flips it
+- Volume knob follows the system volume, side lamps show which side you're on
+- Light from a window moves across the desk with the time of day
+- A small character sits on the needle. The longer you keep listening, the more people show up around the turntable (up to 6). They dance, read, doze off, talk on the phone, breakdance, play tag and run on the record. They leave one by one after the music stops
+- Colors can be left to follow the album or set yourself: record, background, line, text, tonearm, the character's clothes, or colored vinyl in the album's color
+- Record on the left, center or right, or a transparent background over your own wallpaper
+- Works on multiple displays, avoids the menu bar and Dock, and clicks go through to the desktop
+- Stops drawing when the screen is locked, asleep or covered; 30 fps on battery
 
-## Updates
+## Screenshots
 
-The app checks GitHub for a new release once a day. When one is out, **Update to v…** appears in the menu (and in **Settings → General**). Click it, then **Update**: the app downloads the new version, checks it, replaces itself, and restarts. You can turn automatic checks off or use **Check Now** in **Settings → General**.
+Time of day:
 
-Keep the app in **Applications** so it can update itself. If you open it straight from Downloads, the app offers to move itself there. If it needs permission to write to Applications, macOS asks for your password. If an update fails, the app tells you why and links to the download page.
-
-Updates installed this way don't need **Open Anyway** again. From 0.4.0 on, releases are signed with the same certificate, so macOS also keeps your Music/Spotify permission across updates.
-
-## Using it
-
-Click the record icon in the menu bar:
-
-| Menu | |
+| | |
 |---|---|
-| Now playing | The song shown on the record |
-| Player | Choose Music or Spotify when both are running |
-| Show Wallpaper | Turn the record on or off |
-| Clear This Record | Erase the lines on the current record |
-| Settings… (⌘,) | Open the settings window |
-| Check for Updates… | Check for a new version now |
-| Update to v… | Shown when a new version is available |
+| ![Morning](docs/images/time-dawn.jpg) | ![Noon](docs/images/time-noon.jpg) |
+| ![Sunset](docs/images/time-sunset.jpg) | ![Night](docs/images/time-night.jpg) |
 
-**Settings**
+Colors and layout (colored vinyl, a black record with a gold tonearm, record on the left):
 
-- **General**: Show Wallpaper, Open at Login, Frame Rate (Auto uses 30 fps on battery), Clear This Record, automatic update checks
-- **Displays**: choose which displays show the record
-- **Appearance**: record position, transparent background, record / background / line colors (from the album or your own)
-- **Effects**: window light that follows the time of day, line trail (keep or afterglow), grain
-- **Players**: permission status for Music and Spotify
+| | | |
+|---|---|---|
+| ![Colored vinyl](docs/images/color-vinyl.jpg) | ![Black record](docs/images/color-black.jpg) | ![Left layout](docs/images/color-left.jpg) |
 
-## Troubleshooting
+Up close, and some of the visitors:
 
-**Nothing shows on the desktop.** Check **Show Wallpaper** in the menu, and that the display is on in **Settings → Displays**.
+<p>
+<img src="docs/images/detail.jpg" alt="Needle, knobs and side lamp" width="320">
+<img src="docs/images/crowd-dance.png" alt="Dancing" width="110">
+<img src="docs/images/crowd-headbang.png" alt="Headbanging" width="110">
+<img src="docs/images/crowd-phone.png" alt="Phone call" width="110">
+<img src="docs/images/crowd-read.png" alt="Reading" width="110">
+<img src="docs/images/crowd-doze.png" alt="Dozing" width="110">
+</p>
 
-**It doesn't show on my external display.** Turn the display on in **Settings → Displays**. The list updates when you plug a display in.
+Settings:
 
-**The song doesn't appear.** Make sure Music or Spotify is playing, then check **Settings → Players**. If it says *Not Allowed*, click **Open Automation Settings…** and turn TodaysRecord on. If the switch is missing, quit the app and play a song again to get the prompt back, or reset the permission in Terminal and reopen the app:
+| | |
+|---|---|
+| ![Appearance](docs/images/settings-appearance.png) | ![Characters](docs/images/settings-characters.png) |
+| ![Effects](docs/images/settings-effects.png) | ![General](docs/images/settings-general.png) |
 
-```bash
+The albums in the screenshots are the app's built-in preview albums.
+
+## Usage
+
+TurnTable runs from the menu bar (the record icon). The menu has the current song, **Show Wallpaper**, **Clear This Record**, **Settings…**, **Check for Updates…** and, if both Music and Spotify are open, a **Player** submenu to pick one.
+
+Everything else is in Settings:
+
+| Tab | |
+|---|---|
+| General | Show wallpaper, open at login, frame rate, updates |
+| Displays | Which displays show the record |
+| Appearance | Record position, transparent background, colors |
+| Effects | Window light, trail (keep or afterglow), grain, how a side change looks |
+| Characters | The character's pose and colors, crowd on/off and speed |
+| Players | Music and Spotify permission status |
+
+## FAQ
+
+### Nothing shows up on the desktop
+
+Make sure **Show Wallpaper** is checked in the menu and that the display is turned on in **Settings → Displays**.
+
+### The song doesn't show up
+
+Check **Settings → Players**. If it says *Not Allowed*, click **Open Automation Settings…** and turn TurnTable on. If TurnTable isn't in that list, reset the permission and open the app again:
+
+```sh
 tccutil reset AppleEvents com.todaysrecord.app
 ```
 
-**Songs from Apple Music streaming don't split into LP sides.** Music doesn't report track numbers for songs that aren't in your library, so the app looks the album up in the iTunes catalog. If it can't find the same edition, the record still plays, just without sides.
+### Why aren't some albums split into sides?
 
-**An update fails or only opens the download page.** Versions before 0.4.2 can't update themselves when they run from Downloads. Quit the app, move **TodaysRecord.app** to **Applications**, open it again, and use **Check for Updates…**. Or download the new zip and replace the app by hand.
+Music doesn't give track numbers for streamed songs that aren't in your library, so TurnTable looks the album up in the iTunes catalog. If it can't find a matching edition, the record still plays, just without sides.
 
-**Open at Login doesn't stick.** Keep the app in the Applications folder, and check **System Settings → General → Login Items**.
+### An update failed
 
-**Uninstall.** Quit the app, delete it from Applications, and optionally remove its settings:
+The app needs to be in a folder it can write to, usually `/Applications`. If it's running from Downloads it will offer to move itself. When an update fails, it shows the reason; you can always download the zip from the releases page instead.
 
-```bash
+### I had 오늘의 판 installed
+
+That's the old name. Updating from 0.4.x renames `TodaysRecord.app` to `TurnTable.app` and keeps your settings and permissions.
+
+### How do I uninstall it?
+
+Quit the app and delete it from `/Applications`. To remove its settings too:
+
+```sh
 defaults delete com.todaysrecord.app
 ```
 
-## Build from source
+## Building
 
-Needs Xcode or the Command Line Tools (`xcode-select --install`).
+Requires Xcode or the Command Line Tools. There are no third-party dependencies.
 
-```bash
-swift build                     # build
-swift test                      # unit tests
-scripts/run.sh                  # assemble the .app, ad-hoc sign, and run
-scripts/run.sh --demo           # run with preview data (no Music needed)
-scripts/package.sh              # universal release zip in dist/
+```sh
+swift build
+swift test
+scripts/install.sh            # build, sign, install to /Applications and open
+scripts/run.sh --demo         # run with the preview albums (no Music needed)
+scripts/package.sh            # release zips in dist/
 ```
 
-When you run the app from Terminal with `scripts/run.sh`, macOS attaches the Music/Spotify permission to Terminal instead of the app. To test the app's own permission, open it with `open build/TodaysRecord.app`. Each ad-hoc rebuild has a new signature, so macOS may ask for permission again.
-
-Docs: [`docs/SPEC.md`](docs/SPEC.md) (full spec, in Korean) · [`docs/claude-code-guide.md`](docs/claude-code-guide.md) (how this app was built with Claude Code)
-
----
-
-## 한국어 요약
-
-Apple Music이나 Spotify에서 재생 중인 곡을 바탕화면의 레코드 턴테이블로 보여 주는 macOS 메뉴 막대 앱이에요.
-
-1. [Releases](https://github.com/soysaucecrab/todays-record-app/releases)에서 zip을 받아 풀고, **TodaysRecord.app**을 **응용 프로그램** 폴더로 옮겨요.
-2. 처음 열 때 "Apple이 확인할 수 없음" 경고가 뜨면 **완료**를 누르고, **시스템 설정 → 개인정보 보호 및 보안**에서 **그래도 열기**를 눌러요. Apple 공증을 받지 않은 앱이라 한 번만 필요해요.
-3. 곡을 틀면 "Music(또는 Spotify)을 제어하려고 합니다" 창이 떠요. **허용**을 눌러요. 앱은 재생 정보를 읽기만 하고, 음악을 바꾸거나 Music·Spotify를 대신 켜지 않아요.
-4. 메뉴 막대의 레코드 아이콘 → **Settings…**에서 화면, 색, 효과를 바꿀 수 있어요.
-5. 새 버전이 나오면 메뉴에 **Update to v…**가 떠요. 누르면 앱이 알아서 받아 바꾸고 다시 켜져요. 앱이 응용 프로그램 폴더에 있어야 스스로 업데이트할 수 있어요. 다운로드 폴더에서 열면 옮길지 물어봐요.
-
-macOS 14 이상, Apple Silicon과 Intel 모두 지원해요.
+The app is AppKit + a WKWebView. The turntable itself is drawn on a canvas in [`Resources/index.html`](Resources/index.html), and the people around it are in [`Resources/crowd.js`](Resources/crowd.js). The full spec (in Korean) is in [`docs/SPEC.md`](docs/SPEC.md), and [`docs/claude-code-guide.md`](docs/claude-code-guide.md) has notes on how the app was built with Claude Code.

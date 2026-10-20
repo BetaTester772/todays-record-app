@@ -15,7 +15,7 @@ final class WallpaperWindow: NSWindow {
                 backing: .buffered,
                 defer: false
             )
-            title = "오늘의 판 (Debug)"
+            title = "TurnTable (Debug)"
         } else {
             super.init(contentRect: screen.frame, styleMask: .borderless, backing: .buffered, defer: false)
             level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.desktopWindow)))

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>오늘의 판</title>
+<title>TurnTable</title>
 <style>
   :root {
     --page-bg: #EFDADD;
@@ -52,6 +52,7 @@
 <canvas id="scene" aria-label="A wallpaper of a record with an album label, where the tonearm needle leaves a line as it travels and a small character sits on the needle head"></canvas>
 
 
+<script src="crowd.js"></script>
 <script>
 (() => {
   'use strict';
@@ -67,7 +68,8 @@
   const R_LOCAL = 600, S = 1280;
   const STORE_KEY = 'todays-record-v2';
   const FONT = 'system-ui, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif';
-  const PAL_KEYS = ['bg', 'plinth', 'record', 'label', 'accent', 'ink'];
+  // vinyl: the album's own color, used for the record when the Colored Vinyl option is on
+  const PAL_KEYS = ['bg', 'plinth', 'record', 'label', 'accent', 'ink', 'vinyl'];
   const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const darkMQ = matchMedia('(prefers-color-scheme: dark)');
   const isDark = () => {
@@ -78,16 +80,16 @@
   // Fictional demo albums (original titles and art)
   const DEMO = [
     { album: '롤러장 가는 길', artist: '핑크 플래터즈', motif: 'sun', bpm: 96,
-      pal: { bg: '#EFDADD', plinth: '#2D5C48', record: '#F6E6E8', label: '#2D5C48', accent: '#EE5A36', ink: '#23463A' },
+      pal: { bg: '#EFDADD', plinth: '#2D5C48', record: '#F6E6E8', label: '#2D5C48', accent: '#EE5A36', ink: '#23463A', vinyl: '#D97A8C' },
       tracks: [['오프닝 스핀', 168], ['롤러장 가는 길', 204], ['분홍 바퀴', 182], ['마지막 한 바퀴', 220]] },
     { album: 'Midnight Groove Line', artist: 'The Spindles', motif: 'stripes', bpm: 88,
-      pal: { bg: '#E9E3D3', plinth: '#1F2F4F', record: '#F3EEE2', label: '#F2B630', accent: '#E9A21C', ink: '#1F2F4F' },
+      pal: { bg: '#E9E3D3', plinth: '#1F2F4F', record: '#F3EEE2', label: '#F2B630', accent: '#E9A21C', ink: '#1F2F4F', vinyl: '#E2A72E' },
       tracks: [['Needle Drop', 192], ['Midnight Groove Line', 232], ['Sleeve Notes', 160]] },
     { album: '라벤더 테이프', artist: '소금빵 클럽', motif: 'dots', bpm: 104,
-      pal: { bg: '#E4DDEE', plinth: '#5B2D5E', record: '#EFEAF5', label: '#7FD1B9', accent: '#2FA987', ink: '#4A2550' },
+      pal: { bg: '#E4DDEE', plinth: '#5B2D5E', record: '#EFEAF5', label: '#7FD1B9', accent: '#2FA987', ink: '#4A2550', vinyl: '#8C5C9C' },
       tracks: [['라벤더 테이프', 178], ['B면의 오후', 210], ['늦은 포장', 185]] },
     { album: 'Side B Summer', artist: 'Ocean Label', motif: 'waves', bpm: 92,
-      pal: { bg: '#D8E8EE', plinth: '#145A5E', record: '#EAF3F5', label: '#FF7A6B', accent: '#F4604F', ink: '#0F4649' },
+      pal: { bg: '#D8E8EE', plinth: '#145A5E', record: '#EAF3F5', label: '#FF7A6B', accent: '#F4604F', ink: '#0F4649', vinyl: '#3C989E' },
       tracks: [['Side B Summer', 211], ['Salt and Static', 175], ['Low Tide', 242]] },
   ];
 
@@ -163,7 +165,7 @@
   // options the app can change from its menu (setOptions)
   // colors '' = taken from the album
   // sideChange: how turning to the other side of the same record looks: 'turn' (lift and turn), 'swap' (like a new album), 'needle' (needle only)
-  const opts = { position: 'right', transparent: false, windowLight: true, trail: 'afterglow', grain: 'normal', fps: 60, sideChange: 'turn', recordColor: '', bgColor: '', lineColor: '', textColor: '' };
+  const opts = { position: 'right', transparent: false, windowLight: true, trail: 'afterglow', grain: 'normal', fps: 60, sideChange: 'turn', coloredVinyl: false, recordColor: '', bgColor: '', lineColor: '', textColor: '', armColor: '', armBaseColor: '', shirtColor: '', pantsColor: '', hatColor: '', riderPose: 'auto', crowd: true, crowdPace: 1 };
   const GRAIN = { off: 0, low: 0.45, normal: 1, high: 1.45 };   // multiplier on the original grain strength
   const glowPts = [];   // recent stylus points for the afterglow trail: { fr, a, t, c } or null for a lift
   let pal = palFromHex(DEMO[0].pal), targetPal = clonePal(pal);
@@ -176,6 +178,7 @@
   let shown = null;        // album whose record is on the platter
   let track = null;        // { start, end, fixed }
   let cue = null;          // tonearm / record-change animation
+  let crowd = null;        // the little people who drop by (crowd.js)
   let armPhi = REST_PHI, armLift = 0.1;
   let spin = 0, spinVel = 0, spinAcc = 0, beatEnv = 0, lastBeat = -1, legPhase = 0, legClock = 0;
   let warpLift = 0;   // how far the record's warp lifts the needle right now
@@ -297,10 +300,11 @@
     const g = c.getContext('2d', { willReadFrequently: true });
     g.drawImage(img, 0, 0, n, n);
     const d = g.getImageData(0, 0, n, n).data;
-    const px = []; let best = null, bestScore = -1;
+    const px = []; let best = null, bestScore = -1, colorful = 0;
     for (let i = 0; i < d.length; i += 4) {
       const col = [d[i], d[i + 1], d[i + 2]]; const hsl = rgb2hsl(col);
       px.push({ col, l: hsl[2] });
+      if (hsl[1] > 0.25 && hsl[2] > 0.15 && hsl[2] < 0.85) colorful++;
       const score = hsl[1] * (1 - Math.abs(hsl[2] - 0.5) * 1.6);
       if (score > bestScore) { bestScore = score; best = hsl; }
     }
@@ -312,12 +316,16 @@
     // hues of about 40-72 degrees move to amber or green, whichever is nearer
     const ah = h > 0.11 && h < 0.2 ? (h < 0.155 ? 0.09 : 0.26) : h;
     const deep = hsl2rgb([dh[0], Math.min(0.55, dh[1] + 0.1), clamp(dh[2], 0.16, 0.28)]);
+    // colored vinyl in the cover's main color; a cover with little color (under 10% of pixels) gets a dark record
+    const vinyl = colorful < n * n * 0.1 ? hsl2rgb([dh[0], Math.min(0.2, dh[1]), 0.14])
+      : hsl2rgb([h, clamp(s, 0.4, 0.7), clamp(best[2], 0.38, 0.52)]);
     return {
       bg: hsl2rgb([h, Math.min(0.45, s * 0.6 + 0.1), 0.89]),
       plinth: deep, label: deep.slice(),
       record: hsl2rgb([h, Math.min(0.35, s * 0.5 + 0.08), 0.94]),
       accent: hsl2rgb([ah, Math.max(0.55, s), clamp(best[2], 0.45, 0.58)]),
       ink: hsl2rgb([dh[0], Math.min(0.5, dh[1] + 0.1), 0.2]),
+      vinyl,
     };
   }
 
@@ -587,7 +595,7 @@
     pollLocal();
   }
 
-  // ---------- native app source (macOS app 오늘의 판) ----------
+  // ---------- native app source (macOS app TurnTable, formerly 오늘의 판) ----------
   const NATIVE = window.__TR_NATIVE__ || null;
   let nativeArt = '';
   function postNative(msg) {
@@ -608,7 +616,11 @@
         if (o.grain in GRAIN) opts.grain = o.grain;
         if (o.fps === 30 || o.fps === 60) opts.fps = o.fps;
         if (['turn', 'swap', 'needle'].includes(o.sideChange)) opts.sideChange = o.sideChange;
-        for (const k of ['recordColor', 'bgColor', 'lineColor', 'textColor']) {
+        if (typeof o.coloredVinyl === 'boolean') opts.coloredVinyl = o.coloredVinyl;
+        if (typeof o.crowd === 'boolean') opts.crowd = o.crowd;
+        if ([1, 2, 5, 10].includes(o.crowdPace)) opts.crowdPace = o.crowdPace;
+        if (o.riderPose === 'auto' || o.riderPose in RIDER_POSES) opts.riderPose = o.riderPose;
+        for (const k of ['recordColor', 'bgColor', 'lineColor', 'textColor', 'armColor', 'armBaseColor', 'shirtColor', 'pantsColor', 'hatColor']) {
           if (typeof o[k] === 'string') opts[k] = /^#[0-9a-f]{6}$/i.test(o[k]) ? o[k] : '';
         }
         if (typeof o.transparent === 'boolean') {
@@ -796,6 +808,7 @@
 
     for (const p of particles) { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 170 * dt; p.life -= dt; }
     particles = particles.filter(p => p.life > 0);
+    if (crowd) crowd.update(dt);
 
     if (now - lastDayCheck > 3000) {
       lastDayCheck = now;
@@ -840,7 +853,10 @@
     ctx.globalAlpha = 1;
   }
 
-  const lineColor = () => opts.lineColor || css(targetPal.accent);
+  // on colored vinyl the accent can be the record's own color, so the line is a pale (or, on a light record, deep) shade of it
+  const lineColor = () => opts.lineColor || (opts.coloredVinyl && !opts.recordColor
+    ? css(rgb2hsl(targetPal.vinyl)[2] < 0.6 ? mix(targetPal.vinyl, [255, 255, 255], 0.72) : mix(targetPal.vinyl, [0, 0, 0], 0.5))
+    : css(targetPal.accent));
 
   function strokeTrail(p0, p1) {
     const g = shown.tctx;
@@ -880,9 +896,11 @@
       c.bg = mix(pal.bg, [18, 21, 20], 0.84);
       c.plinth = mix(pal.plinth, [8, 10, 9], 0.35);
       c.record = mix(pal.record, [40, 38, 42], 0.62);
+      c.vinyl = mix(pal.vinyl, [40, 38, 42], 0.3);
       const h = rgb2hsl(pal.bg); c.ink = hsl2rgb([h[0], Math.min(0.4, h[1]), 0.86]);
     }
-    // colors chosen in the app's menu
+    // colors chosen in the app's settings
+    if (opts.coloredVinyl) c.record = c.vinyl;
     if (opts.recordColor) c.record = hex(opts.recordColor);
     if (opts.bgColor) {
       c.bg = hex(opts.bgColor);
@@ -894,18 +912,27 @@
     c.edge = mix(c.record, [0, 0, 0], 0.16);
     c.metal = d ? [196, 192, 194] : [250, 245, 242];
     c.metalD = mix(c.metal, [0, 0, 0], 0.16);
+    // tonearm: post, arm tube, counterweight, headshell and stylus (the knobs stay metal)
+    c.arm = opts.armColor ? hex(opts.armColor) : c.metal;
+    c.armD = mix(c.arm, [0, 0, 0], 0.16);
+    c.armBase = opts.armBaseColor ? hex(opts.armBaseColor) : c.metal;   // the plate under the tonearm
     c.shade = mix(c.plinth, [0, 0, 0], 0.28);
     return c;
   }
 
+  // the plinth stands a little above the desk: a darker side face below its top and a wider, softer shadow
+  const PLINTH_T = 0.06;   // side face height, in record radii (screen space)
   function drawPlinth(L, C) {
     const R = L.R;
-    ctx.save(); plane(L);
-    const x = -1.22 * R, y = -1.18 * R, w = 7 * R, h = 7 * R, r = 0.14 * R;
+    const x = -1.22 * R, y = -1.18 * R, w = 7 * R, h = 7 * R, r = 0.14 * R, t = PLINTH_T * R;
+    ctx.save(); ctx.translate(0, t); plane(L);
     rrect(ctx, x, y, w, h, r);
-    ctx.shadowColor = 'rgba(0,0,0,0.16)'; ctx.shadowBlur = 40; ctx.shadowOffsetY = 18;
+    ctx.shadowColor = 'rgba(0,0,0,0.2)'; ctx.shadowBlur = 56; ctx.shadowOffsetX = 8; ctx.shadowOffsetY = 22;
+    ctx.fillStyle = css(mix(C.plinth, [0, 0, 0], 0.32)); ctx.fill();
+    ctx.restore();
+    ctx.save(); plane(L);
+    rrect(ctx, x, y, w, h, r);
     ctx.fillStyle = css(C.plinth); ctx.fill();
-    ctx.shadowColor = 'transparent';
     ctx.strokeStyle = 'rgba(255,255,255,0.10)'; ctx.lineWidth = 3; ctx.stroke();
     ctx.restore();
   }
@@ -924,8 +951,8 @@
     // tonearm base plate
     const bx = ARM.bx * R, by = ARM.by * R;
     ctx.fillStyle = css(C.shade); disc(ctx, bx + 0.015 * R, by + 0.035 * R, 0.13 * R);
-    ctx.fillStyle = css(C.metal); disc(ctx, bx, by, 0.125 * R);
-    ctx.fillStyle = css(mix(C.metal, C.plinth, 0.18)); disc(ctx, bx, by, 0.07 * R);
+    ctx.fillStyle = css(C.armBase); disc(ctx, bx, by, 0.125 * R);
+    ctx.fillStyle = css(mix(C.armBase, C.plinth, 0.18)); disc(ctx, bx, by, 0.07 * R);
     // controls sit on an arc around the record, from the tonearm side toward the front:
     // volume knob, speed knob, power lamp, then one lamp per LP side
     const ARC = 1.22 * R, onArc = a => ({ x: Math.cos(a) * ARC, y: Math.sin(a) * ARC });
@@ -1009,7 +1036,8 @@
   }
   // gaps between tracks: smooth bands without grooves
   function drawGaps(R, C) {
-    ctx.strokeStyle = css(mix(C.record, [255, 255, 255], 0.5)); ctx.lineWidth = GAP * 0.7 * R;
+    // fainter on a colored or dark record, where half-white rings stand out too much
+    ctx.strokeStyle = css(mix(C.record, [255, 255, 255], rgb2hsl(C.record)[2] >= 0.8 ? 0.5 : 0.2)); ctx.lineWidth = GAP * 0.7 * R;
     const prev = sideFade < 1 && cue && cue.prev;
     for (const [gaps, a] of prev ? [[cue.prev.gaps, 1 - sideFade], [shown.gaps, sideFade]] : [[shown.gaps, 1]]) {
       ctx.globalAlpha = a;
@@ -1067,34 +1095,39 @@
 
     // shadow on the surface
     const sx = 0.03 * R + lp * 0.35, sy = 0.035 * R + lp * 0.45;
-    ctx.strokeStyle = 'rgba(0,0,0,0.15)'; ctx.lineWidth = aw; ctx.lineCap = 'round';
-    ctx.beginPath(); ctx.moveTo(G.x + 0.02 * R, G.y + 0.02 * R); ctx.lineTo(T.x + sx, T.y + sy); ctx.stroke();
-    ctx.fillStyle = 'rgba(0,0,0,0.14)';
-    ctx.beginPath(); ctx.ellipse(T.x + sx, T.y + sy, 0.05 * R, 0.022 * R, 0, 0, TAU); ctx.fill();
+    // the arm's shadow and the head's are one shape filled once, so where they meet isn't darker
+    const ax0 = G.x + 0.02 * R, ay0 = G.y + 0.02 * R, ax1 = T.x + sx, ay1 = T.y + sy;
+    const al = Math.hypot(ax1 - ax0, ay1 - ay0) || 1, nx = -(ay1 - ay0) / al * aw / 2, ny = (ax1 - ax0) / al * aw / 2;
+    ctx.fillStyle = 'rgba(0,0,0,0.15)'; ctx.beginPath();
+    ctx.moveTo(ax0 + nx, ay0 + ny); ctx.lineTo(ax1 + nx, ay1 + ny); ctx.lineTo(ax1 - nx, ay1 - ny); ctx.lineTo(ax0 - nx, ay0 - ny); ctx.closePath();
+    ctx.moveTo(ax0 + aw / 2, ay0); ctx.arc(ax0, ay0, aw / 2, 0, TAU);
+    ctx.moveTo(ax1 + 0.05 * R, ay1); ctx.ellipse(ax1, ay1, 0.05 * R, 0.022 * R, 0, 0, TAU);
+    ctx.fill('nonzero');
+    ctx.lineCap = 'round';
 
     // pivot post
     const pw = 0.06 * R;
-    ctx.fillStyle = css(C.metalD); ctx.fillRect(pivot.x - pw / 2, pivot.y, pw, hp);
+    ctx.fillStyle = css(C.armD); ctx.fillRect(pivot.x - pw / 2, pivot.y, pw, hp);
     ctx.beginPath(); ctx.ellipse(G.x, G.y, pw / 2, pw / 2 * SQUASH, 0, 0, TAU); ctx.fill();
-    ctx.fillStyle = css(C.metal); ctx.beginPath(); ctx.ellipse(pivot.x, pivot.y, pw / 2, pw / 2 * SQUASH, 0, 0, TAU); ctx.fill();
+    ctx.fillStyle = css(C.arm); ctx.beginPath(); ctx.ellipse(pivot.x, pivot.y, pw / 2, pw / 2 * SQUASH, 0, 0, TAU); ctx.fill();
 
     // counterweight and arm tube
-    ctx.strokeStyle = css(C.metal); ctx.lineWidth = aw;
+    ctx.strokeStyle = css(C.arm); ctx.lineWidth = aw;
     ctx.beginPath(); ctx.moveTo(cw.x, cw.y); ctx.lineTo(pivot.x, pivot.y); ctx.stroke();
-    ctx.fillStyle = css(C.metalD); disc(ctx, cw.x, cw.y + 0.006 * R, 0.05 * R);
-    ctx.fillStyle = css(C.metal); disc(ctx, cw.x, cw.y, 0.045 * R);
-    ctx.strokeStyle = css(C.metal); ctx.lineWidth = aw;
+    ctx.fillStyle = css(C.armD); disc(ctx, cw.x, cw.y + 0.006 * R, 0.05 * R);
+    ctx.fillStyle = css(C.arm); disc(ctx, cw.x, cw.y, 0.045 * R);
+    ctx.strokeStyle = css(C.arm); ctx.lineWidth = aw;
     ctx.beginPath(); ctx.moveTo(pivot.x, pivot.y); ctx.lineTo(head.x, head.y); ctx.stroke();
 
     // cartridge and needle
     const cwid = 0.046 * R, chh = hs * 0.8;
     ctx.fillStyle = css(C.accent); rrect(ctx, head.x - cwid / 2, head.y, cwid, chh, 0.008 * R); ctx.fill();
-    ctx.strokeStyle = css(C.metalD); ctx.lineWidth = Math.max(1, 0.006 * R);
+    ctx.strokeStyle = css(C.armD); ctx.lineWidth = Math.max(1, 0.006 * R);
     ctx.beginPath(); ctx.moveTo(head.x, head.y + chh); ctx.lineTo(head.x, head.y + hs); ctx.stroke();
     // headshell plate
     const ang = Math.atan2(head.y - pivot.y, head.x - pivot.x);
     ctx.save(); ctx.translate(head.x, head.y); ctx.rotate(ang);
-    ctx.fillStyle = css(C.metal); rrect(ctx, -0.05 * R, -0.03 * R, 0.11 * R, 0.06 * R, 0.012 * R); ctx.fill();
+    ctx.fillStyle = css(C.arm); rrect(ctx, -0.05 * R, -0.03 * R, 0.11 * R, 0.06 * R, 0.012 * R); ctx.fill();
     ctx.restore();
 
     drawRider(head.x + 0.006 * R, head.y - 0.012 * R, clamp(R * 0.16, 26, 90), C, now);
@@ -1104,11 +1137,39 @@
   // smooth wandering value in about -1..1: sines with unrelated periods, so it reads as random but never jumps
   const wander = t => (Math.sin(t) + 0.6 * Math.sin(t * 2.137 + 1.3) + 0.35 * Math.sin(t * 3.713 + 0.4)) / 1.95;
 
+  // The rider sits a few ways: dangling the legs (the usual), leaning back on the hands, cross-legged, or hugging the
+  // knees. With the Pose setting on Auto a new song sometimes brings a new pose; otherwise the chosen pose stays.
+  // Either way the change blends over half a second.
+  const RIDER_POSES = {
+    sit: { lean: -0.04, knee: [4.6, 0.4], foot: [0, 8.4], swing: 1, handB: [-3.2, -0.6], handF: [3.6, -0.4] },
+    lean: { lean: -0.24, knee: [5.2, -0.3], foot: [1.8, 7.8], swing: 0.9, handB: [-6, 0.6], handF: [-4.6, 0.8] },
+    cross: { lean: 0.02, knee: [5.4, 0.8], foot: [-3.2, 1.4], swing: 0.25, handB: [4.2, -0.4], handF: [4.8, -0.2] },
+    hug: { lean: 0.12, knee: [3.6, -4.4], foot: [1.8, 5.6], swing: 0.3, handB: [5.2, -4.6], handF: [5.6, -4.2] },
+  };
+  const riderPose = { name: 'sit', from: 'sit', t: 1, key: '' };
+  function riderParams(now) {
+    const k = media.title + '|' + media.artist, want = opts.riderPose;
+    if (want !== 'auto' && want !== riderPose.name) { riderPose.from = riderPose.name; riderPose.name = want; riderPose.t0 = now; }
+    if (k !== riderPose.key) {
+      if (riderPose.key && want === 'auto' && Math.random() < 0.45) {
+        const names = Object.keys(RIDER_POSES).filter(n => n !== riderPose.name);
+        riderPose.from = riderPose.name; riderPose.name = names[Math.floor(Math.random() * names.length)]; riderPose.t0 = now;
+      }
+      riderPose.key = k;
+    }
+    const e = riderPose.t0 ? easeInOut(clamp((now - riderPose.t0) / 500)) : 1, A = RIDER_POSES[riderPose.from], B = RIDER_POSES[riderPose.name];
+    const m = (a, b) => Array.isArray(a) ? [lerp(a[0], b[0], e), lerp(a[1], b[1], e)] : lerp(a, b, e);
+    const o = {}; for (const key in B) o[key] = m(A[key], B[key]);
+    return o;
+  }
+
   function drawRider(x, y, s, C, now) {
-    const u = s / 40;
+    const u = s / 40, RP = riderParams(now);
     const skin = '#F1C6A3', hair = '#2B2320', boot = '#FFF8F1', dark = '#2A2527';
-    const top = css(C.accent), topD = css(mix(C.accent, [0, 0, 0], 0.2));
-    const pc = isDark() ? mix(C.plinth, [255, 255, 255], 0.2) : C.plinth;
+    // shirt follows the accent and pants the plinth, unless picked in the settings
+    const tc = opts.shirtColor ? hex(opts.shirtColor) : C.accent;
+    const top = css(tc), topD = css(mix(tc, [0, 0, 0], 0.2));
+    const pc = opts.pantsColor ? hex(opts.pantsColor) : isDark() ? mix(C.plinth, [255, 255, 255], 0.2) : C.plinth;
     const pants = css(pc), pantsD = css(mix(pc, [0, 0, 0], 0.28));
     const st = media.state;
     const sleeping = st === 'stopped' && !cue;
@@ -1117,9 +1178,7 @@
     const playingLegs = st === 'playing' && !sleeping;
     const swingL = playingLegs ? amp * Math.sin(legPhase) : st === 'paused' ? Math.sin(now / 900) * 0.3 : 0;
     const swingR = playingLegs ? amp * Math.sin(legPhase + Math.PI + 0.7 * wander(legClock * 0.29 + 9.1)) : st === 'paused' ? -Math.sin(now / 900) * 0.3 : 0;
-    const bob = beatEnv * 1.6 * u;
-
-    ctx.save(); ctx.translate(x, y - bob); ctx.scale(-1, 1);
+    ctx.save(); ctx.translate(x, y); ctx.scale(-1, 1);
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     const limb = (x1, y1, mx, my, x2, y2, col, w) => {
       ctx.strokeStyle = col; ctx.lineWidth = w;
@@ -1130,7 +1189,8 @@
       ctx.fillStyle = dark; disc(ctx, fx - 0.8 * u, fy + 0.8 * u, 1.15 * u); disc(ctx, fx + 3.3 * u, fy + 0.8 * u, 1.15 * u);
     };
     const leg = (dx, sw, col) => {
-      const kx = 4.6 * u + dx, ky = 0.4 * u, fx = kx + sw * 2.4 * u, fy = 8.4 * u - Math.abs(sw) * 0.8 * u;
+      sw *= RP.swing;
+      const kx = RP.knee[0] * u + dx, ky = RP.knee[1] * u, fx = kx + RP.foot[0] * u + sw * 2.4 * u, fy = ky + RP.foot[1] * u - 0.4 * u - Math.abs(sw) * 0.8 * u;
       limb(dx, 0, dx + 2.4 * u, 0.6 * u, kx, ky, col, 3.8 * u);
       limb(kx, ky, kx + sw * 1.2 * u, (ky + fy) / 2, fx, fy - 1.6 * u, col, 3.6 * u);
       skate(fx, fy);
@@ -1140,12 +1200,12 @@
       ctx.fillStyle = skin; disc(ctx, ex, ey, 1.5 * u);
     };
 
-    const lean = sleeping ? 0.22 : -0.04;
+    const lean = sleeping ? 0.22 : RP.lean;
     const shX = Math.sin(lean) * 11 * u, shY = -Math.cos(lean) * 11 * u;
     const hdX = Math.sin(lean) * 18 * u, hdY = -Math.cos(lean) * 18 * u;
 
     leg(-1 * u, swingR, pantsD);
-    arm(shX, shY, -3.2 * u, -0.6 * u, topD);
+    arm(shX, shY, RP.handB[0] * u, RP.handB[1] * u, topD);
     ctx.save(); ctx.rotate(lean);
     ctx.fillStyle = top; rrect(ctx, -4.8 * u, -13.5 * u, 9.6 * u, 14.5 * u, 4 * u); ctx.fill();
     ctx.fillStyle = topD; rrect(ctx, -4.8 * u, -1.8 * u, 9.6 * u, 2.8 * u, 1.1 * u); ctx.fill();
@@ -1157,7 +1217,7 @@
     ctx.rotate(sleeping ? 0.35 : st === 'paused' ? Math.sin(now / 700) * 0.06 : beatEnv * -0.08);
     ctx.fillStyle = hair; disc(ctx, -1.2 * u, 0.6 * u, 5.4 * u);
     ctx.fillStyle = skin; disc(ctx, 0.6 * u, 0.4 * u, 5 * u);
-    ctx.fillStyle = 'rgb(255,246,236)';
+    ctx.fillStyle = opts.hatColor || 'rgb(255,246,236)';   // the cap (Hat in the settings)
     ctx.beginPath(); ctx.arc(0, -0.6 * u, 5.8 * u, Math.PI, TAU); ctx.fill();
     rrect(ctx, -6.2 * u, -1.6 * u, 12.4 * u, 2.4 * u, 1 * u); ctx.fill();
     disc(ctx, -0.5 * u, -6.8 * u, 1.7 * u);
@@ -1169,7 +1229,7 @@
     ctx.fillStyle = 'rgba(240,120,110,0.45)'; disc(ctx, 2.6 * u, 2.6 * u, 1.1 * u);
     ctx.restore();
 
-    arm(shX, shY, 3.6 * u, -0.4 * u, top);
+    arm(shX, shY, RP.handF[0] * u, RP.handF[1] * u, top);
     ctx.restore();
 
     if (sleeping) {
@@ -1368,6 +1428,9 @@
 
     const count = `Played Today ${today.length}`;
     drawPix(count, ax(pw(count, sSmall, 600)), y, sSmall, ps, T.soft, 600);
+    // where the text is, so the crowd doesn't stand in front of it
+    const bw = st !== 'stopped' && media.title ? maxCss : Math.max(maxCss, Math.min(W * 0.5, 640));
+    if (crowd) crowd.setHud({ x: toRight ? xR - bw : x0, y: hudMetrics().y0, w: bw, h: y + rowSmall - hudMetrics().y0 });
   }
 
   // ---------- window light ----------
@@ -1469,6 +1532,8 @@
     }
     drawDeck(L, C);
     drawRecord(L, C);
+    // the crowd stands below the tonearm and needle (the arm's base plate is part of the deck, under everyone)
+    if (crowd) crowd.draw(L, C);
     drawArm(L, C, now);
     drawParticles(C);
     if (opts.windowLight && !opts.transparent) drawLight(L);
@@ -1488,6 +1553,16 @@
     safeTop = parseFloat(getComputedStyle(document.documentElement).paddingTop) || 0;
   }
   addEventListener('resize', resize);
+
+  // The crowd lives in crowd.js and sees the page through this: live values as getters, plus drawing helpers.
+  // Without the file (or in an old Wallpaper Engine copy) the page simply has no crowd.
+  if (window.TodaysRecordCrowd) crowd = window.TodaysRecordCrowd({
+    get ctx() { return ctx; }, get W() { return W; }, get H() { return H; }, inset, media, opts, NATIVE,
+    get shown() { return shown; }, get cue() { return cue; }, get recOff() { return recOff; }, get spinVel() { return spinVel; },
+    sceneColors,
+    geo: { TAU, TILT, SQUASH, ARM, R_IN, R_OUT, REST_PHI, PLINTH_T, RPS },
+    fn: { layout, layoutKey, toScreen, armTip, phiOf, toHex, hex, css, mix, clamp, lerp, rand, easeInOut, easeOut, wander, rrect, disc, drawPix },
+  });
 
   resize();
   load();

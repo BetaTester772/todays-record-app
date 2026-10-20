@@ -25,12 +25,17 @@ final class Settings {
         case off, low, normal, high
     }
 
-    /// 사용자가 고를 수 있는 색. 빈 문자열이면 앨범에서 뽑은 색을 쓴다.
+    /// 사용자가 고를 수 있는 색. 빈 문자열이면 기본 색(앨범에서 뽑은 색, 톤암과 받침판은 금속색)을 쓴다.
     enum ColorSlot: String, CaseIterable {
         case record = "recordColor"
         case background = "bgColor"
         case line = "lineColor"
         case text = "textColor"
+        case arm = "armColor"
+        case armBase = "armBaseColor"
+        case shirt = "shirtColor"
+        case pants = "pantsColor"
+        case hat = "hatColor"
 
         var menuTitle: String {
             switch self {
@@ -38,10 +43,15 @@ final class Settings {
             case .background: return "Background Color"
             case .line: return "Line Color"
             case .text: return "Text Color"
+            case .arm: return "Arm Color"
+            case .armBase: return "Arm Base Color"
+            case .shirt: return "Shirt Color"
+            case .pants: return "Pants Color"
+            case .hat: return "Hat Color"
             }
         }
 
-        /// 첫 항목은 앨범 색.
+        /// 첫 항목은 기본 색. 둘째 항목은 설정 창에서 Custom을 처음 고를 때의 색.
         var presets: [(title: String, hex: String)] {
             switch self {
             case .record:
@@ -52,6 +62,16 @@ final class Settings {
                 return [("Album Colors", ""), ("White", "#FFFFFF"), ("Black", "#1A1A1A"), ("Red", "#E0443C"), ("Orange", "#F07A2A"), ("Blue", "#3A7BD5"), ("Green", "#3FAF6A")]
             case .text:
                 return [("Album Colors", ""), ("White", "#FFFFFF"), ("Black", "#1A1A1A")]
+            case .arm:
+                return [("Default", ""), ("Black", "#26262A"), ("Gold", "#C9A45C"), ("Red", "#B8323A")]
+            case .armBase:
+                return [("Default", ""), ("Black", "#26262A"), ("Gold", "#C9A45C")]
+            case .shirt:
+                return [("Album Colors", ""), ("Red", "#D9483B"), ("Yellow", "#F2C230"), ("Blue", "#3A7BD5")]
+            case .pants:
+                return [("Album Colors", ""), ("Denim", "#3D5A80"), ("Black", "#26262A"), ("Khaki", "#B59E72")]
+            case .hat:
+                return [("Default", ""), ("Red", "#D9483B"), ("Yellow", "#F2C230"), ("Black", "#26262A")]
             }
         }
     }
@@ -65,6 +85,10 @@ final class Settings {
         static let trail = "trail"
         static let grain = "grain"
         static let sideChange = "sideChange"
+        static let coloredVinyl = "coloredVinyl"
+        static let crowd = "crowd"
+        static let crowdPace = "crowdPace"
+        static let riderPose = "riderPose"
         static let autoUpdateCheck = "autoUpdateCheck"
         static let lastUpdateCheck = "lastUpdateCheck"
         static let disabledDisplays = "disabledDisplays"
@@ -83,6 +107,10 @@ final class Settings {
             Key.trail: Trail.afterglow.rawValue,
             Key.grain: Grain.normal.rawValue,
             Key.sideChange: SideChange.turn.rawValue,
+            Key.coloredVinyl: false,
+            Key.crowd: true,
+            Key.crowdPace: 1,
+            Key.riderPose: RiderPose.auto.rawValue,
             Key.autoUpdateCheck: true,
             Key.disabledDisplays: "",
             Key.fps: FrameRate.auto.rawValue,
@@ -148,6 +176,31 @@ final class Settings {
         set { defaults.set(newValue.rawValue, forKey: Key.sideChange) }
     }
 
+    /// 판을 앨범의 주된 색으로 칠할지(컬러 바이닐). Record Color를 직접 고르면 그 색이 먼저다. 명세 6장 21.
+    var coloredVinyl: Bool {
+        get { defaults.bool(forKey: Key.coloredVinyl) }
+        set { defaults.set(newValue, forKey: Key.coloredVinyl) }
+    }
+
+    /// 오래 들을수록 사람들이 모여드는지. 명세 6장 25.
+    var crowd: Bool {
+        get { defaults.bool(forKey: Key.crowd) }
+        set { defaults.set(newValue, forKey: Key.crowd) }
+    }
+
+    /// 사람들이 모이고 흩어지는 시간 배율(1, 2, 5, 10). 명세 6장 25.
+    var crowdPace: Int {
+        get { [1, 2, 5, 10].contains(defaults.integer(forKey: Key.crowdPace)) ? defaults.integer(forKey: Key.crowdPace) : 1 }
+        set { defaults.set(newValue, forKey: Key.crowdPace) }
+    }
+
+    /// 바늘 위 캐릭터의 포즈. auto면 새 곡에 가끔 바뀐다. 명세 6장 27.
+    enum RiderPose: String, CaseIterable { case auto, sit, lean, cross, hug }
+    var riderPose: RiderPose {
+        get { RiderPose(rawValue: defaults.string(forKey: Key.riderPose) ?? "") ?? .auto }
+        set { defaults.set(newValue.rawValue, forKey: Key.riderPose) }
+    }
+
     /// "#RRGGBB" 또는 빈 문자열(앨범 색).
     func color(_ slot: ColorSlot) -> String {
         defaults.string(forKey: slot.rawValue) ?? ""
@@ -166,10 +219,19 @@ final class Settings {
             "trail": trail.rawValue,
             "grain": grain.rawValue,
             "sideChange": sideChange.rawValue,
+            "coloredVinyl": coloredVinyl,
+            "crowd": crowd,
+            "crowdPace": crowdPace,
             "recordColor": color(.record),
             "bgColor": color(.background),
             "lineColor": color(.line),
             "textColor": color(.text),
+            "armColor": color(.arm),
+            "armBaseColor": color(.armBase),
+            "shirtColor": color(.shirt),
+            "pantsColor": color(.pants),
+            "hatColor": color(.hat),
+            "riderPose": riderPose.rawValue,
         ]
     }
 }

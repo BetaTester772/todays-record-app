@@ -25,7 +25,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     init(settings: Settings) {
         self.settings = settings
         super.init()
-        let image = NSImage(systemSymbolName: "opticaldisc", accessibilityDescription: "오늘의 판")
+        let image = NSImage(systemSymbolName: "opticaldisc", accessibilityDescription: "TurnTable")
         image?.isTemplate = true
         statusItem.button?.image = image
 

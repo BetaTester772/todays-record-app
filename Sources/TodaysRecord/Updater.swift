@@ -93,8 +93,13 @@ final class Updater {
                 .flatMap { $0["browser_download_url"] as? String }
                 .flatMap(URL.init(string:))
         }
-        guard let zip = asset({ $0.hasPrefix("TodaysRecord-") && $0.hasSuffix(".zip") }),
-              let sum = asset({ $0.hasSuffix(".zip.sha256") }) else { return nil }
+        // 0.5.0부터 앱 이름은 TurnTable: TurnTable-<v>.zip과 TurnTable-<v>.sha256. 이름을 바꾸기 전 앱을 위해
+        // 옛 이름 TodaysRecord-<v>.zip과 .zip.sha256도 함께 올린다(옛 앱은 처음 보이는 .zip.sha256을 쓰므로 새 쪽은 .zip을 뺀다).
+        let names = assets.compactMap { $0["name"] as? String }
+        guard let zipName = names.first(where: { $0.hasPrefix(Self.appName + "-") && $0.hasSuffix(".zip") })
+                ?? names.first(where: { $0.hasPrefix("TodaysRecord-") && $0.hasSuffix(".zip") }),
+              let zip = asset({ $0 == zipName }),
+              let sum = asset({ $0 == zipName + ".sha256" || $0 == zipName.dropLast(4) + ".sha256" }) else { return nil }
         let version = tag.hasPrefix("v") ? String(tag.dropFirst()) : tag
         return Release(version: version, pageURL: page, zipURL: zip, checksumURL: sum)
     }
@@ -145,7 +150,7 @@ final class Updater {
             switch self {
             case .download: return "Couldn't download the update. Check your internet connection."
             case .checksum: return "The download didn't match its checksum, so it wasn't installed."
-            case .notAnApp, .wrongApp: return "The download wasn't a 오늘의 판 app, so it wasn't installed."
+            case .notAnApp, .wrongApp: return "The download wasn't a TurnTable app, so it wasn't installed."
             case .signature: return "The download's signature is broken, so it wasn't installed."
             case .otherSigner: return "The update is signed by someone else, so it wasn't installed."
             case .cancelled: return "The update was cancelled."
@@ -157,7 +162,7 @@ final class Updater {
     /// 메인 스레드 밖에서 부른다.
     private static func downloadAndInstall(_ release: Release, current appURL: URL) throws -> URL {
         let fm = FileManager.default
-        let work = fm.temporaryDirectory.appendingPathComponent("TodaysRecord-update-\(UUID().uuidString)")
+        let work = fm.temporaryDirectory.appendingPathComponent("TurnTable-update-\(UUID().uuidString)")
         try fm.createDirectory(at: work, withIntermediateDirectories: true)
         defer { try? fm.removeItem(at: work) }
 
@@ -173,7 +178,9 @@ final class Updater {
         let zip = work.appendingPathComponent("update.zip")
         try zipData.write(to: zip)
         try run("/usr/bin/ditto", ["-x", "-k", zip.path, work.path])
-        let newApp = work.appendingPathComponent("TodaysRecord.app")
+        // zip 안에는 TurnTable.app(옛 이름 zip이면 TodaysRecord.app)
+        let newApp = [Self.appName + ".app", "TodaysRecord.app"].map { work.appendingPathComponent($0) }
+            .first { fm.fileExists(atPath: $0.path) } ?? work.appendingPathComponent(Self.appName + ".app")
         guard let bundle = Bundle(url: newApp), bundle.bundleIdentifier == Bundle.main.bundleIdentifier else {
             throw fm.fileExists(atPath: newApp.path) ? InstallError.wrongApp : InstallError.notAnApp
         }
@@ -183,6 +190,23 @@ final class Updater {
 
         let target = installLocation(for: appURL)
         try place(newApp, at: target)
+        // 옛 이름 앱은 휴지통으로(지금 실행 중인 앱은 끝날 때까지 그대로 돈다)
+        if target != appURL, !isTranslocated(appURL), fm.fileExists(atPath: appURL.path) { try? fm.trashItem(at: appURL, resultingItemURL: nil) }
+        return target
+    }
+
+    /// 0.5.0부터의 앱 파일 이름(예전 TodaysRecord.app). 번들 ID는 com.todaysrecord.app 그대로라
+    /// 설정, Music·Spotify 권한, 로그인 항목이 이어진다.
+    static let appName = "TurnTable"
+
+    /// 쓸 수 있는 폴더에 있는 옛 이름 앱(TodaysRecord.app)은 스스로 TurnTable.app으로 이름을 바꾼다.
+    /// 바꿨으면 새 위치를, 아니면 nil. 앱 시작 때 가장 먼저 부르고, 바꿨으면 새 위치에서 다시 연다.
+    static func renameIfNeeded(_ appURL: URL) -> URL? {
+        let fm = FileManager.default, parent = appURL.deletingLastPathComponent()
+        let target = parent.appendingPathComponent(appName + ".app")
+        guard appURL.lastPathComponent == "TodaysRecord.app", !isTranslocated(appURL),
+              fm.isWritableFile(atPath: parent.path), !fm.fileExists(atPath: target.path) else { return nil }
+        do { try fm.moveItem(at: appURL, to: target) } catch { return nil }
         return target
     }
 
@@ -198,11 +222,12 @@ final class Updater {
     }
 
     /// 지금 자리에 쓸 수 있으면 그 자리, 아니면(임시 위치 등) 응용 프로그램 폴더.
+    /// 옛 이름 앱(TodaysRecord.app)은 같은 폴더에 TurnTable.app으로 설치한다.
     static func installLocation(for appURL: URL) -> URL {
         if !isTranslocated(appURL), FileManager.default.isWritableFile(atPath: appURL.deletingLastPathComponent().path) {
-            return appURL
+            return appURL.deletingLastPathComponent().appendingPathComponent(appName + ".app")
         }
-        return URL(fileURLWithPath: "/Applications/TodaysRecord.app")
+        return URL(fileURLWithPath: "/Applications/\(appName).app")
     }
 
     /// 새 앱을 target에 둔다. 폴더에 쓸 수 없으면 관리자 암호를 물어서 복사한다.
@@ -234,11 +259,11 @@ final class Updater {
     /// 메인 스레드 밖에서 부른다. 성공하면 옮긴 위치를 돌려준다.
     static func moveToApplications(_ appURL: URL) throws -> URL {
         let fm = FileManager.default
-        let target = URL(fileURLWithPath: "/Applications/TodaysRecord.app")
-        let work = fm.temporaryDirectory.appendingPathComponent("TodaysRecord-move-\(UUID().uuidString)")
+        let target = URL(fileURLWithPath: "/Applications/\(appName).app")
+        let work = fm.temporaryDirectory.appendingPathComponent("TurnTable-move-\(UUID().uuidString)")
         try fm.createDirectory(at: work, withIntermediateDirectories: true)
         defer { try? fm.removeItem(at: work) }
-        let copy = work.appendingPathComponent("TodaysRecord.app")
+        let copy = work.appendingPathComponent(appName + ".app")
         try run("/usr/bin/ditto", ["--noqtn", appURL.path, copy.path])
         try place(copy, at: target)
         // 받은 자리에 남은 원본은 휴지통으로(임시 위치에서 돌고 있으면 원본 위치를 알 수 없어 그대로 둔다).
