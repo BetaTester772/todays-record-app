@@ -54,16 +54,9 @@ Colors and layout (colored vinyl, a black record with a gold tonearm, record on 
 |---|---|---|
 | ![Colored vinyl](docs/images/color-vinyl.jpg) | ![Black record](docs/images/color-black.jpg) | ![Left layout](docs/images/color-left.jpg) |
 
-Up close, and some of the visitors:
+Up close, and some of the visitors (dancing, headbanging, on the phone, reading, dozing off):
 
-<p>
-<img src="docs/images/detail.jpg" alt="Needle, knobs and side lamp" width="320">
-<img src="docs/images/crowd-dance.png" alt="Dancing" width="110">
-<img src="docs/images/crowd-headbang.png" alt="Headbanging" width="110">
-<img src="docs/images/crowd-phone.png" alt="Phone call" width="110">
-<img src="docs/images/crowd-read.png" alt="Reading" width="110">
-<img src="docs/images/crowd-doze.png" alt="Dozing" width="110">
-</p>
+![Needle, knobs and side lamp, and visitors dancing, headbanging, on the phone, reading and dozing](docs/images/closeup.png)
 
 Settings:
 
