@@ -15,6 +15,10 @@ final class RecordWebView: WKWebView {
     /// 화면이 ready를 보내면 불린다. 다시 불러온 뒤에도 다시 불린다.
     var onReady: ((RecordWebView) -> Void)?
     private(set) var isReady = false
+    /// 메뉴 막대와 Dock이 덮는 화면 가장자리(포인트). 준비되면 화면에 보낸다.
+    var insets = NSEdgeInsetsZero {
+        didSet { sendInsets() }
+    }
     private let pageURL: URL?
 
     init(frame: NSRect, role: Role, screenID: String, options: LaunchOptions) {
@@ -75,6 +79,10 @@ final class RecordWebView: WKWebView {
         call("art", [dataURL, version])
     }
 
+    private func sendInsets() {
+        call("setInsets", [["top": insets.top, "right": insets.right, "bottom": insets.bottom, "left": insets.left]])
+    }
+
     func sendVolume(_ payload: [String: Any]) {
         call("setVolume", [payload])
     }
@@ -105,6 +113,7 @@ final class RecordWebView: WKWebView {
         case "ready":
             Log.web.info("ready screen=\(self.screenID, privacy: .public)")
             isReady = true
+            sendInsets()
             onReady?(self)
         case "log":
             Log.web.debug("js: \(String(describing: body["message"] ?? ""))")

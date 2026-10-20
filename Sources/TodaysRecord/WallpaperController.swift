@@ -46,6 +46,7 @@ final class WallpaperController {
         )
         webView.autoresizingMask = [.width, .height]
         webView.onReady = onReady
+        webView.insets = insets(for: screen)
         window.contentView = webView
         if options.windowed {
             window.makeKeyAndOrderFront(nil)
@@ -61,6 +62,22 @@ final class WallpaperController {
         guard let window, let screen = NSScreen.main ?? NSScreen.screens.first else { return }
         Log.window.info("화면 변경 \(NSStringFromRect(screen.frame), privacy: .public)")
         window.fit(to: screen)
+        webView?.insets = insets(for: screen)
+    }
+
+    /// 화면 전체와 visibleFrame의 차이. 메뉴 막대와 Dock이 차지하는 부분이다.
+    /// 일반 창(--windowed)에서는 피할 것이 없다.
+    private func insets(for screen: NSScreen) -> NSEdgeInsets {
+        guard !options.windowed else { return NSEdgeInsetsZero }
+        let full = screen.frame, visible = screen.visibleFrame
+        let insets = NSEdgeInsets(
+            top: full.maxY - visible.maxY,
+            left: visible.minX - full.minX,
+            bottom: visible.minY - full.minY,
+            right: full.maxX - visible.maxX
+        )
+        Log.window.info("여백 top=\(insets.top) left=\(insets.left) bottom=\(insets.bottom) right=\(insets.right)")
+        return insets
     }
 
     static func identifier(for screen: NSScreen) -> String {

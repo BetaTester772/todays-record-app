@@ -159,6 +159,7 @@
   const ctx = canvas.getContext('2d');
 
   let W = 0, H = 0, DPR = 1, safeTop = 0;
+  const inset = { top: 0, right: 0, bottom: 0, left: 0 };   // screen edges under the menu bar and Dock (set by the app)
   let pal = palFromHex(DEMO[0].pal), targetPal = clonePal(pal);
   const PREVIEW_SPEED = 6;          // the preview feed runs faster than real time
   let booted = false;
@@ -570,6 +571,7 @@
   if (NATIVE) {
     window.TodaysRecord = {
       nowPlaying(d) { if (media.source === 'native') applyNowPlaying(d); },
+      setInsets(v) { for (const k of ['top', 'right', 'bottom', 'left']) inset[k] = Math.max(0, +(v && v[k]) || 0); },
       setVolume(v) {
         vol.level = v && typeof v.level === 'number' ? clamp(v.level) : null;
         vol.muted = !!(v && v.muted);
@@ -744,11 +746,13 @@
 
   // ---------- drawing ----------
   function layout() {
-    const portrait = W / H < 0.9;
+    const Wv = W - inset.left - inset.right, Hv = H - inset.top - inset.bottom;
+    const portrait = Wv / Hv < 0.9;
     let cx, cy, R;
-    if (portrait) { R = Math.min(W * 0.52, H * 0.4); cx = W * 0.46; cy = H * 0.6; }
-    else { R = Math.min(W * 0.32, H * 0.62); cx = W * 0.57; cy = H * 0.6; }
-    return { cx, cy, R, k: R / R_LOCAL };
+    if (portrait) { R = Math.min(Wv * 0.52, Hv * 0.4); cx = Wv * 0.46; cy = Hv * 0.6; }
+    // 0.53 (was 0.62) keeps the knobs and side lamps on the record's front arc inside the visible area
+    else { R = Math.min(Wv * 0.32, Hv * 0.53); cx = Wv * 0.57; cy = Hv * 0.6; }
+    return { cx: cx + inset.left, cy: cy + inset.top, R, k: R / R_LOCAL };
   }
   function toScreen(L, lx, ly, ox = 0, oy = 0) {
     const y2 = ly * SQUASH, c = Math.cos(TILT), s = Math.sin(TILT);
@@ -1075,8 +1079,8 @@
   function drawHUD(C) {
     const big = W >= 1200, ps = 2;
     const sTitle = big ? 21 : (W < 420 ? 16 : 18), sSmall = big ? 14 : 12;
-    const x0 = Math.round(Math.max(20, W * 0.045));
-    let y = Math.round(Math.max(18, H * 0.055) + safeTop);
+    const x0 = Math.round(Math.max(inset.left + 20, W * 0.045));
+    let y = Math.round(Math.max(inset.top + 18, Math.max(18, H * 0.055) + safeTop));
     const portrait = W / H < 0.9;
     const maxCss = portrait ? W - x0 * 2 : Math.min(W * 0.36, 560);
     const ink = css(C.ink), soft = css(C.ink, 0.62), faint = css(C.ink, 0.2);
