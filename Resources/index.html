@@ -161,7 +161,8 @@
   let W = 0, H = 0, DPR = 1, safeTop = 0;
   const inset = { top: 0, right: 0, bottom: 0, left: 0 };   // screen edges under the menu bar and Dock (set by the app)
   // options the app can change from its menu (setOptions)
-  const opts = { position: 'right', transparent: false, windowLight: true, trail: 'afterglow', recordColor: '' };   // recordColor '' = album colors
+  // colors '' = taken from the album
+  const opts = { position: 'right', transparent: false, windowLight: true, trail: 'afterglow', recordColor: '', bgColor: '', lineColor: '' };
   const glowPts = [];   // recent stylus points for the afterglow trail: { fr, a, t, c } or null for a lift
   let pal = palFromHex(DEMO[0].pal), targetPal = clonePal(pal);
   const PREVIEW_SPEED = 6;          // the preview feed runs faster than real time
@@ -583,7 +584,9 @@
         if (['left', 'center', 'right'].includes(o.position)) opts.position = o.position;
         if (typeof o.windowLight === 'boolean') opts.windowLight = o.windowLight;
         if (o.trail === 'keep' || o.trail === 'afterglow') opts.trail = o.trail;
-        if (typeof o.recordColor === 'string') opts.recordColor = /^#[0-9a-f]{6}$/i.test(o.recordColor) ? o.recordColor : '';
+        for (const k of ['recordColor', 'bgColor', 'lineColor']) {
+          if (typeof o[k] === 'string') opts[k] = /^#[0-9a-f]{6}$/i.test(o[k]) ? o[k] : '';
+        }
         if (typeof o.transparent === 'boolean') {
           opts.transparent = o.transparent;
           document.documentElement.style.background = document.body.style.background = o.transparent ? 'transparent' : '';
@@ -728,7 +731,7 @@
       const pt = { fr: Math.hypot(tip.x, tip.y) - 0.004 * beatEnv, a: Math.atan2(tip.y, tip.x) - spin };
       if (prevPt) strokeTrail(prevPt, pt);
       prevPt = pt;
-      glowPts.push({ fr: pt.fr, a: pt.a, t: now, c: css(targetPal.accent) });
+      glowPts.push({ fr: pt.fr, a: pt.a, t: now, c: lineColor() });
     } else {
       if (prevPt) glowPts.push(null);
       prevPt = null;
@@ -781,12 +784,14 @@
     ctx.globalAlpha = 1;
   }
 
+  const lineColor = () => opts.lineColor || css(targetPal.accent);
+
   function strokeTrail(p0, p1) {
     const g = shown.tctx;
     let da = p1.a - p0.a;
     const steps = Math.max(1, Math.ceil(Math.abs(da) / 0.035));
     const C = S / 2;
-    g.strokeStyle = css(targetPal.accent); g.lineWidth = 1.8; g.lineCap = 'round'; g.lineJoin = 'round';
+    g.strokeStyle = lineColor(); g.lineWidth = 1.8; g.lineCap = 'round'; g.lineJoin = 'round';
     g.beginPath();
     for (let i = 0; i <= steps; i++) {
       const t = i / steps, fr = p0.fr + (p1.fr - p0.fr) * t, a = p0.a + da * t;
@@ -820,7 +825,15 @@
       c.record = mix(pal.record, [40, 38, 42], 0.62);
       const h = rgb2hsl(pal.bg); c.ink = hsl2rgb([h[0], Math.min(0.4, h[1]), 0.86]);
     }
-    if (opts.recordColor) c.record = hex(opts.recordColor);   // chosen in the app's menu
+    // colors chosen in the app's menu
+    if (opts.recordColor) c.record = hex(opts.recordColor);
+    if (opts.bgColor) {
+      c.bg = hex(opts.bgColor);
+      // keep the info text readable on a background the user picked
+      const l = rgb2hsl(c.bg)[2], ih = rgb2hsl(c.ink);
+      if (l < 0.45 && ih[2] < 0.5) c.ink = hsl2rgb([ih[0], Math.min(0.3, ih[1]), 0.88]);
+      else if (l >= 0.45 && ih[2] >= 0.5) c.ink = hsl2rgb([ih[0], Math.min(0.5, ih[1]), 0.2]);
+    }
     c.edge = mix(c.record, [0, 0, 0], 0.16);
     c.metal = d ? [196, 192, 194] : [250, 245, 242];
     c.metalD = mix(c.metal, [0, 0, 0], 0.16);

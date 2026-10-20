@@ -20,8 +20,10 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     private var positionItems: [Settings.Position: NSMenuItem] = [:]
     private var backgroundItems: [Bool: NSMenuItem] = [:]
     private var trailItems: [Settings.Trail: NSMenuItem] = [:]
-    private var recordColorItems: [NSMenuItem] = []
-    private let customColorItem = NSMenuItem(title: "Custom…", action: nil, keyEquivalent: "")
+    private var colorItems: [Settings.ColorSlot: [NSMenuItem]] = [:]
+    private var customColorItems: [Settings.ColorSlot: NSMenuItem] = [:]
+    /// 색상 창이 지금 바꾸고 있는 색.
+    private var customSlot: Settings.ColorSlot?
 
     init(settings: Settings) {
         self.settings = settings
@@ -57,17 +59,9 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         }
         menu.addItem(submenu("Background", background))
 
-        let recordColor = NSMenu()
-        for (index, preset) in Settings.recordColorPresets.enumerated() {
-            let item = target(NSMenuItem(title: preset.title, action: nil, keyEquivalent: ""), #selector(chooseRecordColor(_:)))
-            item.representedObject = preset.hex
-            recordColorItems.append(item)
-            recordColor.addItem(item)
-            if index == 0 { recordColor.addItem(.separator()) }
+        for slot in Settings.ColorSlot.allCases {
+            menu.addItem(colorSubmenu(slot))
         }
-        recordColor.addItem(.separator())
-        recordColor.addItem(target(customColorItem, #selector(pickCustomColor)))
-        menu.addItem(submenu("Record Color", recordColor))
 
         let effects = NSMenu()
         effects.addItem(target(windowLightItem, #selector(toggleWindowLight)))
@@ -138,17 +132,22 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         changed()
     }
 
-    @objc private func chooseRecordColor(_ sender: NSMenuItem) {
-        settings.recordColor = sender.representedObject as? String ?? ""
+    /// 프리셋 항목. representedObject는 [슬롯, 색].
+    @objc private func choosePresetColor(_ sender: NSMenuItem) {
+        guard let pair = sender.representedObject as? [String], pair.count == 2,
+              let slot = Settings.ColorSlot(rawValue: pair[0]) else { return }
+        settings.setColor(pair[1], for: slot)
         changed()
     }
 
-    /// macOS 색상 창으로 판 색을 직접 고른다. 움직이는 동안 바로 반영한다.
-    @objc private func pickCustomColor() {
+    /// macOS 색상 창으로 색을 직접 고른다. 움직이는 동안 바로 반영한다.
+    @objc private func pickCustomColor(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? String, let slot = Settings.ColorSlot(rawValue: raw) else { return }
+        customSlot = slot
         let panel = NSColorPanel.shared
         panel.showsAlpha = false
         panel.isContinuous = true
-        if let color = Self.color(fromHex: settings.recordColor) { panel.color = color }
+        if let color = Self.color(fromHex: settings.color(slot)) { panel.color = color }
         panel.setTarget(self)
         panel.setAction(#selector(customColorChanged(_:)))
         NSApp.activate(ignoringOtherApps: true)
@@ -156,13 +155,13 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     }
 
     @objc private func customColorChanged(_ sender: NSColorPanel) {
-        guard let rgb = sender.color.usingColorSpace(.sRGB) else { return }
+        guard let slot = customSlot, let rgb = sender.color.usingColorSpace(.sRGB) else { return }
         let hex = String(format: "#%02X%02X%02X",
                          Int((rgb.redComponent * 255).rounded()),
                          Int((rgb.greenComponent * 255).rounded()),
                          Int((rgb.blueComponent * 255).rounded()))
-        guard hex != settings.recordColor else { return }
-        settings.recordColor = hex
+        guard hex != settings.color(slot) else { return }
+        settings.setColor(hex, for: slot)
         changed()
     }
 
@@ -219,10 +218,15 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         positionItems.forEach { $0.value.state = $0.key == settings.position ? .on : .off }
         backgroundItems.forEach { $0.value.state = $0.key == settings.transparent ? .on : .off }
         trailItems.forEach { $0.value.state = $0.key == settings.trail ? .on : .off }
-        let color = settings.recordColor
-        let isPreset = Settings.recordColorPresets.contains { $0.hex.caseInsensitiveCompare(color) == .orderedSame }
-        recordColorItems.forEach { $0.state = ($0.representedObject as? String)?.caseInsensitiveCompare(color) == .orderedSame ? .on : .off }
-        customColorItem.state = isPreset ? .off : .on
+        for slot in Settings.ColorSlot.allCases {
+            let color = settings.color(slot)
+            let isPreset = slot.presets.contains { $0.hex.caseInsensitiveCompare(color) == .orderedSame }
+            colorItems[slot]?.forEach { item in
+                let hex = (item.representedObject as? [String])?.last ?? ""
+                item.state = hex.caseInsensitiveCompare(color) == .orderedSame ? .on : .off
+            }
+            customColorItems[slot]?.state = isPreset ? .off : .on
+        }
         loginItem.state = SMAppService.mainApp.status == .enabled ? .on : .off
     }
 
@@ -231,6 +235,25 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         item.target = self
         item.action = action
         return item
+    }
+
+    private func colorSubmenu(_ slot: Settings.ColorSlot) -> NSMenuItem {
+        let menu = NSMenu()
+        var items: [NSMenuItem] = []
+        for (index, preset) in slot.presets.enumerated() {
+            let item = target(NSMenuItem(title: preset.title, action: nil, keyEquivalent: ""), #selector(choosePresetColor(_:)))
+            item.representedObject = [slot.rawValue, preset.hex]
+            items.append(item)
+            menu.addItem(item)
+            if index == 0 { menu.addItem(.separator()) }
+        }
+        menu.addItem(.separator())
+        let custom = target(NSMenuItem(title: "Custom…", action: nil, keyEquivalent: ""), #selector(pickCustomColor(_:)))
+        custom.representedObject = slot.rawValue
+        menu.addItem(custom)
+        colorItems[slot] = items
+        customColorItems[slot] = custom
+        return submenu(slot.menuTitle, menu)
     }
 
     private func submenu(_ title: String, _ menu: NSMenu) -> NSMenuItem {

@@ -10,24 +10,40 @@ final class Settings {
         case keep, afterglow
     }
 
+    /// 사용자가 고를 수 있는 색. 빈 문자열이면 앨범에서 뽑은 색을 쓴다.
+    enum ColorSlot: String, CaseIterable {
+        case record = "recordColor"
+        case background = "bgColor"
+        case line = "lineColor"
+
+        var menuTitle: String {
+            switch self {
+            case .record: return "Record Color"
+            case .background: return "Background Color"
+            case .line: return "Line Color"
+            }
+        }
+
+        /// 첫 항목은 앨범 색.
+        var presets: [(title: String, hex: String)] {
+            switch self {
+            case .record:
+                return [("Album Colors", ""), ("Black", "#1C1B1E"), ("White", "#F4F0E6"), ("Red", "#B8323A"), ("Blue", "#2F5C9E"), ("Green", "#3F7A55")]
+            case .background:
+                return [("Album Colors", ""), ("Cream", "#F1E9DA"), ("Gray", "#D9D9DC"), ("Sage", "#CFD9C8"), ("Charcoal", "#2B2B2E"), ("Navy", "#1F2A44")]
+            case .line:
+                return [("Album Colors", ""), ("White", "#FFFFFF"), ("Black", "#1A1A1A"), ("Red", "#E0443C"), ("Orange", "#F07A2A"), ("Blue", "#3A7BD5"), ("Green", "#3FAF6A")]
+            }
+        }
+    }
+
     private enum Key {
         static let enabled = "enabled"
         static let position = "position"
         static let transparent = "transparent"
         static let windowLight = "windowLight"
         static let trail = "trail"
-        static let recordColor = "recordColor"
     }
-
-    /// 메뉴에 보이는 레코드 판 색. 빈 문자열은 앨범에서 뽑은 색.
-    static let recordColorPresets: [(title: String, hex: String)] = [
-        ("Album Colors", ""),
-        ("Black", "#1C1B1E"),
-        ("White", "#F4F0E6"),
-        ("Red", "#B8323A"),
-        ("Blue", "#2F5C9E"),
-        ("Green", "#3F7A55"),
-    ]
 
     private let defaults: UserDefaults
 
@@ -39,7 +55,6 @@ final class Settings {
             Key.transparent: false,
             Key.windowLight: true,
             Key.trail: Trail.afterglow.rawValue,
-            Key.recordColor: "",
         ])
     }
 
@@ -70,9 +85,12 @@ final class Settings {
     }
 
     /// "#RRGGBB" 또는 빈 문자열(앨범 색).
-    var recordColor: String {
-        get { defaults.string(forKey: Key.recordColor) ?? "" }
-        set { defaults.set(newValue, forKey: Key.recordColor) }
+    func color(_ slot: ColorSlot) -> String {
+        defaults.string(forKey: slot.rawValue) ?? ""
+    }
+
+    func setColor(_ hex: String, for slot: ColorSlot) {
+        defaults.set(hex, forKey: slot.rawValue)
     }
 
     /// `TodaysRecord.setOptions`로 보내는 값. 명세 5장.
@@ -82,7 +100,9 @@ final class Settings {
             "transparent": transparent,
             "windowLight": windowLight,
             "trail": trail.rawValue,
-            "recordColor": recordColor,
+            "recordColor": color(.record),
+            "bgColor": color(.background),
+            "lineColor": color(.line),
         ]
     }
 }

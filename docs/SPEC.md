@@ -1,6 +1,6 @@
 # 오늘의 판 — macOS 앱 명세서
 
-버전 0.10 · 2026-10-20 (0.2: LP 면 나누기, iTunes 검색 국가 대체 · 0.3: 음량 노브, 면 램프 · 0.4: 색 섞기 전환, 곡 안 위치 이동 · 0.5: 화면 문구 영어 · 0.6: 긴 이름 흐르기 · 0.7: 메뉴 막대·Dock 피하기 · 0.8: 오늘 들은 곡 수만, 노란 강조색 피하기 · 0.9: M2 설정 메뉴, 창문 빛, 잔상 · 0.10: 판 색 고르기, 시간대 색감)
+버전 0.11 · 2026-10-20 (0.2: LP 면 나누기, iTunes 검색 국가 대체 · 0.3: 음량 노브, 면 램프 · 0.4: 색 섞기 전환, 곡 안 위치 이동 · 0.5: 화면 문구 영어 · 0.6: 긴 이름 흐르기 · 0.7: 메뉴 막대·Dock 피하기 · 0.8: 오늘 들은 곡 수만, 노란 강조색 피하기 · 0.9: M2 설정 메뉴, 창문 빛, 잔상 · 0.10: 판 색 고르기, 시간대 색감 · 0.11: 배경색, 선 색 고르기)
 
 ## 1. 개요
 
@@ -186,6 +186,8 @@ Music 앱의 재생 정보를 다음 두 가지 방법을 합쳐서 얻는다.
 | 레코드 위치 ▸ 왼쪽 / 가운데 / 오른쪽 | `setOptions({position})` |
 | 배경 ▸ 기본 / 투명 | 투명이면 원래 배경화면 위에 턴테이블만 표시 |
 | 레코드 색 ▸ 앨범 색 / Black / White / Red / Blue / Green / Custom… | 판 색. Custom…은 macOS 색상 창으로 직접 고른다. 기본 앨범 색 |
+| 배경색 ▸ 앨범 색 / Cream / Gray / Sage / Charcoal / Navy / Custom… | 턴테이블 주변 배경 색. 기본 앨범 색 |
+| 선 색 ▸ 앨범 색 / White / Black / Red / Orange / Blue / Green / Custom… | 판 위 선과 잔상 색. 기본 앨범 강조색 |
 | 효과 ▸ 창문 빛 (체크) | 시간대 조명(6장 19). 기본 켜짐 |
 | 효과 ▸ 선 ▸ 계속 남기기 / 잔상 | 6장 20. 기본 잔상 |
 | 표시할 화면 ▸ 주 화면 / 모든 화면 | 4.3 |
@@ -195,7 +197,7 @@ Music 앱의 재생 정보를 다음 두 가지 방법을 합쳐서 얻는다.
 | Music 제어 권한 열기 (“Allow Control of Music…”) | 권한이 없을 때만 표시 |
 | 종료 | 앱 종료 (4.9가 켜져 있으면 원래 배경화면 복원 후) |
 
-설정은 `UserDefaults`에 저장하고(키 `enabled`, `position`, `transparent`, `windowLight`, `trail`, `recordColor`), 앱 시작 시와 웹뷰가 준비될 때 모든 웹뷰에 `setOptions`로 적용한다. 메뉴 문구는 영어로 쓴다(Show Wallpaper, Record Position, Background, Effects ▸ Window Light / Trail ▸ Keep·Afterglow, Clear This Record, Open at Login, Quit). 로그인 항목이 사용자 승인을 기다리는 상태(`requiresApproval`)면 시스템 설정의 로그인 항목 화면을 연다. 표시할 화면(4.3)과 시스템 배경화면 색 맞추기(4.9) 항목은 M4, M5에서 기능과 함께 더한다.
+설정은 `UserDefaults`에 저장하고(키 `enabled`, `position`, `transparent`, `windowLight`, `trail`, `recordColor`, `bgColor`, `lineColor`), 앱 시작 시와 웹뷰가 준비될 때 모든 웹뷰에 `setOptions`로 적용한다. 메뉴 문구는 영어로 쓴다(Show Wallpaper, Record Position, Background, Effects ▸ Window Light / Trail ▸ Keep·Afterglow, Clear This Record, Open at Login, Quit). 로그인 항목이 사용자 승인을 기다리는 상태(`requiresApproval`)면 시스템 설정의 로그인 항목 화면을 연다. 표시할 화면(4.3)과 시스템 배경화면 색 맞추기(4.9) 항목은 M4, M5에서 기능과 함께 더한다.
 
 ### 4.9 시스템 배경화면 색 맞추기 (`WallpaperSync`, 선택 기능, 기본 꺼짐)
 
@@ -217,7 +219,7 @@ Music 앱의 재생 정보를 다음 두 가지 방법을 합쳐서 얻는다.
 | `TodaysRecord.nowPlaying(payload)` | 4.5의 JSON |
 | `TodaysRecord.art(dataURL, version)` | 앨범 커버 |
 | `TodaysRecord.setPaused(bool)` | 그리기 멈춤/재개 |
-| `TodaysRecord.setOptions({position, transparent, windowLight, trail, fps})` | position: `"left"`, `"center"`, `"right"` · transparent: bool · windowLight: bool · trail: `"keep"` 또는 `"afterglow"` · recordColor: `"#RRGGBB"` 또는 `""`(앨범 색) · fps: 30 또는 60(M4) |
+| `TodaysRecord.setOptions({position, transparent, windowLight, trail, fps})` | position: `"left"`, `"center"`, `"right"` · transparent: bool · windowLight: bool · trail: `"keep"` 또는 `"afterglow"` · recordColor, bgColor, lineColor: `"#RRGGBB"` 또는 `""`(앨범 색) · fps: 30 또는 60(M4) |
 | `TodaysRecord.clearRecord()` | 지금 판의 선 지우기 |
 | `TodaysRecord.setInsets({top, right, bottom, left})` | 메뉴 막대와 Dock이 덮는 화면 가장자리(4.3) |
 | `TodaysRecord.setVolume({level, muted})` | 시스템 음량. level: 0~1(모르면 생략), muted: bool (4.6.1) |
@@ -271,7 +273,10 @@ Music 앱의 재생 정보를 다음 두 가지 방법을 합쳐서 얻는다.
 19. **창문 빛(시간대 조명).** Mac 시계를 기준으로, 네 칸 창문(십자 창틀)을 지난 햇빛이 탁자와 턴테이블 위에 비스듬히 비친다. 키프레임(0·5시 밤, 6.5시 새벽, 9시 아침, 13시 낮, 16.5시 오후, 18.5시 노을, 20시 밤) 사이를 이어서 빛의 색, 세기, 방향(아침 왼쪽 → 저녁 오른쪽), 길이가 바뀐다. 시간대가 한눈에 보이도록 화면 전체에도 색감(multiply)을 입힌다: 새벽 복숭아빛, 낮 없음, 노을 진한 주황, 밤 어두운 남색. 곡 정보 글씨는 색감 위에 그려 늘 읽히게 한다. 빛 조각은 반 해상도 캔버스에 1분마다 다시 그려 두고(가장자리는 여러 겹을 겹쳐 부드럽게, 캔버스 `filter`는 Safari 18 미만에서 지원되지 않아 쓰지 않음) 매 프레임 `screen` 합성으로 얹는다. 투명 배경이면 그리지 않는다.
 20. **잔상.** `trail`이 `afterglow`면 판에 쌓인 선 대신, 바늘이 지난 최근 약 1.1초의 점들만 판과 함께 돌며 옅어지는 꼬리로 그린다(반 바퀴 정도). 영구 선 기록은 계속 쌓아 두므로 `keep`으로 바꾸면 다시 보인다. `clearRecord`는 영구 선과 잔상을 모두 지운다.
 
-21. **판 색.** `recordColor`가 있으면 판(record) 색을 그 색으로 쓴다(라벨, 선 색은 그대로). 판이 어두우면(밝기 0.4 미만) 홈 무늬를 밝은 선으로 그린다.
+21. **판·배경·선 색.** 기본은 앨범에서 뽑은 색이고, 값이 있으면 그 색을 쓴다.
+    - `recordColor`: 판 색. 판이 어두우면(밝기 0.4 미만) 홈 무늬를 밝은 선으로 그린다.
+    - `bgColor`: 턴테이블 주변 배경 색. 배경 밝기에 맞춰 곡 정보 글씨 색을 밝게/어둡게 바꾼다.
+    - `lineColor`: 판 위 선과 잔상 색. 이미 그린 선은 그때 색 그대로 남는다.
 
 ## 7. 성능 목표
 
