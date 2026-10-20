@@ -1,0 +1,1052 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>오늘의 판</title>
+<style>
+  :root {
+    --page-bg: #EFDADD;
+    --ui-bg: rgba(255, 251, 249, 0.9);
+    --ui-fg: #23463A;
+    --ui-line: rgba(35, 70, 58, 0.16);
+    --ui-hover: rgba(35, 70, 58, 0.09);
+    --ui-focus: #2D5C48;
+    color-scheme: light;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --page-bg: #171B19;
+      --ui-bg: rgba(28, 33, 31, 0.9);
+      --ui-fg: #EEE3E5;
+      --ui-line: rgba(238, 227, 229, 0.16);
+      --ui-hover: rgba(238, 227, 229, 0.09);
+      --ui-focus: #9FD1B7;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --page-bg: #171B19;
+    --ui-bg: rgba(28, 33, 31, 0.9);
+    --ui-fg: #EEE3E5;
+    --ui-line: rgba(238, 227, 229, 0.16);
+    --ui-hover: rgba(238, 227, 229, 0.09);
+    --ui-focus: #9FD1B7;
+    color-scheme: dark;
+  }
+  html { height: 100%; scroll-padding-top: env(safe-area-inset-top, 0px); }
+  *, *::before, *::after { box-sizing: inherit; }
+  body {
+    margin: 0; height: 100%; overflow: hidden;
+    background: var(--page-bg); color: var(--ui-fg);
+    font-family: system-ui, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  #scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+</style>
+</head>
+<body>
+<canvas id="scene" aria-label="앨범 라벨이 붙은 레코드판 위를 톤암 바늘이 지나가며 선을 남기고, 작은 캐릭터가 바늘 머리에 앉아 있는 배경화면"></canvas>
+
+
+<script>
+(() => {
+  'use strict';
+
+  // ---------- constants ----------
+  const TAU = Math.PI * 2;
+  const RPS = 5 / 60;                 // visual platter speed at x1
+  const R_OUT = 0.955, R_IN = 0.47, LABEL_R = 0.40, GAP = 0.014;
+  const SIDE_LEN = 1320;              // assumed side length (s) when the track list is unknown
+  const ARM = { bx: 1.13, by: -0.72, len: 1.17 };   // tonearm pivot and length, in record radii
+  const REST_PHI = 1.64;              // arm angle when parked on its rest
+  const TILT = -0.28, SQUASH = 0.6;
+  const R_LOCAL = 600, S = 1280;
+  const STORE_KEY = 'todays-record-v2';
+  const FONT = 'system-ui, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif';
+  const PAL_KEYS = ['bg', 'plinth', 'record', 'label', 'accent', 'ink'];
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const darkMQ = matchMedia('(prefers-color-scheme: dark)');
+  const isDark = () => {
+    const t = document.documentElement.dataset.theme;
+    return t === 'dark' ? true : t === 'light' ? false : darkMQ.matches;
+  };
+
+  // Fictional demo albums (original titles and art)
+  const DEMO = [
+    { album: '롤러장 가는 길', artist: '핑크 플래터즈', motif: 'sun', bpm: 96,
+      pal: { bg: '#EFDADD', plinth: '#2D5C48', record: '#F6E6E8', label: '#2D5C48', accent: '#EE5A36', ink: '#23463A' },
+      tracks: [['오프닝 스핀', 168], ['롤러장 가는 길', 204], ['분홍 바퀴', 182], ['마지막 한 바퀴', 220]] },
+    { album: 'Midnight Groove Line', artist: 'The Spindles', motif: 'stripes', bpm: 88,
+      pal: { bg: '#E9E3D3', plinth: '#1F2F4F', record: '#F3EEE2', label: '#F2B630', accent: '#E9A21C', ink: '#1F2F4F' },
+      tracks: [['Needle Drop', 192], ['Midnight Groove Line', 232], ['Sleeve Notes', 160]] },
+    { album: '라벤더 테이프', artist: '소금빵 클럽', motif: 'dots', bpm: 104,
+      pal: { bg: '#E4DDEE', plinth: '#5B2D5E', record: '#EFEAF5', label: '#7FD1B9', accent: '#2FA987', ink: '#4A2550' },
+      tracks: [['라벤더 테이프', 178], ['B면의 오후', 210], ['늦은 포장', 185]] },
+    { album: 'Side B Summer', artist: 'Ocean Label', motif: 'waves', bpm: 92,
+      pal: { bg: '#D8E8EE', plinth: '#145A5E', record: '#EAF3F5', label: '#FF7A6B', accent: '#F4604F', ink: '#0F4649' },
+      tracks: [['Side B Summer', 211], ['Salt and Static', 175], ['Low Tide', 242]] },
+  ];
+
+  // ---------- utils ----------
+  const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const easeInOut = t => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+  const easeIn = t => t * t * t;
+  const easeOut = t => 1 - Math.pow(1 - t, 3);
+  const rand = (a, b) => a + Math.random() * (b - a);
+  function hex(h) {
+    h = h.replace('#', '');
+    if (h.length === 3) h = h.split('').map(c => c + c).join('');
+    const n = parseInt(h, 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  }
+  const toHex = c => '#' + c.map(v => Math.round(clamp(v, 0, 255)).toString(16).padStart(2, '0')).join('');
+  const css = (c, a = 1) => `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`;
+  const mix = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+  const lum = c => (0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]) / 255;
+  function rgb2hsl(c) {
+    const r = c[0] / 255, g = c[1] / 255, b = c[2] / 255;
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+    let h = 0, s = 0; const l = (mx + mn) / 2;
+    if (mx !== mn) {
+      const d = mx - mn;
+      s = l > 0.5 ? d / (2 - mx - mn) : d / (mx + mn);
+      if (mx === r) h = (g - b) / d + (g < b ? 6 : 0);
+      else if (mx === g) h = (b - r) / d + 2;
+      else h = (r - g) / d + 4;
+      h /= 6;
+    }
+    return [h, s, l];
+  }
+  function hsl2rgb(hsl) {
+    const [h, s, l] = hsl;
+    if (s === 0) return [l * 255, l * 255, l * 255];
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s, p = 2 * l - q;
+    const f = t => {
+      if (t < 0) t += 1; if (t > 1) t -= 1;
+      if (t < 1 / 6) return p + (q - p) * 6 * t;
+      if (t < 1 / 2) return q;
+      if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+      return p;
+    };
+    return [f(h + 1 / 3) * 255, f(h) * 255, f(h - 1 / 3) * 255];
+  }
+  function palFromHex(p) { const o = {}; for (const k of PAL_KEYS) o[k] = hex(p[k]); return o; }
+  function clonePal(p) { const o = {}; for (const k of PAL_KEYS) o[k] = p[k].slice(); return o; }
+  function rrect(g, x, y, w, h, r) {
+    g.beginPath();
+    g.moveTo(x + r, y); g.lineTo(x + w - r, y); g.quadraticCurveTo(x + w, y, x + w, y + r);
+    g.lineTo(x + w, y + h - r); g.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    g.lineTo(x + r, y + h); g.quadraticCurveTo(x, y + h, x, y + h - r);
+    g.lineTo(x, y + r); g.quadraticCurveTo(x, y, x + r, y); g.closePath();
+  }
+  function disc(g, x, y, r) { g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill(); }
+  function fitText(g, text, maxW) {
+    if (g.measureText(text).width <= maxW) return text;
+    let t = text;
+    while (t.length > 1 && g.measureText(t + '…').width > maxW) t = t.slice(0, -1);
+    return t + '…';
+  }
+  const fmt = s => { s = Math.max(0, Math.floor(s)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+  const dayKey = () => { const d = new Date(); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); };
+
+  // ---------- elements & state ----------
+  const canvas = document.getElementById('scene');
+  const ctx = canvas.getContext('2d');
+
+  let W = 0, H = 0, DPR = 1, safeTop = 0;
+  let pal = palFromHex(DEMO[0].pal), targetPal = clonePal(pal);
+  const PREVIEW_SPEED = 6;          // the preview feed runs faster than real time
+  let booted = false;
+  const preview = { skipAt: Infinity, pauseAt: Infinity, resumeAt: 0, beatClock: 0 };
+  const demo = { a: 0, t: 0 };
+  const albums = new Map();
+  let album = null;        // album of the track that is playing
+  let shown = null;        // album whose record is on the platter
+  let track = null;        // { start, end, fixed }
+  let cue = null;          // tonearm / record-change animation
+  let armPhi = REST_PHI, armLift = 0.1;
+  let spin = 0, spinVel = 0, beatEnv = 0, lastBeat = -1, legPhase = 0;
+  let recOff = { x: 0, y: 0, lift: 0 };
+  let prevPt = null, prog = 0, posNow = 0;
+  let today = [], todayKey = dayKey();
+  let particles = [];
+  let lastSave = 0, lastDayCheck = 0, frameNo = 0, grainOff = { x: 0, y: 0 };
+  let saved = null;
+  const stylus = { x: 0, y: 0 };
+  let weBass = 0, bassAvg = 0, lastOnset = 0, weEnabled = true;
+  const media = { source: 'demo', state: 'stopped', title: '', artist: '', album: '', position: 0, duration: 1, bpm: 96, posAt: 0, key: '' };
+
+  const grooves = makeGrooves();
+  const noise = makeNoise();
+  let grainPat = null;
+  const scratch = document.createElement('canvas');
+  const sctx = scratch.getContext('2d');
+  const measure = document.createElement('canvas').getContext('2d');
+  const masks = new Map();
+  const specks = Array.from({ length: 16 }, () => ({ x: Math.random(), y: Math.random(), p: Math.random() * TAU }));
+
+  function makeGrooves() {
+    const c = document.createElement('canvas'); c.width = c.height = S;
+    const g = c.getContext('2d'); const C = S / 2;
+    let i = 0;
+    for (let f = 0.445; f < 0.985; f += 0.0044) {
+      g.beginPath(); g.arc(C, C, f * R_LOCAL, 0, TAU);
+      g.strokeStyle = i % 6 === 0 ? 'rgba(0,0,0,0.10)' : 'rgba(0,0,0,0.055)';
+      g.lineWidth = 1; g.stroke(); i++;
+    }
+    for (let f = 0.447; f < 0.985; f += 0.0088) {
+      g.beginPath(); g.arc(C, C, f * R_LOCAL, 0, TAU);
+      g.strokeStyle = 'rgba(255,255,255,0.16)'; g.lineWidth = 0.8; g.stroke();
+    }
+    g.strokeStyle = 'rgba(0,0,0,0.09)'; g.lineWidth = 1.6;
+    [0.43, 0.992].forEach(f => { g.beginPath(); g.arc(C, C, f * R_LOCAL, 0, TAU); g.stroke(); });
+    return c;
+  }
+
+  function makeNoise() {
+    const n = 180, c = document.createElement('canvas'); c.width = c.height = n;
+    const g = c.getContext('2d'); const id = g.createImageData(n, n);
+    for (let i = 0; i < id.data.length; i += 4) {
+      const v = Math.random() < 0.5 ? 0 : 255;
+      id.data[i] = id.data[i + 1] = id.data[i + 2] = v;
+      id.data[i + 3] = Math.random() * 58;
+    }
+    g.putImageData(id, 0, 0);
+    return c;
+  }
+
+  // Album label art (generated, original)
+  function makeLabel(t, P) {
+    const N = 512, C = N / 2;
+    const c = document.createElement('canvas'); c.width = c.height = N;
+    const g = c.getContext('2d');
+    const A = css(P.accent), B = css(P.record), D = css(P.plinth);
+    g.save();
+    g.beginPath(); g.arc(C, C, C, 0, TAU); g.clip();
+    g.fillStyle = css(P.label); g.fillRect(0, 0, N, N);
+    switch (t.motif) {
+      case 'sun':
+        for (let i = 6; i > 0; i--) { g.fillStyle = i % 2 ? A : B; disc(g, C, C * 1.32, i * 46); }
+        break;
+      case 'stripes':
+        for (let i = 0; i < 10; i++) { g.fillStyle = i % 2 ? D : B; g.fillRect(0, i * N / 10, N, N / 20); }
+        break;
+      case 'dots':
+        g.fillStyle = D;
+        for (let y = 36, r = 0; y < N; y += 54, r++) for (let x = 30 + (r % 2) * 27; x < N; x += 54) disc(g, x, y, 12);
+        break;
+      case 'waves':
+        g.lineWidth = 22;
+        for (let k = 0; k < 8; k++) {
+          g.strokeStyle = k % 2 ? B : D; g.beginPath();
+          for (let x = 0; x <= N; x += 8) { const y = 40 + k * 62 + Math.sin(x / 46 + k) * 16; x ? g.lineTo(x, y) : g.moveTo(x, y); }
+          g.stroke();
+        }
+        break;
+      default: break;
+    }
+    g.strokeStyle = css(P.record, 0.55); g.lineWidth = 3;
+    g.beginPath(); g.arc(C, C, C * 0.88, 0, TAU); g.stroke();
+    if (t.title) {
+      g.fillStyle = css(P.label); g.fillRect(0, C + 66, N, 84);
+      const txt = lum(P.label) > 0.6 ? P.ink : P.record;
+      g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.font = `700 30px ${FONT}`; g.fillStyle = css(txt);
+      g.fillText(fitText(g, t.title, N * 0.66), C, C + 94);
+      g.font = `500 20px ${FONT}`; g.fillStyle = css(txt, 0.75);
+      g.fillText(fitText(g, t.artist || '', N * 0.6), C, C + 126);
+    }
+    g.restore();
+    g.fillStyle = css(P.record); disc(g, C, C, 14);
+    return c;
+  }
+
+  function labelFromImage(img) {
+    const N = 512, C = N / 2;
+    const c = document.createElement('canvas'); c.width = c.height = N;
+    const g = c.getContext('2d');
+    g.save(); g.beginPath(); g.arc(C, C, C, 0, TAU); g.clip();
+    const sc = Math.max(N / img.width, N / img.height);
+    g.drawImage(img, C - img.width * sc / 2, C - img.height * sc / 2, img.width * sc, img.height * sc);
+    g.strokeStyle = 'rgba(255,255,255,0.35)'; g.lineWidth = 3;
+    g.beginPath(); g.arc(C, C, C * 0.88, 0, TAU); g.stroke();
+    g.restore();
+    g.fillStyle = '#F4EFEA'; disc(g, C, C, 14);
+    return c;
+  }
+
+  function paletteFromImage(img) {
+    const n = 24, c = document.createElement('canvas'); c.width = c.height = n;
+    const g = c.getContext('2d', { willReadFrequently: true });
+    g.drawImage(img, 0, 0, n, n);
+    const d = g.getImageData(0, 0, n, n).data;
+    const px = []; let best = null, bestScore = -1;
+    for (let i = 0; i < d.length; i += 4) {
+      const col = [d[i], d[i + 1], d[i + 2]]; const hsl = rgb2hsl(col);
+      px.push({ col, l: hsl[2] });
+      const score = hsl[1] * (1 - Math.abs(hsl[2] - 0.5) * 1.6);
+      if (score > bestScore) { bestScore = score; best = hsl; }
+    }
+    px.sort((a, b) => a.l - b.l);
+    const cut = Math.max(1, Math.floor(px.length * 0.2));
+    let dark = [0, 0, 0]; for (let i = 0; i < cut; i++) dark = mix(dark, px[i].col, 1 / (i + 1));
+    const dh = rgb2hsl(dark), h = best[0], s = best[1];
+    const deep = hsl2rgb([dh[0], Math.min(0.55, dh[1] + 0.1), clamp(dh[2], 0.16, 0.28)]);
+    return {
+      bg: hsl2rgb([h, Math.min(0.45, s * 0.6 + 0.1), 0.89]),
+      plinth: deep, label: deep.slice(),
+      record: hsl2rgb([h, Math.min(0.35, s * 0.5 + 0.08), 0.94]),
+      accent: hsl2rgb([h, Math.max(0.55, s), clamp(best[2], 0.45, 0.58)]),
+      ink: hsl2rgb([dh[0], Math.min(0.5, dh[1] + 0.1), 0.2]),
+    };
+  }
+
+  // ---------- tonearm geometry (record-plane units of R) ----------
+  function stylusAt(fr) {
+    const d = Math.hypot(ARM.bx, ARM.by), ux = ARM.bx / d, uy = ARM.by / d, L = ARM.len;
+    const a = (fr * fr - L * L + d * d) / (2 * d);
+    const h = Math.sqrt(Math.max(0, fr * fr - a * a));
+    return { x: a * ux - h * uy, y: a * uy + h * ux };
+  }
+  function phiOf(fr) { const p = stylusAt(fr); return Math.atan2(p.y - ARM.by, p.x - ARM.bx); }
+  function armTip(phi) { return { x: ARM.bx + ARM.len * Math.cos(phi), y: ARM.by + ARM.len * Math.sin(phi) }; }
+  function trackFr(p) {
+    if (!track) return R_OUT;
+    const end = track.fixed ? track.end : Math.max(R_IN, track.start - (R_OUT - R_IN) * media.duration / SIDE_LEN);
+    return track.start - (track.start - end) * p;
+  }
+  const stylusFr = () => { const t = armTip(armPhi); return Math.hypot(t.x, t.y); };
+
+  // ---------- albums ----------
+  function createAlbum(key, info) {
+    const trail = document.createElement('canvas'); trail.width = trail.height = S;
+    const A = { key, title: info.albumTitle, artist: info.artist, label: info.label, pal: clonePal(info.pal),
+      trail, tctx: trail.getContext('2d'), gaps: (info.gaps || []).slice(), fixedGaps: !!info.gaps, cursor: R_OUT };
+    if (saved && saved.album && saved.album.key === key) {
+      const s = saved.album;
+      if (!A.fixedGaps && Array.isArray(s.gaps)) A.gaps = s.gaps;
+      if (typeof s.cursor === 'number') A.cursor = s.cursor;
+      if (s.img) { const img = new Image(); img.onload = () => A.tctx.drawImage(img, 0, 0); img.src = s.img; }
+      saved.album = null;
+    }
+    albums.set(key, A);
+    if (albums.size > 5) {
+      for (const k of albums.keys()) { if (k !== key && albums.get(k) !== shown) { albums.delete(k); break; } }
+    }
+    return A;
+  }
+
+  // info: { albumKey, albumTitle, artist, label, pal, band?, gaps? }
+  function beginTrack(info) {
+    const now = performance.now();
+    if (shown && track && !track.fixed && booted && !cue && armLift < 0.5) {
+      const here = stylusFr();
+      if (here <= R_OUT + 0.01) { shown.cursor = here - GAP; shown.gaps.push(here - GAP / 2); }
+    }
+    let A = albums.get(info.albumKey) || createAlbum(info.albumKey, info);
+    const newAlbum = !shown || shown.key !== A.key;
+    album = A;
+    if (info.band) track = { start: info.band.start, end: info.band.end, fixed: true };
+    else {
+      if (A.cursor - R_IN < 0.06) { A.cursor = R_OUT; }
+      track = { start: A.cursor, end: null, fixed: false };
+    }
+    if (!booted) {
+      booted = true; shown = A; pal = clonePal(A.pal); targetPal = clonePal(A.pal);
+      cue = { kind: 'start', t0: now, dur: 1700, fromPhi: armPhi, fromLift: armLift };
+    } else if (newAlbum) {
+      cue = { kind: 'album', t0: now, dur: 2600, fromPhi: armPhi, fromLift: armLift, next: A, swapped: false };
+    } else {
+      cue = { kind: 'track', t0: now, dur: 1300, fromPhi: armPhi, fromLift: armLift };
+    }
+    prevPt = null; lastBeat = -1;
+    today.push({ t: media.title, a: media.artist, c: toHex(A.pal.accent), at: Date.now() });
+    if (today.length > 80) today.shift();
+    save();
+  }
+
+  function applyArt(label, palette) {
+    if (!album) return;
+    album.label = label; album.pal = clonePal(palette);
+    if (shown === album) targetPal = clonePal(palette);
+    const last = today[today.length - 1];
+    if (last && Date.now() - last.at < 10000) last.c = toHex(palette.accent);
+  }
+
+  // ---------- demo source ----------
+  function bandsFor(alb) {
+    const total = alb.tracks.reduce((s, t) => s + t[1], 0);
+    const span = (R_OUT - R_IN) - GAP * (alb.tracks.length - 1);
+    let cur = R_OUT;
+    return alb.tracks.map(t => { const w = span * t[1] / total; const b = { start: cur, end: cur - w }; cur -= w + GAP; return b; });
+  }
+  DEMO.forEach(a => { a.bands = bandsFor(a); a.gaps = a.bands.slice(1).map(b => b.start + GAP / 2); });
+
+  function demoPlay() {
+    const A = DEMO[demo.a], T = A.tracks[demo.t];
+    media.title = T[0]; media.artist = A.artist; media.album = A.album;
+    media.duration = T[1]; media.bpm = A.bpm; media.position = 0;
+    // the simulated listener sometimes skips ahead or pauses for a moment
+    preview.skipAt = Math.random() < 0.2 ? T[1] * rand(0.35, 0.7) : Infinity;
+    preview.pauseAt = Math.random() < 0.25 ? T[1] * rand(0.2, 0.6) : Infinity;
+    const P = palFromHex(A.pal);
+    const key = 'demo:' + demo.a;
+    beginTrack({
+      albumKey: key, albumTitle: A.album, artist: A.artist, pal: P,
+      label: albums.has(key) ? null : makeLabel({ title: A.album, artist: A.artist, motif: A.motif }, P),
+      band: A.bands[demo.t], gaps: A.gaps,
+    });
+  }
+  function demoNext() {
+    demo.t++;
+    if (demo.t >= DEMO[demo.a].tracks.length) { demo.t = 0; demo.a = (demo.a + 1) % DEMO.length; }
+    demoPlay();
+  }
+  function initDemo() {
+    media.source = 'demo';
+    if (saved && saved.demo && DEMO[saved.demo.a] && DEMO[saved.demo.a].tracks[saved.demo.t]) { demo.a = saved.demo.a; demo.t = saved.demo.t; }
+    media.state = 'playing';
+    demoPlay();
+  }
+
+  // ---------- Wallpaper Engine source (Windows media sessions) ----------
+  const hasWE = () => typeof window.wallpaperRegisterMediaPropertiesListener === 'function';
+  function setState(s) {
+    const prev = media.state; media.state = s;
+    const now = performance.now();
+    if (s === 'stopped' && prev !== 'stopped' && booted && !cue) cue = { kind: 'park', t0: now, dur: 1200, fromPhi: armPhi, fromLift: armLift };
+    if (s === 'playing' && prev === 'stopped' && booted && track && !cue) cue = { kind: 'start', t0: now, dur: 1500, fromPhi: armPhi, fromLift: armLift };
+  }
+  function initWE() {
+    const w = window;
+    media.source = 'we'; media.state = 'stopped'; media.title = ''; media.artist = ''; media.album = ''; media.key = '';
+    media.position = 0; media.duration = 1; media.bpm = 96;
+    showIdleRecord();
+    if (typeof w.wallpaperRegisterMediaStatusListener === 'function') {
+      w.wallpaperRegisterMediaStatusListener(e => { weEnabled = !!e.enabled; if (!e.enabled) setState('stopped'); });
+    }
+    w.wallpaperRegisterMediaPropertiesListener(e => {
+      const key = (e.title || '') + '|' + (e.artist || '');
+      if (key === media.key) return;
+      media.key = key; media.title = e.title || ''; media.artist = e.artist || ''; media.album = e.albumTitle || '';
+      media.position = 0; media.posAt = performance.now();
+      if (!media.title) return;
+      const albumArtist = e.albumArtist || e.artist || '';
+      const albumKey = 'we:' + (e.albumTitle || albumArtist || 'unknown') + '|' + albumArtist;
+      const known = albums.get(albumKey);
+      const P = known ? known.pal : clonePal(targetPal);
+      beginTrack({
+        albumKey, albumTitle: e.albumTitle || '', artist: albumArtist, pal: P,
+        label: known ? null : makeLabel({ title: e.albumTitle || media.title, artist: albumArtist, motif: 'none' }, P),
+      });
+    });
+    if (typeof w.wallpaperRegisterMediaThumbnailListener === 'function') {
+      w.wallpaperRegisterMediaThumbnailListener(e => {
+        if (!e || !e.thumbnail) return;
+        const src = e.thumbnail.startsWith('data:') ? e.thumbnail : 'data:image/png;base64,' + e.thumbnail;
+        const img = new Image();
+        img.onload = () => applyArt(labelFromImage(img), paletteFromImage(img));
+        img.src = src;
+      });
+    }
+    if (typeof w.wallpaperRegisterMediaPlaybackListener === 'function') {
+      w.wallpaperRegisterMediaPlaybackListener(e => {
+        const P = w.wallpaperMediaIntegration || {};
+        media.position = currentPos(performance.now()); media.posAt = performance.now();
+        setState(e.state === P.PLAYBACK_PLAYING ? 'playing' : e.state === P.PLAYBACK_PAUSED ? 'paused' : 'stopped');
+      });
+    }
+    if (typeof w.wallpaperRegisterMediaTimelineListener === 'function') {
+      w.wallpaperRegisterMediaTimelineListener(e => {
+        media.position = e.position || 0; media.duration = Math.max(1, e.duration || 1); media.posAt = performance.now();
+      });
+    }
+    if (typeof w.wallpaperRegisterAudioListener === 'function') {
+      w.wallpaperRegisterAudioListener(arr => {
+        let s = 0; for (let i = 0; i < 6; i++) s += (arr[i] || 0) + (arr[64 + i] || 0);
+        weBass = s / 12;
+      });
+    }
+  }
+
+  // ---------- local helper source (Mac + Apple Music via nowplaying.py) ----------
+  const isLocalHelper = () => location.protocol.startsWith('http') && /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+  let localOk = true, localArt = '';
+  function showIdleRecord() {
+    if (shown) return;
+    const P0 = palFromHex(DEMO[0].pal);
+    shown = createAlbum('idle', { albumTitle: '', artist: '', pal: P0, label: makeLabel({ motif: 'sun' }, P0) });
+    pal = clonePal(P0); targetPal = clonePal(P0);
+  }
+  function applyNowPlaying(d) {
+    if (!d || d.state === 'stopped' || !d.title) { setState('stopped'); return; }
+    const now = performance.now();
+    if (d.id !== media.key) {
+      media.key = d.id; media.title = d.title; media.artist = d.artist || ''; media.album = d.album || '';
+      media.bpm = d.bpm > 0 ? d.bpm : 0;
+      media.position = d.position || 0; media.duration = Math.max(1, d.duration || 1); media.posAt = now;
+      const albumArtist = d.albumArtist || d.artist || '';
+      const albumKey = 'am:' + (d.album || albumArtist || 'unknown') + '|' + albumArtist;
+      const known = albums.get(albumKey);
+      const P = known ? known.pal : clonePal(targetPal);
+      beginTrack({
+        albumKey, albumTitle: d.album || '', artist: albumArtist, pal: P,
+        label: known ? null : makeLabel({ title: d.album || d.title, artist: albumArtist, motif: 'none' }, P),
+      });
+    }
+    const next = d.state === 'playing' ? 'playing' : 'paused';
+    if (next !== media.state || Math.abs(currentPos(now) - (d.position || 0)) > 0.8) { media.position = d.position || 0; media.posAt = now; }
+    if (d.duration > 0) media.duration = d.duration;
+    setState(next);
+    if (d.art && d.art !== localArt) {
+      localArt = d.art;
+      const img = new Image();
+      img.onload = () => applyArt(labelFromImage(img), paletteFromImage(img));
+      img.src = '/art?v=' + encodeURIComponent(d.art);
+    }
+  }
+  async function pollLocal() {
+    try {
+      const r = await fetch('/now', { cache: 'no-store' });
+      if (!r.ok) throw new Error('status ' + r.status);
+      localOk = true;
+      applyNowPlaying(await r.json());
+    } catch (e) { localOk = false; setState('stopped'); }
+    setTimeout(pollLocal, 1000);
+  }
+  function initLocal() {
+    media.source = 'local'; media.state = 'stopped'; media.key = '';
+    showIdleRecord();
+    pollLocal();
+  }
+
+  function currentPos(now) {
+    if (media.source === 'demo' || media.state !== 'playing') return media.position;
+    return Math.min(media.duration, media.position + (now - media.posAt) / 1000);
+  }
+
+  // ---------- persistence ----------
+  function save() {
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify({
+        date: todayKey, today, demo: media.source === 'demo' ? { a: demo.a, t: demo.t } : null,
+        album: shown ? { key: shown.key, cursor: shown.cursor, gaps: shown.fixedGaps ? null : shown.gaps, img: shown.trail.toDataURL('image/png') } : null,
+      }));
+    } catch (e) { /* storage unavailable or full */ }
+  }
+  function load() {
+    try {
+      const raw = localStorage.getItem(STORE_KEY);
+      if (!raw) return;
+      saved = JSON.parse(raw);
+      if (saved.date === todayKey && Array.isArray(saved.today)) today = saved.today;
+    } catch (e) { saved = null; }
+  }
+
+  function onBeat(strength) {
+    beatEnv = Math.max(beatEnv, strength);
+    if (reduceMotion) return;
+    const n = strength > 0.8 ? 5 : 2;
+    for (let i = 0; i < n; i++) {
+      particles.push({ x: stylus.x + rand(-4, 4), y: stylus.y - 2, vx: rand(-45, 45), vy: rand(-95, -40), life: 0.6, max: 0.6, white: Math.random() < 0.45 });
+    }
+  }
+
+  // ---------- update ----------
+  function liftCurve(e, up, down, from) {
+    if (e < up) return lerp(from, 1, easeOut(e / up));
+    if (e > down) return 1 - easeInOut((e - down) / (1 - down));
+    return 1;
+  }
+
+  function update(dt, now) {
+    const playing = media.state === 'playing';
+    if (playing) preview.beatClock += dt;
+    if (media.source === 'demo') {
+      if (playing) {
+        media.position += dt * PREVIEW_SPEED;
+        if (media.position >= preview.pauseAt) { preview.pauseAt = Infinity; media.state = 'paused'; preview.resumeAt = now + 4500; }
+        else if (media.position >= Math.min(media.duration, preview.skipAt)) demoNext();
+      } else if (media.state === 'paused' && now >= preview.resumeAt) media.state = 'playing';
+    }
+    posNow = currentPos(now);
+    prog = clamp(posNow / media.duration);
+    const onPhi = phiOf(trackFr(prog));
+
+    recOff = { x: 0, y: 0, lift: 0 };
+    if (cue) {
+      const e = (now - cue.t0) / cue.dur;
+      if (e >= 1) {
+        if (cue.kind === 'album' && !cue.swapped) swapRecord(cue.next);
+        cue = null;
+      } else if (cue.kind === 'track') {
+        armPhi = lerp(cue.fromPhi, onPhi, easeInOut(clamp((e - 0.25) / 0.5)));
+        armLift = liftCurve(e, 0.25, 0.75, cue.fromLift);
+      } else if (cue.kind === 'start') {
+        armPhi = lerp(cue.fromPhi, onPhi, easeInOut(clamp((e - 0.15) / 0.65)));
+        armLift = liftCurve(e, 0.15, 0.8, cue.fromLift);
+      } else if (cue.kind === 'park') {
+        armPhi = lerp(cue.fromPhi, REST_PHI, easeInOut(clamp((e - 0.3) / 0.55)));
+        armLift = e < 0.3 ? lerp(cue.fromLift, 1, easeOut(e / 0.3)) : e < 0.85 ? 1 : lerp(1, 0.1, easeInOut((e - 0.85) / 0.15));
+      } else if (cue.kind === 'album') {
+        if (e < 0.32) armPhi = lerp(cue.fromPhi, REST_PHI, easeInOut(clamp((e - 0.12) / 0.2)));
+        else if (e < 0.72) armPhi = REST_PHI;
+        else armPhi = lerp(REST_PHI, onPhi, easeInOut(clamp((e - 0.72) / 0.18)));
+        armLift = liftCurve(e, 0.12, 0.9, cue.fromLift);
+        if (e >= 0.32 && e < 0.52) { const k = easeIn((e - 0.32) / 0.2); recOff = { x: k * 1.8, y: -k * 0.28, lift: k }; }
+        else if (e >= 0.52 && e < 0.72) {
+          if (!cue.swapped) { swapRecord(cue.next); cue.swapped = true; }
+          const k = 1 - easeOut((e - 0.52) / 0.2); recOff = { x: -k * 1.8, y: -k * 0.28, lift: k };
+        }
+      }
+    }
+    if (!cue) {
+      const k = 1 - Math.exp(-dt * 5);
+      if (media.state === 'stopped' || !track) { armPhi += (REST_PHI - armPhi) * k; armLift += (0.1 - armLift) * k; }
+      else { armPhi = onPhi; armLift += ((media.state === 'paused' ? 0.32 : 0) - armLift) * k; }
+    }
+
+    const f = 1 - Math.exp(-dt * 3);
+    for (const key of PAL_KEYS) pal[key] = mix(pal[key], targetPal[key], f);
+
+    const spd = media.source === 'demo' ? PREVIEW_SPEED : 1;
+    const target = playing ? TAU * RPS * spd : 0;
+    spinVel += (target - spinVel) * (1 - Math.exp(-dt * (target > spinVel ? 2.5 : 1.6)));
+    spin += spinVel * dt;
+
+    const onRecord = !cue && armLift < 0.03 && shown === album;
+    if (playing && onRecord) {
+      if (media.source !== 'we') {
+        if (media.bpm > 0) {
+          const b = Math.floor(preview.beatClock * media.bpm / 60);
+          if (b !== lastBeat) { if (lastBeat >= 0 && b > lastBeat) onBeat(b % 4 === 0 ? 1 : 0.55); lastBeat = b; }
+        }
+      } else {
+        bassAvg += (weBass - bassAvg) * (1 - Math.exp(-dt * 2));
+        if (weBass > 0.12 && weBass > bassAvg * 1.4 && now - lastOnset > 230) { lastOnset = now; onBeat(clamp(weBass * 2, 0.4, 1)); }
+      }
+    }
+    beatEnv *= Math.exp(-dt * 6);
+    if (playing) legPhase += dt * TAU * ((media.bpm || 96) / 60) * 0.5;
+
+    if (playing && onRecord && spinVel > 0.02) {
+      const tip = armTip(armPhi);
+      const pt = { fr: Math.hypot(tip.x, tip.y) - 0.004 * beatEnv, a: Math.atan2(tip.y, tip.x) - spin };
+      if (prevPt) strokeTrail(prevPt, pt);
+      prevPt = pt;
+    } else prevPt = null;
+
+    for (const p of particles) { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 170 * dt; p.life -= dt; }
+    particles = particles.filter(p => p.life > 0);
+
+    if (now - lastDayCheck > 3000) {
+      lastDayCheck = now;
+      const k = dayKey();
+      if (k !== todayKey) { todayKey = k; today = []; save(); }
+    }
+    if (playing && now - lastSave > 20000) { lastSave = now; save(); }
+    frameNo++;
+    if (frameNo % 6 === 0 && !reduceMotion) grainOff = { x: (Math.random() * 180) | 0, y: (Math.random() * 180) | 0 };
+  }
+
+  function swapRecord(A) {
+    shown = A; pal = clonePal(A.pal); targetPal = clonePal(A.pal); prevPt = null;
+  }
+
+  function strokeTrail(p0, p1) {
+    const g = shown.tctx;
+    let da = p1.a - p0.a;
+    const steps = Math.max(1, Math.ceil(Math.abs(da) / 0.035));
+    const C = S / 2;
+    g.strokeStyle = css(targetPal.accent); g.lineWidth = 1.8; g.lineCap = 'round'; g.lineJoin = 'round';
+    g.beginPath();
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps, fr = p0.fr + (p1.fr - p0.fr) * t, a = p0.a + da * t;
+      const x = C + fr * R_LOCAL * Math.cos(a), y = C + fr * R_LOCAL * Math.sin(a);
+      i ? g.lineTo(x, y) : g.moveTo(x, y);
+    }
+    g.stroke();
+  }
+
+  // ---------- drawing ----------
+  function layout() {
+    const portrait = W / H < 0.9;
+    let cx, cy, R;
+    if (portrait) { R = Math.min(W * 0.52, H * 0.4); cx = W * 0.46; cy = H * 0.6; }
+    else { R = Math.min(W * 0.32, H * 0.62); cx = W * 0.57; cy = H * 0.6; }
+    return { cx, cy, R, k: R / R_LOCAL };
+  }
+  function toScreen(L, lx, ly, ox = 0, oy = 0) {
+    const y2 = ly * SQUASH, c = Math.cos(TILT), s = Math.sin(TILT);
+    return { x: L.cx + ox + lx * c - y2 * s, y: L.cy + oy + lx * s + y2 * c };
+  }
+  function plane(L, ox = 0, oy = 0) { ctx.translate(L.cx + ox, L.cy + oy); ctx.rotate(TILT); ctx.scale(1, SQUASH); }
+  function sceneColors() {
+    const d = isDark();
+    const c = clonePal(pal);
+    if (d) {
+      c.bg = mix(pal.bg, [18, 21, 20], 0.84);
+      c.plinth = mix(pal.plinth, [8, 10, 9], 0.35);
+      c.record = mix(pal.record, [40, 38, 42], 0.62);
+      const h = rgb2hsl(pal.bg); c.ink = hsl2rgb([h[0], Math.min(0.4, h[1]), 0.86]);
+    }
+    c.edge = mix(c.record, [0, 0, 0], 0.16);
+    c.metal = d ? [196, 192, 194] : [250, 245, 242];
+    c.metalD = mix(c.metal, [0, 0, 0], 0.16);
+    c.shade = mix(c.plinth, [0, 0, 0], 0.28);
+    return c;
+  }
+
+  function drawPlinth(L, C) {
+    const R = L.R;
+    ctx.save(); plane(L);
+    const x = -1.22 * R, y = -1.18 * R, w = 7 * R, h = 7 * R, r = 0.14 * R;
+    rrect(ctx, x, y, w, h, r);
+    ctx.shadowColor = 'rgba(0,0,0,0.16)'; ctx.shadowBlur = 40; ctx.shadowOffsetY = 18;
+    ctx.fillStyle = css(C.plinth); ctx.fill();
+    ctx.shadowColor = 'transparent';
+    ctx.strokeStyle = 'rgba(255,255,255,0.10)'; ctx.lineWidth = 3; ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawSpecks(now) {
+    const ps = 2;
+    for (const sp of specks) {
+      ctx.fillStyle = `rgba(255,255,255,${0.25 + 0.35 * (0.5 + 0.5 * Math.sin(now / 900 + sp.p))})`;
+      ctx.fillRect(Math.round(sp.x * W / ps) * ps, Math.round(sp.y * H / ps) * ps, ps, ps);
+    }
+  }
+
+  function drawDeck(L, C) {
+    const R = L.R;
+    ctx.save(); plane(L);
+    // tonearm base plate
+    const bx = ARM.bx * R, by = ARM.by * R;
+    ctx.fillStyle = css(C.shade); disc(ctx, bx + 0.015 * R, by + 0.035 * R, 0.13 * R);
+    ctx.fillStyle = css(C.metal); disc(ctx, bx, by, 0.125 * R);
+    ctx.fillStyle = css(mix(C.metal, C.plinth, 0.18)); disc(ctx, bx, by, 0.07 * R);
+    // speed knob + power lamp
+    const kx = 0.75 * R, ky = 1.0 * R, on = media.state === 'playing';
+    ctx.fillStyle = css(C.shade); disc(ctx, kx + 0.012 * R, ky + 0.03 * R, 0.085 * R);
+    ctx.fillStyle = css(C.metal); disc(ctx, kx, ky, 0.08 * R);
+    const na = on ? -0.7 : -2.3;
+    ctx.strokeStyle = css(C.plinth); ctx.lineWidth = 0.014 * R; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(kx, ky); ctx.lineTo(kx + Math.cos(na) * 0.06 * R, ky + Math.sin(na) * 0.06 * R); ctx.stroke();
+    ctx.fillStyle = on ? css(C.accent) : css(mix(C.plinth, [255, 255, 255], 0.18));
+    disc(ctx, kx - 0.16 * R, ky + 0.02 * R, 0.022 * R);
+    ctx.restore();
+    // arm rest post (screen space, stands up from the plinth)
+    const rt = armTip(REST_PHI), rp = toScreen(L, rt.x * R, rt.y * R);
+    const ph = 0.03 * R * 0.15 + 0.014 * R + 0.01 * R, pw = 0.03 * R;
+    ctx.fillStyle = 'rgba(0,0,0,0.16)'; ctx.beginPath(); ctx.ellipse(rp.x + pw * 0.4, rp.y + pw * 0.2, pw * 0.9, pw * 0.45, 0, 0, TAU); ctx.fill();
+    ctx.fillStyle = css(C.metalD); ctx.fillRect(rp.x - pw / 2, rp.y - ph, pw, ph);
+    ctx.beginPath(); ctx.ellipse(rp.x, rp.y, pw / 2, pw / 2 * SQUASH, 0, 0, TAU); ctx.fill();
+    ctx.fillStyle = css(C.metal); ctx.beginPath(); ctx.ellipse(rp.x, rp.y - ph, pw / 2, pw / 2 * SQUASH, 0, 0, TAU); ctx.fill();
+  }
+
+  function drawRecord(L, C) {
+    if (!shown) return;
+    const R = L.R, k = L.k;
+    const ox = recOff.x * R, oy = recOff.y * R, lift = recOff.lift;
+    const thick = Math.max(3, 0.022 * R), sc = 1 + 0.03 * lift, up = lift * 0.04 * R;
+
+    ctx.save(); ctx.translate(L.cx + ox, L.cy + oy + thick - up); ctx.rotate(TILT); ctx.scale(sc, SQUASH * sc);
+    ctx.shadowColor = `rgba(0,0,0,${0.22 + 0.1 * lift})`;
+    ctx.shadowBlur = 24 + 30 * lift; ctx.shadowOffsetX = 10 + 20 * lift; ctx.shadowOffsetY = 14 + 24 * lift;
+    ctx.beginPath(); ctx.arc(0, 0, R, 0, TAU); ctx.fillStyle = css(C.edge); ctx.fill();
+    ctx.restore();
+
+    ctx.save(); ctx.translate(L.cx + ox, L.cy + oy - up); ctx.rotate(TILT); ctx.scale(sc, SQUASH * sc);
+    ctx.beginPath(); ctx.arc(0, 0, R, 0, TAU); ctx.fillStyle = css(C.record); ctx.fill();
+    ctx.save(); ctx.clip();
+    ctx.drawImage(grooves, -S / 2 * k, -S / 2 * k, S * k, S * k);
+    // gaps between tracks: smooth bands without grooves
+    ctx.strokeStyle = css(mix(C.record, [255, 255, 255], 0.5)); ctx.lineWidth = GAP * 0.7 * R;
+    for (const g of shown.gaps) { ctx.beginPath(); ctx.arc(0, 0, g * R, 0, TAU); ctx.stroke(); }
+    ctx.rotate(spin);
+    ctx.drawImage(shown.trail, -S / 2 * k, -S / 2 * k, S * k, S * k);
+    if (shown.label) { const lr = LABEL_R * R; ctx.drawImage(shown.label, -lr, -lr, 2 * lr, 2 * lr); }
+    ctx.restore();
+    const gr = ctx.createLinearGradient(-R, -R, R, R), sheen = isDark() ? 0.07 : 0.16;
+    gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.43, 'rgba(255,255,255,0)');
+    gr.addColorStop(0.5, `rgba(255,255,255,${sheen})`);
+    gr.addColorStop(0.57, 'rgba(255,255,255,0)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(0, 0, R, 0, TAU); ctx.arc(0, 0, LABEL_R * R * 1.02, 0, TAU, true); ctx.fill('evenodd');
+    ctx.restore();
+
+    const cx = L.cx + ox, cy = L.cy + oy - up, sr = Math.max(2.5, 0.022 * R), sh = Math.max(5, 0.05 * R);
+    ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.beginPath(); ctx.ellipse(cx + sr * 0.5, cy + sr * 0.3, sr * 1.3, sr * 0.75, 0, 0, TAU); ctx.fill();
+    ctx.fillStyle = css(C.metalD); ctx.fillRect(cx - sr, cy - sh, sr * 2, sh);
+    ctx.beginPath(); ctx.ellipse(cx, cy, sr, sr * SQUASH, 0, 0, TAU); ctx.fill();
+    ctx.fillStyle = css(C.metal); ctx.beginPath(); ctx.ellipse(cx, cy - sh, sr, sr * SQUASH, 0, 0, TAU); ctx.fill();
+  }
+
+  function drawArm(L, C, now) {
+    const R = L.R;
+    const tip = armTip(armPhi);
+    const back = { x: ARM.bx - 0.2 * Math.cos(armPhi), y: ARM.by - 0.2 * Math.sin(armPhi) };
+    const G = toScreen(L, ARM.bx * R, ARM.by * R), T = toScreen(L, tip.x * R, tip.y * R), K = toScreen(L, back.x * R, back.y * R);
+    stylus.x = T.x; stylus.y = T.y;
+    const hp = 0.08 * R, hs = 0.03 * R, lp = armLift * 0.14 * R, aw = Math.max(2, 0.022 * R);
+    const pivot = { x: G.x, y: G.y - hp }, cw = { x: K.x, y: K.y - hp };
+    const head = { x: T.x, y: T.y - hs - lp };
+
+    // shadow on the surface
+    const sx = 0.03 * R + lp * 0.35, sy = 0.035 * R + lp * 0.45;
+    ctx.strokeStyle = 'rgba(0,0,0,0.15)'; ctx.lineWidth = aw; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(G.x + 0.02 * R, G.y + 0.02 * R); ctx.lineTo(T.x + sx, T.y + sy); ctx.stroke();
+    ctx.fillStyle = 'rgba(0,0,0,0.14)';
+    ctx.beginPath(); ctx.ellipse(T.x + sx, T.y + sy, 0.05 * R, 0.022 * R, 0, 0, TAU); ctx.fill();
+
+    // pivot post
+    const pw = 0.06 * R;
+    ctx.fillStyle = css(C.metalD); ctx.fillRect(pivot.x - pw / 2, pivot.y, pw, hp);
+    ctx.beginPath(); ctx.ellipse(G.x, G.y, pw / 2, pw / 2 * SQUASH, 0, 0, TAU); ctx.fill();
+    ctx.fillStyle = css(C.metal); ctx.beginPath(); ctx.ellipse(pivot.x, pivot.y, pw / 2, pw / 2 * SQUASH, 0, 0, TAU); ctx.fill();
+
+    // counterweight and arm tube
+    ctx.strokeStyle = css(C.metal); ctx.lineWidth = aw;
+    ctx.beginPath(); ctx.moveTo(cw.x, cw.y); ctx.lineTo(pivot.x, pivot.y); ctx.stroke();
+    ctx.fillStyle = css(C.metalD); disc(ctx, cw.x, cw.y + 0.006 * R, 0.05 * R);
+    ctx.fillStyle = css(C.metal); disc(ctx, cw.x, cw.y, 0.045 * R);
+    ctx.strokeStyle = css(C.metal); ctx.lineWidth = aw;
+    ctx.beginPath(); ctx.moveTo(pivot.x, pivot.y); ctx.lineTo(head.x, head.y); ctx.stroke();
+
+    // cartridge and needle
+    const cwid = 0.046 * R, chh = hs * 0.8;
+    ctx.fillStyle = css(C.accent); rrect(ctx, head.x - cwid / 2, head.y, cwid, chh, 0.008 * R); ctx.fill();
+    ctx.strokeStyle = css(C.metalD); ctx.lineWidth = Math.max(1, 0.006 * R);
+    ctx.beginPath(); ctx.moveTo(head.x, head.y + chh); ctx.lineTo(head.x, head.y + hs); ctx.stroke();
+    // headshell plate
+    const ang = Math.atan2(head.y - pivot.y, head.x - pivot.x);
+    ctx.save(); ctx.translate(head.x, head.y); ctx.rotate(ang);
+    ctx.fillStyle = css(C.metal); rrect(ctx, -0.05 * R, -0.03 * R, 0.11 * R, 0.06 * R, 0.012 * R); ctx.fill();
+    ctx.restore();
+
+    drawRider(head.x + 0.006 * R, head.y - 0.012 * R, clamp(R * 0.16, 26, 90), C, now);
+  }
+
+  // The little rider who sits on the headshell
+  function drawRider(x, y, s, C, now) {
+    const u = s / 40;
+    const skin = '#F1C6A3', hair = '#2B2320', boot = '#FFF8F1', dark = '#2A2527';
+    const top = css(C.accent), topD = css(mix(C.accent, [0, 0, 0], 0.2));
+    const pc = isDark() ? mix(C.plinth, [255, 255, 255], 0.2) : C.plinth;
+    const pants = css(pc), pantsD = css(mix(pc, [0, 0, 0], 0.28));
+    const st = media.state;
+    const lifting = !!cue && armLift > 0.2;
+    const sleeping = st === 'stopped' && !cue;
+    const swing = st === 'playing' && !sleeping ? Math.sin(legPhase) : st === 'paused' ? Math.sin(now / 900) * 0.3 : 0;
+    const bob = beatEnv * 1.6 * u;
+
+    ctx.save(); ctx.translate(x, y - bob); ctx.scale(-1, 1);
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    const limb = (x1, y1, mx, my, x2, y2, col, w) => {
+      ctx.strokeStyle = col; ctx.lineWidth = w;
+      ctx.beginPath(); ctx.moveTo(x1, y1); ctx.quadraticCurveTo(mx, my, x2, y2); ctx.stroke();
+    };
+    const skate = (fx, fy) => {
+      ctx.fillStyle = boot; rrect(ctx, fx - 2.4 * u, fy - 3.2 * u, 7 * u, 3.2 * u, 1.2 * u); ctx.fill();
+      ctx.fillStyle = dark; disc(ctx, fx - 0.8 * u, fy + 0.8 * u, 1.15 * u); disc(ctx, fx + 3.3 * u, fy + 0.8 * u, 1.15 * u);
+    };
+    const leg = (dx, sw, col) => {
+      const kx = 4.6 * u + dx, ky = 0.4 * u, fx = kx + sw * 2.4 * u, fy = 8.4 * u - Math.abs(sw) * 0.8 * u;
+      limb(dx, 0, dx + 2.4 * u, 0.6 * u, kx, ky, col, 3.8 * u);
+      limb(kx, ky, kx + sw * 1.2 * u, (ky + fy) / 2, fx, fy - 1.6 * u, col, 3.6 * u);
+      skate(fx, fy);
+    };
+    const arm = (sx, sy, ex, ey, col) => {
+      limb(sx, sy, (sx + ex) / 2 + 0.6 * u, (sy + ey) / 2, ex, ey, col, 3 * u);
+      ctx.fillStyle = skin; disc(ctx, ex, ey, 1.5 * u);
+    };
+
+    const lean = sleeping ? 0.22 : -0.04;
+    const shX = Math.sin(lean) * 11 * u, shY = -Math.cos(lean) * 11 * u;
+    const hdX = Math.sin(lean) * 18 * u, hdY = -Math.cos(lean) * 18 * u;
+
+    leg(-1 * u, -swing, pantsD);
+    if (lifting) arm(shX, shY, shX - 3 * u, shY - 9 * u, topD);
+    else arm(shX, shY, -3.2 * u, -0.6 * u, topD);
+    ctx.save(); ctx.rotate(lean);
+    ctx.fillStyle = top; rrect(ctx, -4.8 * u, -13.5 * u, 9.6 * u, 14.5 * u, 4 * u); ctx.fill();
+    ctx.fillStyle = topD; rrect(ctx, -4.8 * u, -1.8 * u, 9.6 * u, 2.8 * u, 1.1 * u); ctx.fill();
+    ctx.restore();
+    leg(1 * u, swing, pants);
+
+    // head
+    ctx.save(); ctx.translate(hdX, hdY);
+    ctx.rotate(sleeping ? 0.35 : st === 'paused' ? Math.sin(now / 700) * 0.06 : beatEnv * -0.08);
+    ctx.fillStyle = hair; disc(ctx, -1.2 * u, 0.6 * u, 5.4 * u);
+    ctx.fillStyle = skin; disc(ctx, 0.6 * u, 0.4 * u, 5 * u);
+    ctx.fillStyle = 'rgb(255,246,236)';
+    ctx.beginPath(); ctx.arc(0, -0.6 * u, 5.8 * u, Math.PI, TAU); ctx.fill();
+    rrect(ctx, -6.2 * u, -1.6 * u, 12.4 * u, 2.4 * u, 1 * u); ctx.fill();
+    disc(ctx, -0.5 * u, -6.8 * u, 1.7 * u);
+    ctx.strokeStyle = dark; ctx.lineWidth = 1.3 * u;
+    ctx.beginPath(); ctx.arc(-0.6 * u, 0, 6.5 * u, Math.PI * 1.08, Math.PI * 1.92); ctx.stroke();
+    ctx.fillStyle = dark; rrect(ctx, -3.2 * u, -0.6 * u, 3.2 * u, 4.6 * u, 1.2 * u); ctx.fill();
+    if (sleeping) { ctx.strokeStyle = dark; ctx.lineWidth = 0.7 * u; ctx.beginPath(); ctx.moveTo(2.6 * u, 1 * u); ctx.lineTo(4.2 * u, 1 * u); ctx.stroke(); }
+    else disc(ctx, 3.4 * u, 0.9 * u, 0.6 * u);
+    ctx.fillStyle = 'rgba(240,120,110,0.45)'; disc(ctx, 2.6 * u, 2.6 * u, 1.1 * u);
+    ctx.restore();
+
+    if (lifting) arm(shX, shY, shX + 3 * u, shY - 9.5 * u, top);
+    else arm(shX, shY, 3.6 * u, -0.4 * u, top);
+    ctx.restore();
+
+    if (sleeping) {
+      const ink = css(sceneColors().ink, 0.7);
+      for (let i = 0; i < 3; i++) {
+        const t = ((now / 1600) + i / 3) % 1;
+        ctx.globalAlpha = Math.sin(Math.PI * t);
+        drawPix('z', x - 6 * u - t * 10 * u, y - 24 * u - t * 14 * u, 10 + i * 2, 2, ink, 800);
+      }
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  function drawParticles(C) {
+    const ps = W >= 1200 ? 3 : 2;
+    for (const p of particles) {
+      ctx.fillStyle = p.white ? `rgba(255,255,255,${p.life / p.max})` : css(C.accent, p.life / p.max);
+      ctx.fillRect(Math.round(p.x / ps) * ps, Math.round(p.y / ps) * ps, ps, ps);
+    }
+  }
+
+  // Pixel text: render small, threshold to hard pixels, scale up with no smoothing.
+  function pixMask(text, size, weight) {
+    const key = text + '|' + size + '|' + weight;
+    let m = masks.get(key); if (m) return m;
+    if (masks.size > 160) masks.clear();
+    const c = document.createElement('canvas'); const g = c.getContext('2d', { willReadFrequently: true });
+    const font = `${weight} ${size}px ${FONT}`; g.font = font;
+    const w = Math.max(1, Math.ceil(g.measureText(text).width) + 2), h = Math.ceil(size * 1.35) + 2;
+    c.width = w; c.height = h; g.font = font; g.textBaseline = 'top'; g.fillStyle = '#fff'; g.fillText(text, 1, 1);
+    const id = g.getImageData(0, 0, w, h), d = id.data;
+    for (let i = 0; i < d.length; i += 4) { const on = d[i + 3] > 88; d[i] = d[i + 1] = d[i + 2] = 255; d[i + 3] = on ? 255 : 0; }
+    g.putImageData(id, 0, 0); masks.set(key, c);
+    return c;
+  }
+  function drawPix(text, x, y, size, ps, color, weight) {
+    const m = pixMask(text, size, weight);
+    scratch.width = m.width; scratch.height = m.height;
+    sctx.drawImage(m, 0, 0);
+    sctx.globalCompositeOperation = 'source-in'; sctx.fillStyle = color; sctx.fillRect(0, 0, m.width, m.height);
+    sctx.globalCompositeOperation = 'source-over';
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(scratch, Math.round(x), Math.round(y), m.width * ps, m.height * ps);
+    ctx.imageSmoothingEnabled = true;
+    return { w: m.width * ps, h: m.height * ps };
+  }
+  function clipPix(text, size, weight, maxUnits) { measure.font = `${weight} ${size}px ${FONT}`; return fitText(measure, text, maxUnits); }
+  const ICONS = {
+    play: ['10000', '11000', '11100', '11110', '11100', '11000', '10000'],
+    pause: ['11011', '11011', '11011', '11011', '11011', '11011', '11011'],
+    stop: ['00000', '11111', '11111', '11111', '11111', '11111', '00000'],
+  };
+  function drawIcon(name, x, y, ps, color) {
+    ctx.fillStyle = color;
+    ICONS[name].forEach((row, j) => { for (let i = 0; i < row.length; i++) if (row[i] === '1') ctx.fillRect(x + i * ps, y + j * ps, ps, ps); });
+  }
+
+  function drawHUD(C) {
+    const big = W >= 1200, ps = 2;
+    const sTitle = big ? 21 : (W < 420 ? 16 : 18), sSmall = big ? 14 : 12;
+    const x0 = Math.round(Math.max(20, W * 0.045));
+    let y = Math.round(Math.max(18, H * 0.055) + safeTop);
+    const portrait = W / H < 0.9;
+    const maxCss = portrait ? W - x0 * 2 : Math.min(W * 0.36, 560);
+    const ink = css(C.ink), soft = css(C.ink, 0.62), faint = css(C.ink, 0.2);
+    const st = media.state;
+    const rowSmall = (Math.ceil(sSmall * 1.35) + 2) * ps;
+
+    drawIcon(st === 'playing' ? 'play' : st === 'paused' ? 'pause' : 'stop', x0, y + Math.round(rowSmall / 2 - 3.5 * ps), ps, ink);
+    const pre = media.source === 'demo' ? '미리보기 ' : '';
+    drawPix(st === 'playing' ? (pre ? '미리보기 재생 중' : '지금 재생 중') : st === 'paused' ? pre + '잠시 멈춤' : '재생 중인 음악이 없어요', x0 + ps * 8, y, sSmall, ps, soft, 600);
+    y += rowSmall + ps * 3;
+
+    if (st !== 'stopped' && media.title) {
+      y += drawPix(clipPix(media.title, sTitle, 800, maxCss / ps), x0, y, sTitle, ps, ink, 800).h;
+      if (media.artist) y += drawPix(clipPix(media.artist, sSmall, 600, maxCss / ps), x0, y, sSmall, ps, soft, 600).h;
+      if (media.album) y += drawPix(clipPix(media.album, sSmall, 600, maxCss / ps), x0, y, sSmall, ps, css(C.ink, 0.42), 600).h;
+      y += ps * 3;
+      const n = 20, bw = ps * 3, gap = ps, filled = Math.round(prog * n);
+      for (let i = 0; i < n; i++) { ctx.fillStyle = i < filled ? ink : faint; ctx.fillRect(x0 + i * (bw + gap), y, bw, bw); }
+      drawPix(fmt(posNow) + ' / ' + fmt(media.duration), x0 + n * (bw + gap) + ps * 3, y + bw / 2 - rowSmall / 2, sSmall, ps, soft, 600);
+      y += bw + ps * 9;
+    } else {
+      const hint = (media.source === 'we' && !weEnabled) ? 'Wallpaper Engine 설정에서 ‘미디어 연동’을 켜 주세요'
+        : (media.source === 'local' && !localOk) ? '도우미(nowplaying.py)가 꺼져 있어요'
+        : media.source === 'local' ? 'Apple Music에서 음악을 틀면 바늘이 내려가요'
+        : '음악을 틀면 바늘이 내려가요';
+      y += drawPix(clipPix(hint, sSmall, 600, maxCss / ps), x0, y, sSmall, ps, soft, 600).h + ps * 6;
+    }
+
+    y += drawPix(`오늘 들은 곡 ${today.length}`, x0, y, sSmall, ps, soft, 600).h + ps;
+    const cs = ps * 3, cg = ps, perRow = 20;
+    today.slice(-60).forEach((tr, i) => {
+      ctx.fillStyle = tr.c || ink;
+      ctx.fillRect(x0 + (i % perRow) * (cs + cg), y + Math.floor(i / perRow) * (cs + cg), cs, cs);
+    });
+  }
+
+  function drawGrain() {
+    if (!grainPat) grainPat = ctx.createPattern(noise, 'repeat');
+    ctx.save(); ctx.globalAlpha = isDark() ? 0.5 : 0.62;
+    ctx.translate(-grainOff.x, -grainOff.y);
+    ctx.fillStyle = grainPat; ctx.fillRect(0, 0, W + 180, H + 180);
+    ctx.restore();
+  }
+
+  function draw(now) {
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    const C = sceneColors(), L = layout();
+    ctx.fillStyle = css(C.bg); ctx.fillRect(0, 0, W, H);
+    drawPlinth(L, C);
+    drawSpecks(now);
+    drawDeck(L, C);
+    drawRecord(L, C);
+    drawArm(L, C, now);
+    drawParticles(C);
+    drawHUD(C);
+    drawGrain();
+  }
+
+  // ---------- lifecycle ----------
+  addEventListener('pagehide', save);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') save(); });
+
+  // ---------- boot ----------
+  function resize() {
+    DPR = Math.min(2, window.devicePixelRatio || 1);
+    W = window.innerWidth; H = window.innerHeight;
+    canvas.width = Math.round(W * DPR); canvas.height = Math.round(H * DPR);
+    safeTop = parseFloat(getComputedStyle(document.documentElement).paddingTop) || 0;
+  }
+  addEventListener('resize', resize);
+
+  resize();
+  load();
+  if (hasWE()) initWE();
+  else if (isLocalHelper()) initLocal();
+  else {
+    initDemo();
+    addEventListener('load', () => { if (hasWE() && media.source === 'demo') initWE(); });
+  }
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min(0.05, (now - last) / 1000); last = now;
+    update(dt, now);
+    draw(now);
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(t => { last = t; requestAnimationFrame(frame); });
+})();
+</script>
+</body>
+</html>
