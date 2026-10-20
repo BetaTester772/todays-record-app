@@ -1098,8 +1098,12 @@
     // the arm's shadow and the head's are one shape filled once, so where they meet isn't darker
     const ax0 = G.x + 0.02 * R, ay0 = G.y + 0.02 * R, ax1 = T.x + sx, ay1 = T.y + sy;
     const al = Math.hypot(ax1 - ax0, ay1 - ay0) || 1, nx = -(ay1 - ay0) / al * aw / 2, ny = (ax1 - ax0) / al * aw / 2;
+    // every part is traced clockwise like the arcs; a part going the other way would cancel out where they overlap
+    const quad = [[ax0 + nx, ay0 + ny], [ax1 + nx, ay1 + ny], [ax1 - nx, ay1 - ny], [ax0 - nx, ay0 - ny]];
+    let area = 0; for (let i = 0; i < 4; i++) { const [x0, y0] = quad[i], [x1, y1] = quad[(i + 1) % 4]; area += x0 * y1 - x1 * y0; }
+    if (area < 0) quad.reverse();
     ctx.fillStyle = 'rgba(0,0,0,0.15)'; ctx.beginPath();
-    ctx.moveTo(ax0 + nx, ay0 + ny); ctx.lineTo(ax1 + nx, ay1 + ny); ctx.lineTo(ax1 - nx, ay1 - ny); ctx.lineTo(ax0 - nx, ay0 - ny); ctx.closePath();
+    quad.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.closePath();
     ctx.moveTo(ax0 + aw / 2, ay0); ctx.arc(ax0, ay0, aw / 2, 0, TAU);
     ctx.moveTo(ax1 + 0.05 * R, ay1); ctx.ellipse(ax1, ay1, 0.05 * R, 0.022 * R, 0, 0, TAU);
     ctx.fill('nonzero');
