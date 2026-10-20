@@ -180,7 +180,6 @@
   const stylus = { x: 0, y: 0 };
   let weBass = 0, bassAvg = 0, lastOnset = 0, weEnabled = true;
   const media = { source: 'demo', state: 'stopped', title: '', artist: '', album: '', position: 0, duration: 1, bpm: 96, posAt: 0, key: '' };
-  let wipe = null;                                    // album colors spreading out from the record: { from, t0, dur }
   let side = null;                                    // LP side of the track: { first, sides, index, count }
   const vol = { level: null, muted: false, shown: 0.6 };  // output volume 0..1 from the app (null = unknown)
 
@@ -376,7 +375,7 @@
   function applyArt(label, palette) {
     if (!album) return;
     album.label = label; album.pal = clonePal(palette);
-    if (shown === album) changePalette(palette);
+    if (shown === album) targetPal = clonePal(palette);
     const last = today[today.length - 1];
     if (last && Date.now() - last.at < 10000) last.c = toHex(palette.accent);
   }
@@ -680,7 +679,7 @@
     const vTarget = vol.level === null ? (media.source === 'demo' ? 0.6 : vol.shown) : vol.level;
     vol.shown += (vTarget - vol.shown) * (1 - Math.exp(-dt * 10));
 
-    const f = 1 - Math.exp(-dt * 3);
+    const f = 1 - Math.exp(-dt * 1.8);   // about 1.7 s to blend into a new album's colors
     for (const key of PAL_KEYS) pal[key] = mix(pal[key], targetPal[key], f);
 
     const spd = media.source === 'demo' ? PREVIEW_SPEED : 1;
@@ -723,18 +722,9 @@
     if (frameNo % 6 === 0 && !reduceMotion) grainOff = { x: (Math.random() * 180) | 0, y: (Math.random() * 180) | 0 };
   }
 
+  // colors blend into the new album's palette in update() instead of switching at once
   function swapRecord(A) {
-    shown = A; prevPt = null;
-    changePalette(A.pal);
-  }
-
-  // New album colors spread from the record across the scene instead of switching at once.
-  const samePal = (a, b) => PAL_KEYS.every(k => toHex(a[k]) === toHex(b[k]));
-  function changePalette(next) {
-    if (samePal(targetPal, next)) return;
-    if (!booted || reduceMotion) { targetPal = clonePal(next); return; }
-    wipe = { from: clonePal(pal), t0: performance.now(), dur: 1600 };
-    pal = clonePal(next); targetPal = clonePal(next);
+    shown = A; targetPal = clonePal(A.pal); prevPt = null;
   }
 
   function strokeTrail(p0, p1) {
@@ -765,14 +755,14 @@
     return { x: L.cx + ox + lx * c - y2 * s, y: L.cy + oy + lx * s + y2 * c };
   }
   function plane(L, ox = 0, oy = 0) { ctx.translate(L.cx + ox, L.cy + oy); ctx.rotate(TILT); ctx.scale(1, SQUASH); }
-  function sceneColors(p = pal) {
+  function sceneColors() {
     const d = isDark();
-    const c = clonePal(p);
+    const c = clonePal(pal);
     if (d) {
-      c.bg = mix(p.bg, [18, 21, 20], 0.84);
-      c.plinth = mix(p.plinth, [8, 10, 9], 0.35);
-      c.record = mix(p.record, [40, 38, 42], 0.62);
-      const h = rgb2hsl(p.bg); c.ink = hsl2rgb([h[0], Math.min(0.4, h[1]), 0.86]);
+      c.bg = mix(pal.bg, [18, 21, 20], 0.84);
+      c.plinth = mix(pal.plinth, [8, 10, 9], 0.35);
+      c.record = mix(pal.record, [40, 38, 42], 0.62);
+      const h = rgb2hsl(pal.bg); c.ink = hsl2rgb([h[0], Math.min(0.4, h[1]), 0.86]);
     }
     c.edge = mix(c.record, [0, 0, 0], 0.16);
     c.metal = d ? [196, 192, 194] : [250, 245, 242];
@@ -1113,29 +1103,11 @@
     ctx.restore();
   }
 
-  // Old colors underneath, new colors in a growing circle around the record with a soft edge.
-  function drawWipe(L, C, now) {
-    const O = sceneColors(wipe.from);
-    ctx.fillStyle = css(O.bg); ctx.fillRect(0, 0, W, H); drawPlinth(L, O);
-    const far = Math.max(Math.hypot(L.cx, L.cy), Math.hypot(W - L.cx, L.cy), Math.hypot(L.cx, H - L.cy), Math.hypot(W - L.cx, H - L.cy));
-    const edge = far * 0.35, r = easeInOut(clamp((now - wipe.t0) / wipe.dur)) * (far + edge), N = 6;
-    for (let j = 1; j <= N; j++) {
-      const rj = r - edge * (j - 1) / (N - 1);
-      if (rj <= 0) break;
-      ctx.save();
-      ctx.beginPath(); ctx.arc(L.cx, L.cy, rj, 0, TAU); ctx.clip();
-      ctx.globalAlpha = 1 / (N - j + 1);
-      ctx.fillStyle = css(C.bg); ctx.fillRect(0, 0, W, H); drawPlinth(L, C);
-      ctx.restore();
-    }
-  }
-
   function draw(now) {
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
     const C = sceneColors(), L = layout();
-    if (wipe && now - wipe.t0 >= wipe.dur) wipe = null;
-    if (wipe) drawWipe(L, C, now);
-    else { ctx.fillStyle = css(C.bg); ctx.fillRect(0, 0, W, H); drawPlinth(L, C); }
+    ctx.fillStyle = css(C.bg); ctx.fillRect(0, 0, W, H);
+    drawPlinth(L, C);
     drawSpecks(now);
     drawDeck(L, C);
     drawRecord(L, C);
