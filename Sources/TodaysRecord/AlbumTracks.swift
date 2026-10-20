@@ -38,6 +38,8 @@ final class AlbumTracks {
             disc = max(1, info.discNumber)
             number = info.trackNumber
         } else if let track = Self.find(info, in: tracks) {
+            // 길이가 다르면 다른 판본(디럭스, 리마스터 등)의 목록일 수 있어 쓰지 않는다.
+            if info.duration > 0, abs(track.duration - info.duration) > 3 { return nil }
             disc = track.disc
             number = track.number
         } else {
@@ -82,6 +84,7 @@ final class AlbumTracks {
                 DispatchQueue.main.async { self.finish(key, []) }
                 return
             }
+            Log.nowPlaying.info("앨범 찾음 \(album.name, privacy: .public) id=\(album.collectionID) \(album.country, privacy: .public)")
             ITunesSearch.tracks(of: album) { tracks in
                 DispatchQueue.main.async { self.finish(key, tracks) }
             }
