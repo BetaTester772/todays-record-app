@@ -5,7 +5,7 @@
 
 A record player for your Mac's desktop. TurnTable shows whatever is playing in Apple Music or Spotify as a spinning record, drawn right on the desktop under your icons.
 
-![TurnTable](docs/images/hero.jpg)
+![TurnTable playing a record, with visitors around it](docs/media/turntable.webp)
 
 ## Requirements
 
@@ -40,6 +40,10 @@ After that, updates come through the app (**Check for Updates…** in the menu, 
 - Stops drawing when the screen is locked, asleep or covered; 30 fps on battery
 
 ## Screenshots
+
+With the crowd turned off:
+
+![TurnTable without visitors](docs/media/turntable-quiet.webp)
 
 Time of day:
 
