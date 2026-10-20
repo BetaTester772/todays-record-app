@@ -186,7 +186,7 @@
   const stylus = { x: 0, y: 0 };
   let weBass = 0, bassAvg = 0, lastOnset = 0, weEnabled = true;
   const media = { source: 'demo', state: 'stopped', title: '', artist: '', album: '', position: 0, duration: 1, bpm: 96, posAt: 0, key: '' };
-  let side = null;                                    // LP side of the track: { first, sides, index, number, total }
+  let side = null;                                    // LP side of the track: { first, sides, index, number, total, discs }
   const vol = { level: null, muted: false, shown: 0.6 };  // output volume 0..1 from the app (null = unknown)
 
   const grooves = makeGrooves(false), groovesLight = makeGrooves(true);
@@ -405,7 +405,7 @@
     // the simulated listener sometimes skips ahead or pauses for a moment
     preview.skipAt = Math.random() < 0.2 ? T[1] * rand(0.35, 0.7) : Infinity;
     preview.pauseAt = Math.random() < 0.25 ? T[1] * rand(0.2, 0.6) : Infinity;
-    side = { first: 0, sides: 1, index: 0, number: demo.t + 1, total: A.tracks.length };
+    side = { first: 0, sides: 1, index: 0, number: demo.t + 1, total: A.tracks.length, discs: 1 };
     const P = palFromHex(A.pal);
     const key = 'demo:' + demo.a;
     beginTrack({
@@ -499,6 +499,12 @@
   const SIDE_MAX = 6;
   const sideKey = (base, lp) => base + '#side:' + lp.disc + '-' + lp.side;
   const sideBase = key => key.replace(/#side:\d+-\d+$/, '');
+  // Like a real LP set, two sides make one record (A·B, C·D, E·F…). Which record of the set this side is on.
+  // Music's discs are each split into their own records; other discs are assumed to need as many.
+  function lpRecord(sd) {
+    const perDisc = Math.ceil(sd.sides / 2), disc = Math.round(sd.first / sd.sides);
+    return { first: Math.floor(sd.index / 2) * 2, number: disc * perDisc + Math.floor(sd.index / 2) + 1, total: (sd.discs || 1) * perDisc };
+  }
   function lpSide(d) {
     const n = d.trackCount | 0, k = d.trackNumber | 0;
     if (n < 1 || k < 1 || k > n) return null;
@@ -510,7 +516,7 @@
     const equal = lens.some(l => !(l > 0));
     const bands = bandsFor({ tracks: lens.map(l => ['', equal ? 1 : l]) });
     const disc = Math.max(1, d.discNumber | 0);
-    return { disc, side, sides, first: (disc - 1) * sides, index: k - first, count, number: k, total: n, band: bands[k - first], gaps: bands.slice(1).map(b => b.start + GAP / 2) };
+    return { disc, discs: Math.max(1, d.discCount | 0, disc), side, sides, first: (disc - 1) * sides, index: k - first, count, number: k, total: n, band: bands[k - first], gaps: bands.slice(1).map(b => b.start + GAP / 2) };
   }
   function sideSibling(base) {
     for (const a of albums.values()) if (sideBase(a.key) === base && a.key !== base) return a;
@@ -527,7 +533,7 @@
       const albumArtist = d.albumArtist || d.artist || '';
       const baseKey = 'am:' + (d.album || albumArtist || 'unknown') + '|' + albumArtist;
       const lp = lpSide(d);
-      side = lp && { first: lp.first, sides: lp.sides, index: lp.side, number: lp.number, total: lp.total };
+      side = lp && { first: lp.first, sides: lp.sides, index: lp.side, number: lp.number, total: lp.total, discs: lp.discs };
       const albumKey = lp ? sideKey(baseKey, lp) : baseKey;
       const known = albums.get(albumKey) || (lp && sideSibling(baseKey));
       const P = known ? known.pal : clonePal(targetPal);
@@ -900,16 +906,25 @@
     const va = A0 + SWEEP * v;
     ctx.strokeStyle = css(C.plinth); ctx.lineWidth = 0.014 * R; ctx.lineCap = 'round';
     ctx.beginPath(); ctx.moveTo(vx, vy); ctx.lineTo(vx + Math.cos(va) * 0.06 * R, vy + Math.sin(va) * 0.06 * R); ctx.stroke();
-    // side lamps: one per LP side of this disc, the current side lit
+    // side lamps: the two sides of the record on the platter, the current side lit;
+    // then one small dot per record of the set (up to 6) when the album needs more than one
     const lamps = [];
     if (side && media.state !== 'stopped') {
-      const n = Math.min(4, side.sides);
-      for (let i = 0; i < n; i++) {
-        const a = 1.31 + i * 0.085, Q = onArc(a);
-        ctx.fillStyle = i === side.index ? css(C.accent) : css(mix(C.plinth, [255, 255, 255], 0.18));
+      const rec = lpRecord(side), off = css(mix(C.plinth, [255, 255, 255], 0.18));
+      for (let j = 0; j < 2 && rec.first + j < side.sides; j++) {
+        const i = rec.first + j, a = 1.31 + j * 0.085, Q = onArc(a);
+        ctx.fillStyle = i === side.index ? css(C.accent) : off;
         disc(ctx, Q.x, Q.y, 0.02 * R);
         // letter just outside the lamp on the same radius line
         lamps.push({ x: Math.cos(a) * (ARC + 0.075 * R), y: Math.sin(a) * (ARC + 0.075 * R), ch: String.fromCharCode(65 + side.first + i), on: i === side.index });
+      }
+      if (rec.total > 1) {
+        const dots = Math.min(6, rec.total), lit = Math.min(dots, rec.number) - 1;
+        for (let j = 0; j < dots; j++) {
+          const Q = onArc(1.31 + 0.085 + 0.08 + j * 0.042);
+          ctx.fillStyle = j === lit ? css(C.accent) : off;
+          disc(ctx, Q.x, Q.y, 0.015 * R);
+        }
       }
     }
     ctx.restore();
@@ -1212,7 +1227,7 @@
       layoutKey(L), inset.top, inset.left, inset.right, opts.position, opts.transparent, toHex(C.ink), toHex(C.metal),
       media.state, media.source, weEnabled, localOk, today.length,
       showing ? [media.title, media.artist, media.album, Math.round(prog * 20), fmt(posNow), fmt(media.duration),
-        side ? [side.first, side.index, side.number, side.total].join(',') : '',
+        side ? [side.first, side.index, side.number, side.total, side.discs].join(',') : '',
         slideOff(media.title, M.sTitle, 800, M.ps, M.maxCss), slideOff(media.artist, M.sSmall, 600, M.ps, M.maxCss),
         slideOff(media.album, M.sSmall, 600, M.ps, M.maxCss)].join('|') : '',
     ].join('|');
@@ -1263,7 +1278,8 @@
       drawPix(time, bx + n * (bw + gap) + ps * 3, y + bw / 2 - rowSmall / 2, sSmall, ps, T.soft, 600);
       y += bw + ps * 4;
       if (side) {
-        const label = `Side ${String.fromCharCode(65 + side.first + side.index)} · ${side.number}/${side.total}`;
+        const rec = lpRecord(side);
+        const label = `Side ${String.fromCharCode(65 + side.first + side.index)} · ${side.number}/${side.total}` + (rec.total > 1 ? ` · LP ${rec.number}/${rec.total}` : '');
         y += drawPix(label, ax(pw(label, sSmall, 600)), y, sSmall, ps, T.soft, 600).h;
       }
       y += ps * 5;
