@@ -189,6 +189,7 @@
   let warpLift = 0;   // how far the record's warp lifts the needle right now
   let recOff = { x: 0, y: 0, lift: 0 };
   let spindleH = 1;         // how far the spindle stands up (it sinks while the record is changed for another)
+  let spindleDown = false;  // the spindle is on its way down (or down)
   let sideFade = 1;        // while turning to the other side: how far the new side's lines have faded in (0..1)
   let prevPt = null, prog = 0, posNow = 0;
   let today = [], todayKey = dayKey();
@@ -791,8 +792,10 @@
       let down = false;
       if (cue && (cue.kind === 'album' || cue.kind === 'flip')) {
         const e = (now - cue.t0) / cue.dur, landed = cue.swapped && !cue.out && Math.abs(recOff.x) < 0.02 && recOff.lift < 0.03;
-        down = e >= (cue.kind === 'flip' ? 0.3 : cue.slide ? 0.25 : 0.34) && !landed;
+        // it starts down as the record is lifted (for Swap Record a moment before, since that record moves off at once)
+        down = e >= (cue.kind === 'flip' ? 0.3 : cue.slide ? 0.24 : 0.29) && !landed;
       }
+      spindleDown = down;
       spindleH += ((down ? 0 : 1) - spindleH) * (1 - Math.exp(-dt * (down ? 8 : 4.5)));
     }
     if (!cue) {
@@ -1610,8 +1613,10 @@
       drawSpecks(now);
     }
     drawDeck(L, C);
-    // the spindle shows through the hole of a record sitting on the platter; records being carried pass over it
-    const onPlatter = Math.abs(recOff.x) < 0.02 && Math.abs(recOff.y) < 0.1 && recOff.lift < 0.03;
+    // the spindle shows through the hole of a record on the platter, and through the hole of one being lifted while the
+    // spindle sinks out of it; records being carried pass over it, and it only rises once the new record is down
+    const centered = Math.abs(recOff.x) < 0.02 && Math.abs(recOff.y) < 0.1;
+    const onPlatter = centered && (recOff.lift < 0.03 || (spindleDown && spindleH > 0.02));
     if (!onPlatter) drawSpindle(L, C);
     if (cue && cue.out) { drawRecord(L, cue.out.C, cue.out.A, cue.outOff, cue.out.rot); drawRecord(L, sceneColors(targetPal)); }
     else drawRecord(L, C);
