@@ -170,7 +170,7 @@
   // options the app can change from its menu (setOptions)
   // colors '' = taken from the album
   // sideChange: how turning to the other side of the same record looks: 'turn' (lift and turn), 'swap' (like a new album), 'needle' (needle only)
-  const opts = { position: 'right', transparent: false, windowLight: true, trail: 'afterglow', grain: 'normal', fps: 60, sideChange: 'turn', albumChange: 'swap', coloredVinyl: false, vinylStyle: 'match', lineStyle: 'album', recordColor: '', bgColor: '', lineColor: '', textColor: '', armColor: '', armBaseColor: '', spindleColor: '', shirtColor: '', pantsColor: '', hatColor: '', riderPose: 'auto', crowd: true, crowdPace: 1 };
+  const opts = { position: 'right', transparent: false, windowLight: true, trail: 'afterglow', grain: 'normal', fps: 60, sideChange: 'turn', albumChange: 'swap', coloredVinyl: false, vinylStyle: 'match', lineStyle: 'album', recordColor: '', bgColor: '', lineColor: '', textColor: '', armColor: '', armBaseColor: '', spindleColor: '', knobColor: '', restColor: '', shirtColor: '', pantsColor: '', hatColor: '', riderPose: 'auto', crowd: true, crowdPace: 1 };
   const GRAIN = { off: 0, low: 0.45, normal: 1, high: 1.45 };   // multiplier on the original grain strength
   const glowPts = [];   // recent stylus points for the afterglow trail: { fr, a, t, c } or null for a lift
   let pal = palFromHex(DEMO[0].pal), targetPal = clonePal(pal);
@@ -631,7 +631,7 @@
         if (typeof o.crowd === 'boolean') opts.crowd = o.crowd;
         if ([1, 2, 5, 10].includes(o.crowdPace)) opts.crowdPace = o.crowdPace;
         if (o.riderPose === 'auto' || o.riderPose in RIDER_POSES) opts.riderPose = o.riderPose;
-        for (const k of ['recordColor', 'bgColor', 'lineColor', 'textColor', 'armColor', 'armBaseColor', 'spindleColor', 'shirtColor', 'pantsColor', 'hatColor']) {
+        for (const k of ['recordColor', 'bgColor', 'lineColor', 'textColor', 'armColor', 'armBaseColor', 'spindleColor', 'knobColor', 'restColor', 'shirtColor', 'pantsColor', 'hatColor']) {
           if (typeof o[k] === 'string') opts[k] = /^#[0-9a-f]{6}$/i.test(o[k]) ? o[k] : '';
         }
         if (typeof o.transparent === 'boolean') {
@@ -976,6 +976,10 @@
     c.armD = mix(c.arm, [0, 0, 0], 0.16);
     c.armBase = opts.armBaseColor ? hex(opts.armBaseColor) : c.metal;   // the plate under the tonearm
     c.spindle = opts.spindleColor ? hex(opts.spindleColor) : c.metal; c.spindleD = mix(c.spindle, [0, 0, 0], 0.16);
+    // the two knobs (their pointer turns light on a dark knob) and the post the needle rests on
+    c.knob = opts.knobColor ? hex(opts.knobColor) : c.metal;
+    c.knobPtr = rgb2hsl(c.knob)[2] < 0.45 ? mix(c.knob, [255, 255, 255], 0.65) : c.plinth;
+    c.rest = opts.restColor ? hex(opts.restColor) : c.metal; c.restD = mix(c.rest, [0, 0, 0], 0.16);
     c.shade = mix(c.plinth, [0, 0, 0], 0.28);
     return c;
   }
@@ -1019,9 +1023,9 @@
     // speed knob + power lamp
     const K = onArc(1.04), kx = K.x, ky = K.y, on = media.state === 'playing';
     ctx.fillStyle = css(C.shade); disc(ctx, kx + 0.012 * R, ky + 0.03 * R, 0.085 * R);
-    ctx.fillStyle = css(C.metal); disc(ctx, kx, ky, 0.08 * R);
+    ctx.fillStyle = css(C.knob); disc(ctx, kx, ky, 0.08 * R);
     const na = on ? -0.7 : -2.3;
-    ctx.strokeStyle = css(C.plinth); ctx.lineWidth = 0.014 * R; ctx.lineCap = 'round';
+    ctx.strokeStyle = css(C.knobPtr); ctx.lineWidth = 0.014 * R; ctx.lineCap = 'round';
     ctx.beginPath(); ctx.moveTo(kx, ky); ctx.lineTo(kx + Math.cos(na) * 0.06 * R, ky + Math.sin(na) * 0.06 * R); ctx.stroke();
     ctx.fillStyle = on ? css(C.accent) : css(mix(C.plinth, [255, 255, 255], 0.18));
     const P = onArc(1.19);
@@ -1036,9 +1040,9 @@
       disc(ctx, vx + Math.cos(a) * 0.125 * R, vy + Math.sin(a) * 0.125 * R, 0.011 * R);
     }
     ctx.fillStyle = css(C.shade); disc(ctx, vx + 0.012 * R, vy + 0.03 * R, 0.085 * R);
-    ctx.fillStyle = css(C.metal); disc(ctx, vx, vy, 0.08 * R);
+    ctx.fillStyle = css(C.knob); disc(ctx, vx, vy, 0.08 * R);
     const va = A0 + SWEEP * v;
-    ctx.strokeStyle = css(C.plinth); ctx.lineWidth = 0.014 * R; ctx.lineCap = 'round';
+    ctx.strokeStyle = css(C.knobPtr); ctx.lineWidth = 0.014 * R; ctx.lineCap = 'round';
     ctx.beginPath(); ctx.moveTo(vx, vy); ctx.lineTo(vx + Math.cos(va) * 0.06 * R, vy + Math.sin(va) * 0.06 * R); ctx.stroke();
     // side lamps: the two sides of the record on the platter, the current side lit;
     // then one small dot per record of the set (up to 6) when the album needs more than one
@@ -1071,16 +1075,18 @@
     const rt = armTip(REST_PHI), rp = toScreen(L, rt.x * R, rt.y * R);
     const ph = 0.03 * R * 0.15 + 0.014 * R + 0.01 * R, pw = 0.03 * R;
     ctx.fillStyle = 'rgba(0,0,0,0.16)'; ctx.beginPath(); ctx.ellipse(rp.x + pw * 0.4, rp.y + pw * 0.2, pw * 0.9, pw * 0.45, 0, 0, TAU); ctx.fill();
-    ctx.fillStyle = css(C.metalD); ctx.fillRect(rp.x - pw / 2, rp.y - ph, pw, ph);
+    ctx.fillStyle = css(C.restD); ctx.fillRect(rp.x - pw / 2, rp.y - ph, pw, ph);
     ctx.beginPath(); ctx.ellipse(rp.x, rp.y, pw / 2, pw / 2 * SQUASH, 0, 0, TAU); ctx.fill();
-    ctx.fillStyle = css(C.metal); ctx.beginPath(); ctx.ellipse(rp.x, rp.y - ph, pw / 2, pw / 2 * SQUASH, 0, 0, TAU); ctx.fill();
+    ctx.fillStyle = css(C.rest); ctx.beginPath(); ctx.ellipse(rp.x, rp.y - ph, pw / 2, pw / 2 * SQUASH, 0, 0, TAU); ctx.fill();
   }
 
   // The parts of the record that look the same at any rotation (shadow, edge, base, grooves).
   // Track gaps are stroked live: thick strokes on the squashed circle came out broken in an offscreen canvas.
   // A record is a disc with a hole the size of the spindle, so the spindle shows through it and not over the record.
+  // The hole is cut a little smaller than the spindle: it lies in the record's tilted plane while the spindle's foot is
+  // drawn level, so a same-size hole peeked out past the spindle at its lower left.
   const holeR = R => Math.max(2.5, 0.022 * R);
-  function disc0(R) { ctx.beginPath(); ctx.arc(0, 0, R, 0, TAU); ctx.arc(0, 0, holeR(R), 0, TAU, true); }
+  function disc0(R) { ctx.beginPath(); ctx.arc(0, 0, R, 0, TAU); ctx.arc(0, 0, holeR(R) * 0.8, 0, TAU, true); }
 
   function drawRecordBase(L, C, ox, oy, lift, A = shown) {
     const R = L.R, k = L.k;

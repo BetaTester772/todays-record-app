@@ -200,9 +200,11 @@ private struct AppearancePane: View {
     @AppStorage(Settings.ColorSlot.arm.rawValue) private var armColor = ""
     @AppStorage(Settings.ColorSlot.armBase.rawValue) private var armBaseColor = ""
     @AppStorage(Settings.ColorSlot.spindle.rawValue) private var spindleColor = ""
+    @AppStorage(Settings.ColorSlot.knob.rawValue) private var knobColor = ""
+    @AppStorage(Settings.ColorSlot.rest.rawValue) private var restColor = ""
 
     private var colorsChanged: Bool {
-        coloredVinyl || lineStyle == "contrast" || ![recordColor, bgColor, lineColor, textColor, armColor, armBaseColor, spindleColor].allSatisfy(\.isEmpty)
+        coloredVinyl || lineStyle == "contrast" || ![recordColor, bgColor, lineColor, textColor, armColor, armBaseColor, spindleColor, knobColor, restColor].allSatisfy(\.isEmpty)
     }
 
     var body: some View {
@@ -227,12 +229,14 @@ private struct AppearancePane: View {
                 ColorRow(slot: .text, title: "Text", hex: $textColor)
                 ColorRow(slot: .arm, title: "Tonearm", hex: $armColor)
                 ColorRow(slot: .armBase, title: "Arm Base", hex: $armBaseColor)
+                ColorRow(slot: .rest, title: "Arm Rest", hex: $restColor)
                 ColorRow(slot: .spindle, title: "Spindle", hex: $spindleColor)
+                ColorRow(slot: .knob, title: "Knobs", hex: $knobColor)
                 HStack {
                     Spacer()
                     Button("Reset Colors") {
                         coloredVinyl = false; vinylStyle = "match"; lineStyle = "album"
-                        for slot in [Settings.ColorSlot.record, .background, .line, .text, .arm, .armBase, .spindle] { UserDefaults.standard.set("", forKey: slot.rawValue) }
+                        for slot in [Settings.ColorSlot.record, .background, .line, .text, .arm, .armBase, .spindle, .knob, .rest] { UserDefaults.standard.set("", forKey: slot.rawValue) }
                     }
                     .disabled(!colorsChanged)
                 }
@@ -405,7 +409,7 @@ private struct ColorRow: View {
 
     private enum Choice: Hashable { case automatic, vinyl, contrast, custom }
 
-    private var automaticTitle: String { [.arm, .armBase, .spindle, .hat].contains(slot) ? "Default" : "Album" }
+    private var automaticTitle: String { [.arm, .armBase, .spindle, .knob, .rest, .hat].contains(slot) ? "Default" : "Album" }
 
     private var choice: Binding<Choice> {
         Binding(

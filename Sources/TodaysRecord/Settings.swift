@@ -34,6 +34,8 @@ final class Settings {
         case arm = "armColor"
         case armBase = "armBaseColor"
         case spindle = "spindleColor"
+        case knob = "knobColor"
+        case rest = "restColor"
         case shirt = "shirtColor"
         case pants = "pantsColor"
         case hat = "hatColor"
@@ -47,6 +49,8 @@ final class Settings {
             case .arm: return "Arm Color"
             case .armBase: return "Arm Base Color"
             case .spindle: return "Spindle Color"
+            case .knob: return "Knob Color"
+            case .rest: return "Arm Rest Color"
             case .shirt: return "Shirt Color"
             case .pants: return "Pants Color"
             case .hat: return "Hat Color"
@@ -69,6 +73,10 @@ final class Settings {
             case .armBase:
                 return [("Default", ""), ("Black", "#26262A"), ("Gold", "#C9A45C")]
             case .spindle:
+                return [("Default", ""), ("Black", "#26262A"), ("Gold", "#C9A45C")]
+            case .knob:
+                return [("Default", ""), ("Black", "#26262A"), ("Gold", "#C9A45C")]
+            case .rest:
                 return [("Default", ""), ("Black", "#26262A"), ("Gold", "#C9A45C")]
             case .shirt:
                 return [("Album Colors", ""), ("Red", "#D9483B"), ("Yellow", "#F2C230"), ("Blue", "#3A7BD5")]
@@ -260,6 +268,8 @@ final class Settings {
             "armColor": color(.arm),
             "armBaseColor": color(.armBase),
             "spindleColor": color(.spindle),
+            "knobColor": color(.knob),
+            "restColor": color(.rest),
             "shirtColor": color(.shirt),
             "pantsColor": color(.pants),
             "hatColor": color(.hat),
