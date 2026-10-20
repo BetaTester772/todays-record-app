@@ -31,3 +31,27 @@ final class UpdaterTests: XCTestCase {
         XCTAssertNil(Updater.parse(Data(json.utf8)))
     }
 }
+
+/// 명세 4.10 설치할 자리.
+final class UpdaterLocationTests: XCTestCase {
+    func testTranslocatedAppInstallsToApplications() {
+        let translocated = URL(fileURLWithPath: "/private/var/folders/ab/T/AppTranslocation/1234-ABCD/d/TodaysRecord.app")
+        XCTAssertTrue(Updater.isTranslocated(translocated))
+        XCTAssertTrue(Updater.shouldOfferMove(translocated))
+        XCTAssertEqual(Updater.installLocation(for: translocated).path, "/Applications/TodaysRecord.app")
+    }
+
+    func testAppInDownloadsIsOfferedAMove() {
+        let downloads = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask)[0]
+        XCTAssertTrue(Updater.shouldOfferMove(downloads.appendingPathComponent("TodaysRecord.app")))
+        XCTAssertFalse(Updater.shouldOfferMove(URL(fileURLWithPath: "/Applications/TodaysRecord.app")))
+    }
+
+    func testWritableLocationIsKept() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("loc-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let app = dir.appendingPathComponent("TodaysRecord.app")
+        XCTAssertEqual(Updater.installLocation(for: app), app)
+    }
+}

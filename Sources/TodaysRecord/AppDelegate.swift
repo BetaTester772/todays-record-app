@@ -42,6 +42,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         settingsModel.onInstallUpdate = { [weak self] in self?.confirmUpdate() }
         settingsModel.onCheckForUpdates = { [weak self] in self?.updater.check() }
+        updater.onFailure = { [weak self] reason, release in self?.showUpdateFailure(reason, release) }
         updater.start()
         if options.installUpdate { updater.check() }
 
@@ -73,6 +74,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         volume.start()
 
         if options.openSettings { settingsWindow.show() }
+        offerMoveToApplications()
 
         // --demo면 index.html의 미리보기 데이터를 쓰므로 Music, Spotify를 보지 않는다.
         guard !options.demo else { return }
@@ -96,6 +98,50 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         self.nowPlaying = nowPlaying
         nowPlaying.start()
+    }
+
+    /// 업데이트 실패 이유를 알린다. 다운로드 페이지에서 직접 받을 수도 있다.
+    private func showUpdateFailure(_ reason: String, _ release: Updater.Release) {
+        NSApp.activate(ignoringOtherApps: true)
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = "Couldn't update to v\(release.version)"
+        alert.informativeText = reason + "\n\nYou can download the update and install it yourself."
+        alert.addButton(withTitle: "Open Download Page")
+        alert.addButton(withTitle: "OK")
+        if alert.runModal() == .alertFirstButtonReturn { NSWorkspace.shared.open(release.pageURL) }
+    }
+
+    /// 다운로드 폴더나 임시 위치(App Translocation)에서 실행됐으면 응용 프로그램 폴더로 옮기기를 권한다.
+    /// 그 자리에서는 앱이 자기 자신을 업데이트할 수 없다.
+    private func offerMoveToApplications() {
+        let appURL = Bundle.main.bundleURL
+        guard Updater.shouldOfferMove(appURL) else { return }
+        NSApp.activate(ignoringOtherApps: true)
+        let alert = NSAlert()
+        alert.messageText = "Move 오늘의 판 to the Applications folder?"
+        alert.informativeText = "It's running from your Downloads folder or a temporary location, where it can't update itself."
+        alert.addButton(withTitle: "Move to Applications")
+        alert.addButton(withTitle: "Not Now")
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        DispatchQueue.global(qos: .userInitiated).async {
+            let result = Result { try Updater.moveToApplications(appURL) }
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let moved):
+                    Log.app.info("응용 프로그램 폴더로 옮김 \(moved.path, privacy: .public)")
+                    Updater.relaunch(moved)
+                case .failure(let error):
+                    Log.app.error("옮기기 실패 \(String(describing: error), privacy: .public)")
+                    let fail = NSAlert()
+                    fail.alertStyle = .warning
+                    fail.messageText = "Couldn't move 오늘의 판"
+                    fail.informativeText = ((error as? Updater.InstallError)?.message ?? error.localizedDescription)
+                        + "\n\nYou can drag it into the Applications folder in Finder instead."
+                    fail.runModal()
+                }
+            }
+        }
     }
 
     /// Check for Updates… 결과: 새 버전이면 설치를 묻고, 아니면 알린다.

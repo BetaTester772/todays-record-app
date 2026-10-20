@@ -112,46 +112,61 @@ final class Updater {
 
     // MARK: - 설치
 
-    /// zip을 받아 SHA-256과 서명을 확인한 뒤 지금 앱과 바꾸고 다시 실행한다.
-    /// 어느 단계든 실패하면 아무것도 바꾸지 않고 릴리스 페이지를 연다.
+    /// zip을 받아 SHA-256과 서명을 확인한 뒤 설치하고 다시 실행한다.
+    /// 어느 단계든 실패하면 아무것도 바꾸지 않고, 이유를 onFailure로 알린다.
+    var onFailure: ((String, Release) -> Void)?
+
     func install(_ release: Release) {
         state = .installing(release)
         let appURL = Bundle.main.bundleURL
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let result = Result { try Self.download(release, replacing: appURL) }
+            let result = Result { try Self.downloadAndInstall(release, current: appURL) }
             DispatchQueue.main.async {
                 guard let self else { return }
                 switch result {
                 case .success(let installed):
-                    Log.app.info("업데이트 설치 \(release.version, privacy: .public), 다시 실행")
+                    Log.app.info("업데이트 설치 \(release.version, privacy: .public) → \(installed.path, privacy: .public), 다시 실행")
                     Self.relaunch(installed)
                 case .failure(let error):
+                    let reason = (error as? InstallError)?.message ?? error.localizedDescription
                     Log.app.error("업데이트 설치 실패 \(String(describing: error), privacy: .public)")
-                    self.state = .failed("Couldn't install the update. Opening the download page instead.")
-                    NSWorkspace.shared.open(release.pageURL)
+                    self.state = .failed(reason)
+                    self.onFailure?(reason, release)
                 }
             }
         }
     }
 
-    private enum InstallError: Error {
-        case checksum, notAnApp, wrongApp, signature, otherSigner, notWritable(String)
+    enum InstallError: Error {
+        case download, checksum, notAnApp, wrongApp, signature, otherSigner, cancelled, notWritable(String)
+
+        /// 알림 창에 보이는 문구.
+        var message: String {
+            switch self {
+            case .download: return "Couldn't download the update. Check your internet connection."
+            case .checksum: return "The download didn't match its checksum, so it wasn't installed."
+            case .notAnApp, .wrongApp: return "The download wasn't a 오늘의 판 app, so it wasn't installed."
+            case .signature: return "The download's signature is broken, so it wasn't installed."
+            case .otherSigner: return "The update is signed by someone else, so it wasn't installed."
+            case .cancelled: return "The update was cancelled."
+            case .notWritable(let path): return "No permission to write to \(path)."
+            }
+        }
     }
 
     /// 메인 스레드 밖에서 부른다.
-    private static func download(_ release: Release, replacing appURL: URL) throws -> URL {
+    private static func downloadAndInstall(_ release: Release, current appURL: URL) throws -> URL {
         let fm = FileManager.default
         let work = fm.temporaryDirectory.appendingPathComponent("TodaysRecord-update-\(UUID().uuidString)")
         try fm.createDirectory(at: work, withIntermediateDirectories: true)
         defer { try? fm.removeItem(at: work) }
 
-        guard fm.isWritableFile(atPath: appURL.deletingLastPathComponent().path) else {
-            throw InstallError.notWritable(appURL.deletingLastPathComponent().path)
-        }
-
-        let zipData = try Data(contentsOf: release.zipURL)
-        let expected = try String(contentsOf: release.checksumURL, encoding: .utf8)
-            .split(separator: " ").first.map(String.init)?.lowercased() ?? ""
+        let zipData: Data, expected: String
+        do {
+            zipData = try Data(contentsOf: release.zipURL)
+            expected = try String(contentsOf: release.checksumURL, encoding: .utf8)
+                .split(separator: " ").first.map(String.init)?.lowercased() ?? ""
+        } catch { throw InstallError.download }
         let actual = SHA256.hash(data: zipData).map { String(format: "%02x", $0) }.joined()
         guard !expected.isEmpty, actual == expected else { throw InstallError.checksum }
 
@@ -166,9 +181,69 @@ final class Updater {
         // 지금 앱이 인증서로 서명돼 있으면, 새 앱도 같은 인증서로 서명된 것만 받는다(릴리스가 바꿔치기돼도 설치하지 않게).
         if let requirement = currentRequirement(), !satisfies(newApp, requirement) { throw InstallError.otherSigner }
 
-        // 지금 앱 자리에 새 앱을 원자적으로 넣는다. 예전 앱은 휴지통 대신 지운다.
-        _ = try fm.replaceItemAt(appURL, withItemAt: newApp, backupItemName: nil, options: [])
-        return appURL
+        let target = installLocation(for: appURL)
+        try place(newApp, at: target)
+        return target
+    }
+
+    /// 인터넷에서 받은 앱을 받은 자리에서 열면 macOS가 읽기 전용 임시 위치(App Translocation)에서 실행한다.
+    static func isTranslocated(_ appURL: URL) -> Bool {
+        appURL.path.contains("/AppTranslocation/")
+    }
+
+    /// 다운로드 폴더나 임시 위치에서 실행 중이면 응용 프로그램 폴더로 옮기기를 권한다.
+    static func shouldOfferMove(_ appURL: URL) -> Bool {
+        let downloads = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first?.path ?? "~/Downloads"
+        return isTranslocated(appURL) || appURL.path.hasPrefix(downloads + "/")
+    }
+
+    /// 지금 자리에 쓸 수 있으면 그 자리, 아니면(임시 위치 등) 응용 프로그램 폴더.
+    static func installLocation(for appURL: URL) -> URL {
+        if !isTranslocated(appURL), FileManager.default.isWritableFile(atPath: appURL.deletingLastPathComponent().path) {
+            return appURL
+        }
+        return URL(fileURLWithPath: "/Applications/TodaysRecord.app")
+    }
+
+    /// 새 앱을 target에 둔다. 폴더에 쓸 수 없으면 관리자 암호를 물어서 복사한다.
+    /// 앱이 직접 받은 사본이라 “인터넷에서 받음” 표시는 붙이지 않는다.
+    static func place(_ newApp: URL, at target: URL) throws {
+        let fm = FileManager.default
+        if fm.isWritableFile(atPath: target.deletingLastPathComponent().path) {
+            if fm.fileExists(atPath: target.path) {
+                _ = try fm.replaceItemAt(target, withItemAt: newApp, backupItemName: nil, options: [])
+            } else {
+                try run("/usr/bin/ditto", ["--noqtn", newApp.path, target.path])
+            }
+            return
+        }
+        // 표준 사용자 계정 등: macOS 관리자 암호 창으로 허락받아 복사한다.
+        let quote = { (path: String) in "\"" + path.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"") + "\"" }
+        let source = """
+        do shell script "/bin/rm -rf " & quoted form of \(quote(target.path)) & " && /usr/bin/ditto --noqtn " & quoted form of \(quote(newApp.path)) & " " & quoted form of \(quote(target.path)) with administrator privileges
+        """
+        var error: NSDictionary?
+        _ = NSAppleScript(source: source)?.executeAndReturnError(&error)
+        if let error {
+            // -128: 사용자가 암호 창에서 취소
+            throw (error[NSAppleScript.errorNumber] as? Int) == -128 ? InstallError.cancelled : InstallError.notWritable(target.deletingLastPathComponent().path)
+        }
+    }
+
+    /// 다운로드 폴더나 임시 위치에서 도는 앱을 응용 프로그램 폴더로 옮기고 거기서 다시 연다.
+    /// 메인 스레드 밖에서 부른다. 성공하면 옮긴 위치를 돌려준다.
+    static func moveToApplications(_ appURL: URL) throws -> URL {
+        let fm = FileManager.default
+        let target = URL(fileURLWithPath: "/Applications/TodaysRecord.app")
+        let work = fm.temporaryDirectory.appendingPathComponent("TodaysRecord-move-\(UUID().uuidString)")
+        try fm.createDirectory(at: work, withIntermediateDirectories: true)
+        defer { try? fm.removeItem(at: work) }
+        let copy = work.appendingPathComponent("TodaysRecord.app")
+        try run("/usr/bin/ditto", ["--noqtn", appURL.path, copy.path])
+        try place(copy, at: target)
+        // 받은 자리에 남은 원본은 휴지통으로(임시 위치에서 돌고 있으면 원본 위치를 알 수 없어 그대로 둔다).
+        if !isTranslocated(appURL), appURL != target { try? fm.trashItem(at: appURL, resultingItemURL: nil) }
+        return target
     }
 
     /// 지금 실행 중인 앱의 designated requirement. 애드혹 서명(인증서 없음)이면 nil.
@@ -205,7 +280,7 @@ final class Updater {
     }
 
     /// 이 앱이 끝난 뒤 새 앱을 연다.
-    private static func relaunch(_ appURL: URL) {
+    static func relaunch(_ appURL: URL) {
         let pid = ProcessInfo.processInfo.processIdentifier
         let shell = Process()
         shell.executableURL = URL(fileURLWithPath: "/bin/sh")
