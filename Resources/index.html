@@ -52,6 +52,7 @@
 <canvas id="scene" aria-label="A wallpaper of a record with an album label, where the tonearm needle leaves a line as it travels and a small character sits on the needle head"></canvas>
 
 
+<script src="crowd.js"></script>
 <script>
 (() => {
   'use strict';
@@ -164,7 +165,7 @@
   // options the app can change from its menu (setOptions)
   // colors '' = taken from the album
   // sideChange: how turning to the other side of the same record looks: 'turn' (lift and turn), 'swap' (like a new album), 'needle' (needle only)
-  const opts = { position: 'right', transparent: false, windowLight: true, trail: 'afterglow', grain: 'normal', fps: 60, sideChange: 'turn', coloredVinyl: false, recordColor: '', bgColor: '', lineColor: '', textColor: '', armColor: '', armBaseColor: '', shirtColor: '', pantsColor: '' };
+  const opts = { position: 'right', transparent: false, windowLight: true, trail: 'afterglow', grain: 'normal', fps: 60, sideChange: 'turn', coloredVinyl: false, recordColor: '', bgColor: '', lineColor: '', textColor: '', armColor: '', armBaseColor: '', shirtColor: '', pantsColor: '', crowd: true, crowdPace: 1 };
   const GRAIN = { off: 0, low: 0.45, normal: 1, high: 1.45 };   // multiplier on the original grain strength
   const glowPts = [];   // recent stylus points for the afterglow trail: { fr, a, t, c } or null for a lift
   let pal = palFromHex(DEMO[0].pal), targetPal = clonePal(pal);
@@ -177,6 +178,7 @@
   let shown = null;        // album whose record is on the platter
   let track = null;        // { start, end, fixed }
   let cue = null;          // tonearm / record-change animation
+  let crowd = null;        // the little people who drop by (crowd.js)
   let armPhi = REST_PHI, armLift = 0.1;
   let spin = 0, spinVel = 0, spinAcc = 0, beatEnv = 0, lastBeat = -1, legPhase = 0, legClock = 0;
   let warpLift = 0;   // how far the record's warp lifts the needle right now
@@ -615,6 +617,8 @@
         if (o.fps === 30 || o.fps === 60) opts.fps = o.fps;
         if (['turn', 'swap', 'needle'].includes(o.sideChange)) opts.sideChange = o.sideChange;
         if (typeof o.coloredVinyl === 'boolean') opts.coloredVinyl = o.coloredVinyl;
+        if (typeof o.crowd === 'boolean') opts.crowd = o.crowd;
+        if ([1, 2, 5, 10].includes(o.crowdPace)) opts.crowdPace = o.crowdPace;
         for (const k of ['recordColor', 'bgColor', 'lineColor', 'textColor', 'armColor', 'armBaseColor', 'shirtColor', 'pantsColor']) {
           if (typeof o[k] === 'string') opts[k] = /^#[0-9a-f]{6}$/i.test(o[k]) ? o[k] : '';
         }
@@ -803,6 +807,7 @@
 
     for (const p of particles) { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 170 * dt; p.life -= dt; }
     particles = particles.filter(p => p.life > 0);
+    if (crowd) crowd.update(dt, now);
 
     if (now - lastDayCheck > 3000) {
       lastDayCheck = now;
@@ -914,14 +919,19 @@
     return c;
   }
 
+  // the plinth stands a little above the desk: a darker side face below its top and a wider, softer shadow
+  const PLINTH_T = 0.06;   // side face height, in record radii (screen space)
   function drawPlinth(L, C) {
     const R = L.R;
-    ctx.save(); plane(L);
-    const x = -1.22 * R, y = -1.18 * R, w = 7 * R, h = 7 * R, r = 0.14 * R;
+    const x = -1.22 * R, y = -1.18 * R, w = 7 * R, h = 7 * R, r = 0.14 * R, t = PLINTH_T * R;
+    ctx.save(); ctx.translate(0, t); plane(L);
     rrect(ctx, x, y, w, h, r);
-    ctx.shadowColor = 'rgba(0,0,0,0.16)'; ctx.shadowBlur = 40; ctx.shadowOffsetY = 18;
+    ctx.shadowColor = 'rgba(0,0,0,0.2)'; ctx.shadowBlur = 56; ctx.shadowOffsetX = 8; ctx.shadowOffsetY = 22;
+    ctx.fillStyle = css(mix(C.plinth, [0, 0, 0], 0.32)); ctx.fill();
+    ctx.restore();
+    ctx.save(); plane(L);
+    rrect(ctx, x, y, w, h, r);
     ctx.fillStyle = css(C.plinth); ctx.fill();
-    ctx.shadowColor = 'transparent';
     ctx.strokeStyle = 'rgba(255,255,255,0.10)'; ctx.lineWidth = 3; ctx.stroke();
     ctx.restore();
   }
@@ -1121,8 +1131,32 @@
   // smooth wandering value in about -1..1: sines with unrelated periods, so it reads as random but never jumps
   const wander = t => (Math.sin(t) + 0.6 * Math.sin(t * 2.137 + 1.3) + 0.35 * Math.sin(t * 3.713 + 0.4)) / 1.95;
 
+  // The rider sits a few ways: dangling the legs (the usual), leaning back on the hands, cross-legged, or hugging the
+  // knees. A new song sometimes brings a new pose; the change blends over half a second.
+  const RIDER_POSES = {
+    sit: { lean: -0.04, knee: [4.6, 0.4], foot: [0, 8.4], swing: 1, handB: [-3.2, -0.6], handF: [3.6, -0.4] },
+    lean: { lean: -0.24, knee: [5.2, -0.3], foot: [1.8, 7.8], swing: 0.9, handB: [-6, 0.6], handF: [-4.6, 0.8] },
+    cross: { lean: 0.02, knee: [5.4, 0.8], foot: [-3.2, 1.4], swing: 0.25, handB: [4.2, -0.4], handF: [4.8, -0.2] },
+    hug: { lean: 0.12, knee: [3.6, -4.4], foot: [1.8, 5.6], swing: 0.3, handB: [5.2, -4.6], handF: [5.6, -4.2] },
+  };
+  const riderPose = { name: 'sit', from: 'sit', t: 1, key: '' };
+  function riderParams(now) {
+    const k = media.title + '|' + media.artist;
+    if (k !== riderPose.key) {
+      if (riderPose.key && Math.random() < 0.45) {
+        const names = Object.keys(RIDER_POSES).filter(n => n !== riderPose.name);
+        riderPose.from = riderPose.name; riderPose.name = names[Math.floor(Math.random() * names.length)]; riderPose.t0 = now;
+      }
+      riderPose.key = k;
+    }
+    const e = riderPose.t0 ? easeInOut(clamp((now - riderPose.t0) / 500)) : 1, A = RIDER_POSES[riderPose.from], B = RIDER_POSES[riderPose.name];
+    const m = (a, b) => Array.isArray(a) ? [lerp(a[0], b[0], e), lerp(a[1], b[1], e)] : lerp(a, b, e);
+    const o = {}; for (const key in B) o[key] = m(A[key], B[key]);
+    return o;
+  }
+
   function drawRider(x, y, s, C, now) {
-    const u = s / 40;
+    const u = s / 40, RP = riderParams(now);
     const skin = '#F1C6A3', hair = '#2B2320', boot = '#FFF8F1', dark = '#2A2527';
     // shirt follows the accent and pants the plinth, unless picked in the settings
     const tc = opts.shirtColor ? hex(opts.shirtColor) : C.accent;
@@ -1136,9 +1170,7 @@
     const playingLegs = st === 'playing' && !sleeping;
     const swingL = playingLegs ? amp * Math.sin(legPhase) : st === 'paused' ? Math.sin(now / 900) * 0.3 : 0;
     const swingR = playingLegs ? amp * Math.sin(legPhase + Math.PI + 0.7 * wander(legClock * 0.29 + 9.1)) : st === 'paused' ? -Math.sin(now / 900) * 0.3 : 0;
-    const bob = beatEnv * 1.6 * u;
-
-    ctx.save(); ctx.translate(x, y - bob); ctx.scale(-1, 1);
+    ctx.save(); ctx.translate(x, y); ctx.scale(-1, 1);
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     const limb = (x1, y1, mx, my, x2, y2, col, w) => {
       ctx.strokeStyle = col; ctx.lineWidth = w;
@@ -1149,7 +1181,8 @@
       ctx.fillStyle = dark; disc(ctx, fx - 0.8 * u, fy + 0.8 * u, 1.15 * u); disc(ctx, fx + 3.3 * u, fy + 0.8 * u, 1.15 * u);
     };
     const leg = (dx, sw, col) => {
-      const kx = 4.6 * u + dx, ky = 0.4 * u, fx = kx + sw * 2.4 * u, fy = 8.4 * u - Math.abs(sw) * 0.8 * u;
+      sw *= RP.swing;
+      const kx = RP.knee[0] * u + dx, ky = RP.knee[1] * u, fx = kx + RP.foot[0] * u + sw * 2.4 * u, fy = ky + RP.foot[1] * u - 0.4 * u - Math.abs(sw) * 0.8 * u;
       limb(dx, 0, dx + 2.4 * u, 0.6 * u, kx, ky, col, 3.8 * u);
       limb(kx, ky, kx + sw * 1.2 * u, (ky + fy) / 2, fx, fy - 1.6 * u, col, 3.6 * u);
       skate(fx, fy);
@@ -1159,12 +1192,12 @@
       ctx.fillStyle = skin; disc(ctx, ex, ey, 1.5 * u);
     };
 
-    const lean = sleeping ? 0.22 : -0.04;
+    const lean = sleeping ? 0.22 : RP.lean;
     const shX = Math.sin(lean) * 11 * u, shY = -Math.cos(lean) * 11 * u;
     const hdX = Math.sin(lean) * 18 * u, hdY = -Math.cos(lean) * 18 * u;
 
     leg(-1 * u, swingR, pantsD);
-    arm(shX, shY, -3.2 * u, -0.6 * u, topD);
+    arm(shX, shY, RP.handB[0] * u, RP.handB[1] * u, topD);
     ctx.save(); ctx.rotate(lean);
     ctx.fillStyle = top; rrect(ctx, -4.8 * u, -13.5 * u, 9.6 * u, 14.5 * u, 4 * u); ctx.fill();
     ctx.fillStyle = topD; rrect(ctx, -4.8 * u, -1.8 * u, 9.6 * u, 2.8 * u, 1.1 * u); ctx.fill();
@@ -1188,7 +1221,7 @@
     ctx.fillStyle = 'rgba(240,120,110,0.45)'; disc(ctx, 2.6 * u, 2.6 * u, 1.1 * u);
     ctx.restore();
 
-    arm(shX, shY, 3.6 * u, -0.4 * u, top);
+    arm(shX, shY, RP.handF[0] * u, RP.handF[1] * u, top);
     ctx.restore();
 
     if (sleeping) {
@@ -1387,6 +1420,9 @@
 
     const count = `Played Today ${today.length}`;
     drawPix(count, ax(pw(count, sSmall, 600)), y, sSmall, ps, T.soft, 600);
+    // where the text is, so the crowd doesn't stand in front of it
+    const bw = st !== 'stopped' && media.title ? maxCss : Math.max(maxCss, Math.min(W * 0.5, 640));
+    if (crowd) crowd.setHud({ x: toRight ? xR - bw : x0, y: hudMetrics().y0, w: bw, h: y + rowSmall - hudMetrics().y0 });
   }
 
   // ---------- window light ----------
@@ -1488,6 +1524,8 @@
     }
     drawDeck(L, C);
     drawRecord(L, C);
+    // the crowd stands below the tonearm and needle (the arm's base plate is part of the deck, under everyone)
+    if (crowd) crowd.draw(L, C, now);
     drawArm(L, C, now);
     drawParticles(C);
     if (opts.windowLight && !opts.transparent) drawLight(L);
@@ -1507,6 +1545,16 @@
     safeTop = parseFloat(getComputedStyle(document.documentElement).paddingTop) || 0;
   }
   addEventListener('resize', resize);
+
+  // The crowd lives in crowd.js and sees the page through this: live values as getters, plus drawing helpers.
+  // Without the file (or in an old Wallpaper Engine copy) the page simply has no crowd.
+  if (window.TodaysRecordCrowd) crowd = window.TodaysRecordCrowd({
+    get ctx() { return ctx; }, get W() { return W; }, get H() { return H; }, inset, media, opts, NATIVE,
+    get shown() { return shown; }, get cue() { return cue; }, get recOff() { return recOff; }, get spinVel() { return spinVel; },
+    sceneColors,
+    geo: { TAU, TILT, SQUASH, ARM, R_IN, R_OUT, REST_PHI, PLINTH_T, RPS },
+    fn: { layout, layoutKey, toScreen, armTip, phiOf, toHex, hex, css, mix, clamp, lerp, rand, easeInOut, easeOut, wander, rrect, disc, drawPix },
+  });
 
   resize();
   load();

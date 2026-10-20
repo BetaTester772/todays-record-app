@@ -8,6 +8,7 @@ Apple Music 또는 Spotify에서 재생 중인 곡을 레코드 턴테이블 그
 ## 참고 파일
 
 - `Resources/index.html` 레코드 화면. 이미 완성되어 있으며 WKWebView에서 그대로 쓴다.
+- `Resources/crowd.js` 모여드는 사람들(명세 6장 25). 사람 모양, 동작, 자리 고르기는 여기서 고친다.
 - `reference/nowplaying.py` Music 앱 AppleScript 질의의 검증된 참고 구현(`STATUS_SCRIPT`, `ART_SCRIPT`, 앨범 커버 검색 대체). Swift로 옮길 때 이 스크립트를 기준으로 한다.
 
 ## 작업 방식

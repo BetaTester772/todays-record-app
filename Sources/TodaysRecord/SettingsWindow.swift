@@ -252,12 +252,27 @@ private struct EffectsPane: View {
     @AppStorage(Settings.Key.trail) private var trail = Settings.Trail.afterglow.rawValue
     @AppStorage(Settings.Key.grain) private var grain = Settings.Grain.normal.rawValue
     @AppStorage(Settings.Key.sideChange) private var sideChange = Settings.SideChange.turn.rawValue
+    @AppStorage(Settings.Key.crowd) private var crowd = true
+    @AppStorage(Settings.Key.crowdPace) private var crowdPace = 1
 
     var body: some View {
         Pane {
             Section {
                 Toggle("Window Light", isOn: $windowLight)
                 Text("Light through a window follows the time of day.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Section {
+                Toggle("Crowd", isOn: $crowd)
+                Picker("Crowd Pace", selection: $crowdPace) {
+                    Text("1×").tag(1)
+                    Text("2×").tag(2)
+                    Text("5×").tag(5)
+                    Text("10×").tag(10)
+                }
+                .pickerStyle(.segmented)
+                .disabled(!crowd)
+                Text("The longer the music plays, the more friends drop by. They leave after a long break. Crowd Pace makes them come and go faster.")
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section {

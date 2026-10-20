@@ -82,6 +82,8 @@ final class Settings {
         static let grain = "grain"
         static let sideChange = "sideChange"
         static let coloredVinyl = "coloredVinyl"
+        static let crowd = "crowd"
+        static let crowdPace = "crowdPace"
         static let autoUpdateCheck = "autoUpdateCheck"
         static let lastUpdateCheck = "lastUpdateCheck"
         static let disabledDisplays = "disabledDisplays"
@@ -101,6 +103,8 @@ final class Settings {
             Key.grain: Grain.normal.rawValue,
             Key.sideChange: SideChange.turn.rawValue,
             Key.coloredVinyl: false,
+            Key.crowd: true,
+            Key.crowdPace: 1,
             Key.autoUpdateCheck: true,
             Key.disabledDisplays: "",
             Key.fps: FrameRate.auto.rawValue,
@@ -172,6 +176,18 @@ final class Settings {
         set { defaults.set(newValue, forKey: Key.coloredVinyl) }
     }
 
+    /// 오래 들을수록 사람들이 모여드는지. 명세 6장 25.
+    var crowd: Bool {
+        get { defaults.bool(forKey: Key.crowd) }
+        set { defaults.set(newValue, forKey: Key.crowd) }
+    }
+
+    /// 사람들이 모이고 흩어지는 시간 배율(1, 2, 5, 10). 명세 6장 25.
+    var crowdPace: Int {
+        get { [1, 2, 5, 10].contains(defaults.integer(forKey: Key.crowdPace)) ? defaults.integer(forKey: Key.crowdPace) : 1 }
+        set { defaults.set(newValue, forKey: Key.crowdPace) }
+    }
+
     /// "#RRGGBB" 또는 빈 문자열(앨범 색).
     func color(_ slot: ColorSlot) -> String {
         defaults.string(forKey: slot.rawValue) ?? ""
@@ -191,6 +207,8 @@ final class Settings {
             "grain": grain.rawValue,
             "sideChange": sideChange.rawValue,
             "coloredVinyl": coloredVinyl,
+            "crowd": crowd,
+            "crowdPace": crowdPace,
             "recordColor": color(.record),
             "bgColor": color(.background),
             "lineColor": color(.line),
