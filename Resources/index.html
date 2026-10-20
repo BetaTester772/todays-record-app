@@ -188,6 +188,7 @@
   let spin = 0, spinVel = 0, spinAcc = 0, beatEnv = 0, lastBeat = -1, legPhase = 0, legClock = 0;
   let warpLift = 0;   // how far the record's warp lifts the needle right now
   let recOff = { x: 0, y: 0, lift: 0 };
+  let spindleH = 1;         // how far the spindle stands up (it sinks while the record is changed for another)
   let sideFade = 1;        // while turning to the other side: how far the new side's lines have faded in (0..1)
   let prevPt = null, prog = 0, posNow = 0;
   let today = [], todayKey = dayKey();
@@ -765,12 +766,16 @@
           if (cue.swapped) {
             const Lr = layout(), clear = (Lr.cx - inset.left) / Lr.R + 1.45;   // how far left, in record radii
             const OUT = 0.49, IN = 0.25;   // directions: about 28 and 14 degrees above the horizontal
-            const kOut = easeInOut(clamp((e - 0.24) / 0.42)), kIn = easeInOut(clamp((e - 0.38) / 0.42));
+            // Like a hand changing records: the old one is lifted straight up first, then pulled away, slowly at first
+            // and faster as it goes. The new one comes in quickly and slows to a stop above the platter, hangs there for
+            // a moment, then is lowered straight down.
+            const up = easeOut(clamp((e - 0.24) / 0.08)), kOut = Math.pow(clamp((e - 0.32) / 0.3), 2);
+            const kIn = easeOut(clamp((e - 0.42) / 0.28)), down = easeInOut(clamp((e - 0.74) / 0.1));
             if (cue.out) {
               cue.out.vel *= Math.exp(-dt * 1.2); cue.out.rot += cue.out.vel * dt;
-              cue.outOff = { x: -clear * kOut, y: -clear * Math.tan(OUT) * kOut, lift: clamp(kOut * 4) };
+              cue.outOff = { x: -clear * kOut, y: -clear * Math.tan(OUT) * kOut, lift: up };
             }
-            recOff = { x: -clear * (1 - kIn), y: -clear * Math.tan(IN) * (1 - kIn) - 0.12 * (1 - kIn), lift: clamp((1 - kIn) * 4) };
+            recOff = { x: -clear * (1 - kIn), y: -clear * Math.tan(IN) * (1 - kIn), lift: 1 - down };
             if (kOut >= 1) cue.out = null;
           }
         } else if (e >= 0.32 && e < 0.52) { const k = easeIn((e - 0.32) / 0.2); recOff = { x: k * 1.8, y: -k * 0.28, lift: k }; }
@@ -779,6 +784,17 @@
           const k = 1 - easeOut((e - 0.52) / 0.2); recOff = { x: -k * 1.8, y: -k * 0.28, lift: k };
         }
       }
+    }
+    // Changing to another album, the spindle sinks into the platter once the record is lifted off and only rises
+    // again after the new record has come all the way down onto it, up through its hole (Swap Record and Slide Over;
+    // a side turned in place keeps it up).
+    {
+      let down = false;
+      if (cue && cue.kind === 'album') {
+        const e = (now - cue.t0) / cue.dur, landed = cue.swapped && !cue.out && Math.abs(recOff.x) < 0.02 && recOff.lift < 0.03;
+        down = e >= (cue.slide ? 0.25 : 0.34) && !landed;
+      }
+      spindleH += ((down ? 0 : 1) - spindleH) * (1 - Math.exp(-dt * (down ? 8 : 4.5)));
     }
     if (!cue) {
       const k = 1 - Math.exp(-dt * 5);
@@ -1089,8 +1105,8 @@
     ctx.globalAlpha = 1;
   }
 
-  // A record on the platter (A, default the one shown) at offset off and turn rot. During Slide Over the leaving
-  // record is drawn too, with its own colors, and only the one on the platter gets the spindle.
+  // A record (A, default the one shown) at offset off and turn rot. During Slide Over the leaving record is drawn too,
+  // with its own colors. The spindle is drawn separately (drawSpindle).
   function drawRecord(L, C, A = shown, off = recOff, rot = spin) {
     if (!A) return;
     const main = A === shown;
@@ -1121,9 +1137,11 @@
     gr.addColorStop(0.57, 'rgba(255,255,255,0)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
     ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(0, 0, R, 0, TAU); ctx.arc(0, 0, LABEL_R * R * 1.02, 0, TAU, true); ctx.fill('evenodd');
     ctx.restore();
-    if (!main) return;
+  }
 
-    const cx = L.cx + ox, cy = L.cy + oy - up, sr = Math.max(2.5, 0.022 * R), sh = Math.max(5, 0.05 * R);
+  // The spindle is fixed to the platter, so it stays at the center while records are lifted and carried around.
+  function drawSpindle(L, C) {
+    const R = L.R, cx = L.cx, cy = L.cy, sr = Math.max(2.5, 0.022 * R), sh = Math.max(5, 0.05 * R) * spindleH;
     ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.beginPath(); ctx.ellipse(cx + sr * 0.5, cy + sr * 0.3, sr * 1.3, sr * 0.75, 0, 0, TAU); ctx.fill();
     ctx.fillStyle = css(C.metalD); ctx.fillRect(cx - sr, cy - sh, sr * 2, sh);
     ctx.beginPath(); ctx.ellipse(cx, cy, sr, sr * SQUASH, 0, 0, TAU); ctx.fill();
@@ -1593,8 +1611,12 @@
       drawSpecks(now);
     }
     drawDeck(L, C);
+    // the spindle shows through the hole of a record sitting on the platter; records being carried pass over it
+    const onPlatter = Math.abs(recOff.x) < 0.02 && Math.abs(recOff.y) < 0.1 && (recOff.lift < 0.03 || !(cue && cue.kind === 'album'));
+    if (!onPlatter) drawSpindle(L, C);
     if (cue && cue.out) { drawRecord(L, cue.out.C, cue.out.A, cue.outOff, cue.out.rot); drawRecord(L, sceneColors(targetPal)); }
     else drawRecord(L, C);
+    if (onPlatter) drawSpindle(L, C);
     // the crowd stands below the tonearm and needle (the arm's base plate is part of the deck, under everyone)
     if (crowd) crowd.draw(L, C);
     drawArm(L, C, now);
