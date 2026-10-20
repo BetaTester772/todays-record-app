@@ -54,16 +54,7 @@ enum ITunesSearch {
         }
         let url = endpoint("search", ["term": term, "entity": entity, "limit": "10", "country": country])
         getJSON(url) { results in
-            let sameAlbum = { (item: [String: Any]) in
-                (item["collectionName"] as? String)?.caseInsensitiveCompare(album) == .orderedSame
-            }
-            let sameTitle = { (item: [String: Any]) in
-                title.map { normalized(item["trackName"] as? String ?? "") == normalized($0) } ?? true
-            }
-            let match = results.first { sameAlbum($0) && sameTitle($0) }
-                ?? results.first(where: sameAlbum)
-                ?? (title == nil ? results.first : results.first(where: sameTitle))
-            guard let match, let id = match["collectionId"] as? Int else {
+            guard let match = bestMatch(in: results, album: album, title: title), let id = match["collectionId"] as? Int else {
                 completion(nil)
                 return
             }
@@ -71,6 +62,20 @@ enum ITunesSearch {
                 .flatMap { URL(string: $0.replacingOccurrences(of: "100x100bb", with: "600x600bb")) }
             completion(Album(collectionID: id, name: match["collectionName"] as? String ?? "", artworkURL: artwork, country: country))
         }
+    }
+
+    /// 앨범 이름과 곡 제목이 같은 결과 → 앨범 이름이 같은 결과 → 곡 검색이면 제목이 같은 결과, 앨범 검색(title nil)이면 첫 결과.
+    static func bestMatch(in results: [[String: Any]], album: String, title: String?) -> [String: Any]? {
+        let albumKey = albumName(album)
+        let sameAlbum = { (item: [String: Any]) in
+            albumName(item["collectionName"] as? String ?? "") == albumKey
+        }
+        let sameTitle = { (item: [String: Any]) in
+            title.map { normalized(item["trackName"] as? String ?? "") == normalized($0) } ?? true
+        }
+        return results.first { sameAlbum($0) && sameTitle($0) }
+            ?? results.first(where: sameAlbum)
+            ?? (title == nil ? results.first : results.first(where: sameTitle))
     }
 
     /// 앨범의 모든 곡. 디스크, 곡 번호 순서.
@@ -91,6 +96,15 @@ enum ITunesSearch {
 
     static func normalized(_ text: String) -> String {
         text.lowercased().trimmingCharacters(in: .whitespaces)
+    }
+
+    /// 비교용 앨범 이름. iTunes는 싱글과 EP 이름 끝에 " - Single", " - EP"를 붙이지만 Spotify는 붙이지 않는다.
+    static func albumName(_ name: String) -> String {
+        let name = normalized(name)
+        for suffix in [" - single", " - ep"] where name.hasSuffix(suffix) {
+            return String(name.dropLast(suffix.count))
+        }
+        return name
     }
 
     static func download(_ url: URL, completion: @escaping (Data?) -> Void) {
