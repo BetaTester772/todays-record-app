@@ -1041,6 +1041,20 @@
     ctx.imageSmoothingEnabled = true;
     return { w: m.width * ps, h: m.height * ps };
   }
+  // Long names slide sideways inside maxW instead of being cut: hold, slide to the end, hold, slide back.
+  const marquee = { key: '', t0: 0 };
+  function drawPixSlide(text, x, y, size, ps, color, weight, maxW) {
+    const m = pixMask(text, size, weight), w = m.width * ps, h = m.height * ps;
+    if (w <= maxW) return drawPix(text, x, y, size, ps, color, weight);
+    const over = w - maxW, run = over / 30 * 1000, hold = 2000;   // 30 css px per second
+    const t = (performance.now() - marquee.t0) % (2 * (hold + run));
+    const k = t < hold ? 0 : t < hold + run ? (t - hold) / run : t < 2 * hold + run ? 1 : 1 - (t - 2 * hold - run) / run;
+    const off = Math.round(easeInOut(k) * over / ps) * ps;
+    ctx.save(); ctx.beginPath(); ctx.rect(x, y, maxW, h); ctx.clip();
+    drawPix(text, x - off, y, size, ps, color, weight);
+    ctx.restore();
+    return { w: maxW, h };
+  }
   function clipPix(text, size, weight, maxUnits) { measure.font = `${weight} ${size}px ${FONT}`; return fitText(measure, text, maxUnits); }
   const ICONS = {
     play: ['10000', '11000', '11100', '11110', '11100', '11000', '10000'],
@@ -1069,9 +1083,11 @@
     y += rowSmall + ps * 3;
 
     if (st !== 'stopped' && media.title) {
-      y += drawPix(clipPix(media.title, sTitle, 800, maxCss / ps), x0, y, sTitle, ps, ink, 800).h;
-      if (media.artist) y += drawPix(clipPix(media.artist, sSmall, 600, maxCss / ps), x0, y, sSmall, ps, soft, 600).h;
-      if (media.album) y += drawPix(clipPix(media.album, sSmall, 600, maxCss / ps), x0, y, sSmall, ps, css(C.ink, 0.42), 600).h;
+      const mk = media.title + '|' + media.artist + '|' + media.album;
+      if (mk !== marquee.key) { marquee.key = mk; marquee.t0 = performance.now(); }
+      y += drawPixSlide(media.title, x0, y, sTitle, ps, ink, 800, maxCss).h;
+      if (media.artist) y += drawPixSlide(media.artist, x0, y, sSmall, ps, soft, 600, maxCss).h;
+      if (media.album) y += drawPixSlide(media.album, x0, y, sSmall, ps, css(C.ink, 0.42), 600, maxCss).h;
       y += ps * 3;
       const n = 20, bw = ps * 3, gap = ps, filled = Math.round(prog * n);
       for (let i = 0; i < n; i++) { ctx.fillStyle = i < filled ? ink : faint; ctx.fillRect(x0 + i * (bw + gap), y, bw, bw); }
