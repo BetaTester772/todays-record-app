@@ -1,6 +1,6 @@
 # 오늘의 판 — macOS 앱 명세서
 
-버전 0.11 · 2026-10-20 (0.2: LP 면 나누기, iTunes 검색 국가 대체 · 0.3: 음량 노브, 면 램프 · 0.4: 색 섞기 전환, 곡 안 위치 이동 · 0.5: 화면 문구 영어 · 0.6: 긴 이름 흐르기 · 0.7: 메뉴 막대·Dock 피하기 · 0.8: 오늘 들은 곡 수만, 노란 강조색 피하기 · 0.9: M2 설정 메뉴, 창문 빛, 잔상 · 0.10: 판 색 고르기, 시간대 색감 · 0.11: 배경색, 선 색 고르기)
+버전 0.12 · 2026-10-20 (0.2: LP 면 나누기, iTunes 검색 국가 대체 · 0.3: 음량 노브, 면 램프 · 0.4: 색 섞기 전환, 곡 안 위치 이동 · 0.5: 화면 문구 영어 · 0.6: 긴 이름 흐르기 · 0.7: 메뉴 막대·Dock 피하기 · 0.8: 오늘 들은 곡 수만, 노란 강조색 피하기 · 0.9: M2 설정 메뉴, 창문 빛, 잔상 · 0.10: 판 색 고르기, 시간대 색감 · 0.11: 배경색, 선 색 고르기 · 0.12: 그레인 세기)
 
 ## 1. 개요
 
@@ -190,6 +190,7 @@ Music 앱의 재생 정보를 다음 두 가지 방법을 합쳐서 얻는다.
 | 선 색 ▸ 앨범 색 / White / Black / Red / Orange / Blue / Green / Custom… | 판 위 선과 잔상 색. 기본 앨범 강조색 |
 | 효과 ▸ 창문 빛 (체크) | 시간대 조명(6장 19). 기본 켜짐 |
 | 효과 ▸ 선 ▸ 계속 남기기 / 잔상 | 6장 20. 기본 잔상 |
+| 효과 ▸ 그레인 ▸ Off / Low / Normal / High | 화면 잡음 무늬 세기. 기본 Normal(기존 세기) |
 | 표시할 화면 ▸ 주 화면 / 모든 화면 | 4.3 |
 | 시스템 배경화면 색 맞추기 (체크) | 4.9 |
 | 이 판 비우기 | `clearRecord()` |
@@ -197,7 +198,7 @@ Music 앱의 재생 정보를 다음 두 가지 방법을 합쳐서 얻는다.
 | Music 제어 권한 열기 (“Allow Control of Music…”) | 권한이 없을 때만 표시 |
 | 종료 | 앱 종료 (4.9가 켜져 있으면 원래 배경화면 복원 후) |
 
-설정은 `UserDefaults`에 저장하고(키 `enabled`, `position`, `transparent`, `windowLight`, `trail`, `recordColor`, `bgColor`, `lineColor`), 앱 시작 시와 웹뷰가 준비될 때 모든 웹뷰에 `setOptions`로 적용한다. 메뉴 문구는 영어로 쓴다(Show Wallpaper, Record Position, Background, Effects ▸ Window Light / Trail ▸ Keep·Afterglow, Clear This Record, Open at Login, Quit). 로그인 항목이 사용자 승인을 기다리는 상태(`requiresApproval`)면 시스템 설정의 로그인 항목 화면을 연다. 표시할 화면(4.3)과 시스템 배경화면 색 맞추기(4.9) 항목은 M4, M5에서 기능과 함께 더한다.
+설정은 `UserDefaults`에 저장하고(키 `enabled`, `position`, `transparent`, `windowLight`, `trail`, `grain`, `recordColor`, `bgColor`, `lineColor`), 앱 시작 시와 웹뷰가 준비될 때 모든 웹뷰에 `setOptions`로 적용한다. 메뉴 문구는 영어로 쓴다(Show Wallpaper, Record Position, Background, Effects ▸ Window Light / Trail ▸ Keep·Afterglow, Clear This Record, Open at Login, Quit). 로그인 항목이 사용자 승인을 기다리는 상태(`requiresApproval`)면 시스템 설정의 로그인 항목 화면을 연다. 표시할 화면(4.3)과 시스템 배경화면 색 맞추기(4.9) 항목은 M4, M5에서 기능과 함께 더한다.
 
 ### 4.9 시스템 배경화면 색 맞추기 (`WallpaperSync`, 선택 기능, 기본 꺼짐)
 
@@ -219,7 +220,7 @@ Music 앱의 재생 정보를 다음 두 가지 방법을 합쳐서 얻는다.
 | `TodaysRecord.nowPlaying(payload)` | 4.5의 JSON |
 | `TodaysRecord.art(dataURL, version)` | 앨범 커버 |
 | `TodaysRecord.setPaused(bool)` | 그리기 멈춤/재개 |
-| `TodaysRecord.setOptions({position, transparent, windowLight, trail, fps})` | position: `"left"`, `"center"`, `"right"` · transparent: bool · windowLight: bool · trail: `"keep"` 또는 `"afterglow"` · recordColor, bgColor, lineColor: `"#RRGGBB"` 또는 `""`(앨범 색) · fps: 30 또는 60(M4) |
+| `TodaysRecord.setOptions({position, transparent, windowLight, trail, fps})` | position: `"left"`, `"center"`, `"right"` · transparent: bool · windowLight: bool · trail: `"keep"` 또는 `"afterglow"` · grain: `"off"`, `"low"`, `"normal"`, `"high"`(기존 세기의 0, 0.45, 1, 1.45배) · recordColor, bgColor, lineColor: `"#RRGGBB"` 또는 `""`(앨범 색) · fps: 30 또는 60(M4) |
 | `TodaysRecord.clearRecord()` | 지금 판의 선 지우기 |
 | `TodaysRecord.setInsets({top, right, bottom, left})` | 메뉴 막대와 Dock이 덮는 화면 가장자리(4.3) |
 | `TodaysRecord.setVolume({level, muted})` | 시스템 음량. level: 0~1(모르면 생략), muted: bool (4.6.1) |

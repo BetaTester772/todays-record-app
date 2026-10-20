@@ -162,7 +162,8 @@
   const inset = { top: 0, right: 0, bottom: 0, left: 0 };   // screen edges under the menu bar and Dock (set by the app)
   // options the app can change from its menu (setOptions)
   // colors '' = taken from the album
-  const opts = { position: 'right', transparent: false, windowLight: true, trail: 'afterglow', recordColor: '', bgColor: '', lineColor: '' };
+  const opts = { position: 'right', transparent: false, windowLight: true, trail: 'afterglow', grain: 'normal', recordColor: '', bgColor: '', lineColor: '' };
+  const GRAIN = { off: 0, low: 0.45, normal: 1, high: 1.45 };   // multiplier on the original grain strength
   const glowPts = [];   // recent stylus points for the afterglow trail: { fr, a, t, c } or null for a lift
   let pal = palFromHex(DEMO[0].pal), targetPal = clonePal(pal);
   const PREVIEW_SPEED = 6;          // the preview feed runs faster than real time
@@ -584,6 +585,7 @@
         if (['left', 'center', 'right'].includes(o.position)) opts.position = o.position;
         if (typeof o.windowLight === 'boolean') opts.windowLight = o.windowLight;
         if (o.trail === 'keep' || o.trail === 'afterglow') opts.trail = o.trail;
+        if (o.grain in GRAIN) opts.grain = o.grain;
         for (const k of ['recordColor', 'bgColor', 'lineColor']) {
           if (typeof o[k] === 'string') opts[k] = /^#[0-9a-f]{6}$/i.test(o[k]) ? o[k] : '';
         }
@@ -1265,7 +1267,9 @@
 
   function drawGrain() {
     if (!grainPat) grainPat = ctx.createPattern(noise, 'repeat');
-    ctx.save(); ctx.globalAlpha = isDark() ? 0.5 : 0.62;
+    const amount = GRAIN[opts.grain] ?? 1;
+    if (amount <= 0) return;
+    ctx.save(); ctx.globalAlpha = Math.min(1, (isDark() ? 0.5 : 0.62) * amount);
     ctx.translate(-grainOff.x, -grainOff.y);
     ctx.fillStyle = grainPat; ctx.fillRect(0, 0, W + 180, H + 180);
     ctx.restore();

@@ -10,6 +10,11 @@ final class Settings {
         case keep, afterglow
     }
 
+    /// 화면 그레인(잡음 무늬) 세기.
+    enum Grain: String, CaseIterable {
+        case off, low, normal, high
+    }
+
     /// 사용자가 고를 수 있는 색. 빈 문자열이면 앨범에서 뽑은 색을 쓴다.
     enum ColorSlot: String, CaseIterable {
         case record = "recordColor"
@@ -43,6 +48,7 @@ final class Settings {
         static let transparent = "transparent"
         static let windowLight = "windowLight"
         static let trail = "trail"
+        static let grain = "grain"
     }
 
     private let defaults: UserDefaults
@@ -55,6 +61,7 @@ final class Settings {
             Key.transparent: false,
             Key.windowLight: true,
             Key.trail: Trail.afterglow.rawValue,
+            Key.grain: Grain.normal.rawValue,
         ])
     }
 
@@ -84,6 +91,11 @@ final class Settings {
         set { defaults.set(newValue.rawValue, forKey: Key.trail) }
     }
 
+    var grain: Grain {
+        get { Grain(rawValue: defaults.string(forKey: Key.grain) ?? "") ?? .normal }
+        set { defaults.set(newValue.rawValue, forKey: Key.grain) }
+    }
+
     /// "#RRGGBB" 또는 빈 문자열(앨범 색).
     func color(_ slot: ColorSlot) -> String {
         defaults.string(forKey: slot.rawValue) ?? ""
@@ -100,6 +112,7 @@ final class Settings {
             "transparent": transparent,
             "windowLight": windowLight,
             "trail": trail.rawValue,
+            "grain": grain.rawValue,
             "recordColor": color(.record),
             "bgColor": color(.background),
             "lineColor": color(.line),

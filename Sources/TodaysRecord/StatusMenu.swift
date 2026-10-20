@@ -20,6 +20,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     private var positionItems: [Settings.Position: NSMenuItem] = [:]
     private var backgroundItems: [Bool: NSMenuItem] = [:]
     private var trailItems: [Settings.Trail: NSMenuItem] = [:]
+    private var grainItems: [Settings.Grain: NSMenuItem] = [:]
     private var colorItems: [Settings.ColorSlot: [NSMenuItem]] = [:]
     private var customColorItems: [Settings.ColorSlot: NSMenuItem] = [:]
     /// 색상 창이 지금 바꾸고 있는 색.
@@ -73,6 +74,14 @@ final class StatusMenu: NSObject, NSMenuDelegate {
             trail.addItem(item)
         }
         effects.addItem(submenu("Trail", trail))
+        let grain = NSMenu()
+        for (value, title) in [(Settings.Grain.off, "Off"), (.low, "Low"), (.normal, "Normal"), (.high, "High")] {
+            let item = target(NSMenuItem(title: title, action: nil, keyEquivalent: ""), #selector(chooseGrain(_:)))
+            item.representedObject = value.rawValue
+            grainItems[value] = item
+            grain.addItem(item)
+        }
+        effects.addItem(submenu("Grain", grain))
         menu.addItem(submenu("Effects", effects))
         menu.addItem(.separator())
 
@@ -173,6 +182,12 @@ final class StatusMenu: NSObject, NSMenuDelegate {
                        alpha: 1)
     }
 
+    @objc private func chooseGrain(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? String, let value = Settings.Grain(rawValue: raw) else { return }
+        settings.grain = value
+        changed()
+    }
+
     @objc private func clearRecord() {
         onClearRecord?()
     }
@@ -218,6 +233,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         positionItems.forEach { $0.value.state = $0.key == settings.position ? .on : .off }
         backgroundItems.forEach { $0.value.state = $0.key == settings.transparent ? .on : .off }
         trailItems.forEach { $0.value.state = $0.key == settings.trail ? .on : .off }
+        grainItems.forEach { $0.value.state = $0.key == settings.grain ? .on : .off }
         for slot in Settings.ColorSlot.allCases {
             let color = settings.color(slot)
             let isPreset = slot.presets.contains { $0.hex.caseInsensitiveCompare(color) == .orderedSame }
