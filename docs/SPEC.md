@@ -232,12 +232,12 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
 |---|---|
 | General | Show Wallpaper, Open at Login (`SMAppService.mainApp` 등록/해제), Frame Rate(Auto / 30 / 60, 4.7. Auto는 배터리일 때 30), Clear This Record, Check for Updates Automatically와 버전·Check Now·업데이트 버튼(4.10) |
 | Displays | 연결된 화면마다 켜기/끄기 (4.3). 화면이 바뀌면 목록을 다시 읽는다 |
-| Appearance | Record Position(Left / Center / Right), Background(Default / Transparent). 그 아래 **Colors** 묶음 하나에 색을 모은다(6장 21): Record(Album / Colored Vinyl / Contrast Vinyl / Custom), Background·Line·Text(Album / Custom), Tonearm·Arm Base(Default / Custom). 기본은 지금 색 그대로이고, Custom일 때만 오른쪽에 색 상자가 보인다. Custom을 처음 고르면 미리 정한 색(판 검정, 배경 크림 등)에서 시작한다. Reset Colors는 모두 기본으로 되돌린다(바꾼 것이 없으면 비활성) |
+| Appearance | Record Position(Left / Center / Right), Background(Default / Transparent). 그 아래 **Colors** 묶음 하나에 색을 모은다(6장 21): Record(Album / Colored Vinyl / Contrast Vinyl / Custom), Background·Text(Album / Custom), Line(Album / Contrast / Custom), Tonearm·Arm Base(Default / Custom). 기본은 지금 색 그대로이고, Custom일 때만 오른쪽에 색 상자가 보인다. Custom을 처음 고르면 미리 정한 색(판 검정, 배경 크림 등)에서 시작한다. Reset Colors는 모두 기본으로 되돌린다(바꾼 것이 없으면 비활성) |
 | Effects | Window Light(6장 19), Trail(Keep / Afterglow, 6장 20), Grain(Off / Low / Normal / High), Side Change(Lift & Turn / Swap Record / Needle Only, 6장 23) |
 | Characters | Rider(바늘 위 캐릭터): Pose(Auto / Sit / Lean Back / Cross-Legged / Hug Knees, 6장 27). Rider Colors(따로 아래 칸): Shirt·Pants(Album / Custom), Hat(Default / Custom), Reset Colors. Crowd: Crowd(켜기/끄기, 기본 켬), Crowd Pace(1× / 2× / 5× / 10×, 6장 25) |
 | Players | Music·Spotify 제어 권한 상태와 자동화 설정 열기 |
 
-설정은 `UserDefaults`에 저장한다(키 `enabled`, `position`, `transparent`, `windowLight`, `trail`, `grain`, `sideChange`, `coloredVinyl`, `vinylStyle`, `crowd`, `crowdPace`, `riderPose`, `hatColor`, `recordColor`, `bgColor`, `lineColor`, `textColor`, `armColor`, `armBaseColor`, `shirtColor`, `pantsColor`, `disabledDisplays`, `fps`). 설정 창은 `@AppStorage`로 같은 키(`Settings.Key`)에 바로 쓰고, 앱은 `UserDefaults.didChangeNotification`을 받아 한 번에 모아 창과 모든 웹뷰에 반영한다(`setOptions`). 앱 시작 시와 웹뷰가 준비될 때도 적용한다. 화면과 메뉴 문구는 영어로 쓴다. 로그인 항목이 사용자 승인을 기다리는 상태(`requiresApproval`)면 시스템 설정의 로그인 항목 화면을 연다.
+설정은 `UserDefaults`에 저장한다(키 `enabled`, `position`, `transparent`, `windowLight`, `trail`, `grain`, `sideChange`, `coloredVinyl`, `vinylStyle`, `lineStyle`, `crowd`, `crowdPace`, `riderPose`, `hatColor`, `recordColor`, `bgColor`, `lineColor`, `textColor`, `armColor`, `armBaseColor`, `shirtColor`, `pantsColor`, `disabledDisplays`, `fps`). 설정 창은 `@AppStorage`로 같은 키(`Settings.Key`)에 바로 쓰고, 앱은 `UserDefaults.didChangeNotification`을 받아 한 번에 모아 창과 모든 웹뷰에 반영한다(`setOptions`). 앱 시작 시와 웹뷰가 준비될 때도 적용한다. 화면과 메뉴 문구는 영어로 쓴다. 로그인 항목이 사용자 승인을 기다리는 상태(`requiresApproval`)면 시스템 설정의 로그인 항목 화면을 연다.
 
 **앱 아이콘.** `scripts/make-icon.swift`가 앱 화면과 같은 색(분홍 배경, 초록 받침, 크림색 판, 초록 라벨, 주황 바늘)으로 macOS 아이콘 격자(1024 안 824 둥근 사각형)에 그려 `iconutil`로 `Resources/AppIcon.icns`를 만든다. `Info.plist`의 `CFBundleIconFile`이 가리킨다.
 
@@ -269,7 +269,7 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
 | `TodaysRecord.nowPlaying(payload)` | 4.5의 JSON |
 | `TodaysRecord.art(dataURL, version)` | 앨범 커버 |
 | `TodaysRecord.setPaused(bool)` | 그리기 멈춤/재개 |
-| `TodaysRecord.setOptions({position, transparent, windowLight, trail, fps})` | position: `"left"`, `"center"`, `"right"` · transparent: bool · windowLight: bool · trail: `"keep"` 또는 `"afterglow"` · grain: `"off"`, `"low"`, `"normal"`, `"high"`(기존 세기의 0, 0.45, 1, 1.45배) · sideChange: `"turn"`, `"swap"`, `"needle"`(6장 23) · coloredVinyl: bool, vinylStyle: `"match"`·`"contrast"`(6장 21) · crowd: bool, crowdPace: 1·2·5·10(6장 25) · riderPose: `"auto"`, `"sit"`, `"lean"`, `"cross"`, `"hug"`(6장 27) · hatColor: `"#RRGGBB"` 또는 `""`(기본 흰색) · recordColor, bgColor, lineColor, textColor: `"#RRGGBB"` 또는 `""`(앨범 색) · armColor, armBaseColor: `"#RRGGBB"` 또는 `""`(기본 금속색) · shirtColor, pantsColor: `"#RRGGBB"` 또는 `""`(앨범 색) · fps: 30 또는 60(앱이 설정과 전원에 따라 정해 보낸다) |
+| `TodaysRecord.setOptions({position, transparent, windowLight, trail, fps})` | position: `"left"`, `"center"`, `"right"` · transparent: bool · windowLight: bool · trail: `"keep"` 또는 `"afterglow"` · grain: `"off"`, `"low"`, `"normal"`, `"high"`(기존 세기의 0, 0.45, 1, 1.45배) · sideChange: `"turn"`, `"swap"`, `"needle"`(6장 23) · coloredVinyl: bool, vinylStyle: `"match"`·`"contrast"`, lineStyle: `"album"`·`"contrast"`(6장 21) · crowd: bool, crowdPace: 1·2·5·10(6장 25) · riderPose: `"auto"`, `"sit"`, `"lean"`, `"cross"`, `"hug"`(6장 27) · hatColor: `"#RRGGBB"` 또는 `""`(기본 흰색) · recordColor, bgColor, lineColor, textColor: `"#RRGGBB"` 또는 `""`(앨범 색) · armColor, armBaseColor: `"#RRGGBB"` 또는 `""`(기본 금속색) · shirtColor, pantsColor: `"#RRGGBB"` 또는 `""`(앨범 색) · fps: 30 또는 60(앱이 설정과 전원에 따라 정해 보낸다) |
 | `TodaysRecord.clearRecord()` | 지금 판의 선 지우기 |
 | `TodaysRecord.setInsets({top, right, bottom, left})` | 메뉴 막대와 Dock이 덮는 화면 가장자리(4.3) |
 | `TodaysRecord.setVolume({level, muted})` | 시스템 음량. level: 0~1(모르면 생략), muted: bool (4.6.1) |
@@ -312,6 +312,7 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
 
 14. **화면 문구 영어.** 상태 문구, 안내 문구, 오늘 들은 곡 수 등 화면의 모든 문구를 영어로 쓴다(Now Playing, Paused, Nothing Playing, Played Today 등). 곡·앨범·아티스트 이름(미리보기 데이터 포함)은 그대로 둔다. 메뉴 막대 메뉴와 권한 설명(`NSAppleEventsUsageDescription`)도 영어로 쓴다.
 
+    - 시간은 `m:ss`, 1시간부터 `h:mm:ss`. 곡 정보가 오른쪽 정렬일 때(레코드 왼쪽) 진행 막대 자리는 곡 길이 형식의 가장 넓은 숫자로 잡아, 숫자가 바뀌어도 막대가 좌우로 움직이지 않는다. 시간 글자는 오른쪽 끝에 맞춘다.
 15. **긴 이름 흐르기.** 곡 제목, 아티스트, 앨범 이름이 곡 정보 너비를 넘으면 자르지 않고 옆으로 흐르게 한다. 처음 2초 멈춤 → 끝까지 초당 30px로 이동 → 2초 멈춤 → 되돌아옴을 반복한다. 곡이 바뀌면 처음부터 다시 시작한다. 안내 문구는 한 줄로 쓰도록 곡 정보보다 넓게(화면 너비의 절반, 최대 640px까지) 쓸 수 있고, 그래도 넘으면 자르지 않고 단어 단위로 줄을 바꾼다.
 
 16. **메뉴 막대·Dock 피하기.** `setInsets`로 받은 가장자리를 뺀 영역 안에서 `layout()`을 계산한다(배경 채우기는 화면 전체). 가로 화면의 판 크기 상한은 `0.62H`에서 `0.53H`로 낮춰, 판 앞쪽 원 위의 노브와 면 램프가 늘 보이는 영역 안에 들어오게 한다. 판 중심 높이도 `0.6H`에서 `0.56H`로 올려 Dock 쪽 여유를 더 둔다(0.20). 곡 정보는 원래 자리가 가장자리에 걸릴 때만 안쪽으로 민다.
@@ -331,6 +332,7 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
     - `vinylStyle`이 `contrast`(Contrast Vinyl, 사용자 요청)면 컬러 바이닐 색의 색상만 반대로(180°) 돌린 색으로 칠한다(채도·밝기는 같음). 반대 색이라 선은 따로 옅게 하지 않고 강조색 그대로 그린다. 확인: 초록 앨범 → 보라 판, 청록 앨범 → 빨간 판.
     - `armColor`(0.23 사용자 요청): 톤암 색. 기둥, 팔, 균형추, 헤드셸, 바늘을 이 색(그늘진 면은 16% 어둡게)으로 그린다. 노브는 금속색 그대로, 카트리지는 강조색 그대로다. 비어 있으면 기본 금속색.
     - `armBaseColor`(0.23 사용자 요청): 톤암 아래 받침판 색(가운데 원은 받침 색을 18% 섞음). 톤암 색과 따로 고른다. 비어 있으면 기본 금속색.
+    - `lineStyle`이 `contrast`(Line ▸ Contrast)면 선을 앨범 강조색의 반대 색상으로 그린다. 노란 계열은 강조색처럼 주황이나 초록으로 옮기고, 판과 밝기 차이가 0.25보다 작으면 판보다 0.3 진하게(밝은 판) 또는 밝게(어두운 판) 해 같은 색 계열 판 위에서도 보이게 한다.
     - `shirtColor`, `pantsColor`(0.23 사용자 요청): 바늘 위 캐릭터의 윗옷(기본 강조색)과 바지(기본 받침 색). 그늘진 쪽은 지금처럼 어둡게 섞는다.
     - 트랙 사이 띠는 밝은 판(밝기 0.8 이상, 기본 판)에서는 지금처럼 흰색 50%를 섞고, 그보다 어두운 판에서는 20%만 섞는다(진한 판에서 흰 고리가 너무 도드라져서).
 
@@ -352,12 +354,13 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
     - 판의 흔들림(워프): 판 중심이 아주 조금 어긋나 바늘이 한 바퀴에 한 번 안팎으로(판 반지름의 0.35%) 출렁이고, 판이 살짝 휘어 한 바퀴에 두 번 위아래로 움직인다. 회전 속도에 비례하고 바늘이 판 위에 있을 때만 보인다.
 
 25. **모여드는 사람들(`Resources/crowd.js`, 0.24 사용자 요청).** 쉬지 않고 오래 들을수록 작은 사람들이 하나씩 놀러 온다. 움직임 코드가 커서 `index.html`과 나눠 `crowd.js`에 두고, `index.html`은 `TodaysRecordCrowd(scene)`로 만들어 매 프레임 `update`, `draw`를 부른다. `scene`은 화면 상태(크기, 여백, 재생 상태, 판 회전, 판 바꾸기)와 그리기 도구를 읽기 전용으로 넘긴다. 파일이 없으면 사람 없이 그대로 동작한다.
-    - 오는 때: 재생 시간이 3~7분(랜덤)일 때 첫 사람, 그 뒤 한 명 올 때마다 3~5분(랜덤) 뒤 다음 사람. 최대 6명. 음악이 멈추거나 정지하면 30초~1분마다 한 명씩 손을 흔들고 화면 밖으로 걸어 나간다. 다시 재생하면 남아 있던 사람은 그대로 있고, 다음 사람은 3~5분(아무도 없으면 3~7분) 뒤에 온다. `crowdPace`(1·2·5·10배)는 사람들 시간 전체를 빠르게 한다: 오고 가는 시간, 걷기, 한 가지 일을 하는 시간, 작은 움직임, 효과. 춤 박자는 음악을 따르고, 판 위에서 뛰는 다리 빠르기는 판의 실제 속도를 따른다(사람들만의 시계 `crowd.clock`). Crowd를 끄면 모두 떠난다. 투명 배경에서는 그리지 않는다.
+    - 오는 때: 재생 시간이 3~7분(랜덤)일 때 첫 사람, 그 뒤 한 명 올 때마다 3~5분(랜덤) 뒤 다음 사람. 최대 6명. 재생 중에도 사람마다 20~45분(랜덤) 머문 뒤 집에 가고(5분에 한 명까지), 1~3분 뒤 새 사람이 온다. 음악이 멈추거나 정지하면 30초~1분마다 한 명씩 손을 흔들고 화면 밖으로 걸어 나간다. 다시 재생하면 남아 있던 사람은 그대로 있고, 다음 사람은 3~5분(아무도 없으면 3~7분) 뒤에 온다. `crowdPace`(1·2·5·10배)는 사람들 시간 전체를 빠르게 한다: 오고 가는 시간, 걷기, 한 가지 일을 하는 시간, 작은 움직임, 효과. 춤 박자는 음악을 따르고, 판 위에서 뛰는 다리 빠르기는 판의 실제 속도를 따른다(사람들만의 시계 `crowd.clock`). Crowd를 끄면 모두 떠난다. 투명 배경에서는 그리지 않는다.
     - 자리: 책상 위, 받침 위, 받침 왼쪽 가장자리(걸터앉기)에서, 사람 몸 전체가 판, 노브·램프, 톤암과 그 받침, 바늘이 지나는 길, 곡 정보를 가리지 않는 곳만 쓴다. 레코드 위치(left·center·right), 화면 크기, 여백이 바뀌면 자리를 다시 계산하므로 배치마다 보이는 바닥에 선다. 옆으로 가깝고 위아래로 몸 높이보다 가까우면 겹친다고 보고 그런 자리는 고르지 않으며, 그래도 겹쳐 서 있으면 한 명이 옮겨 간다. 판을 가로지르는 길은 판 둘레로 돌아가되, 양쪽 길 중 화면 안에 더 많이 남는 쪽을 고르고 화면 밖으로 나가지 않게 한다. 받침 옆면 위에는 서지 않고, 책상에서 받침으로 갈 때는 화면에서 곧게 걸어 올라가 튀지 않는다.
     - 움직임은 여유롭게: 걸음은 천천히(초당 20u, u는 판 크기에 비례), 한 가지 일을 30초~1분 넘게 하고, 자리 옮기기는 드물다(사용자 요청).
     - 하는 일(재생 중이면 춤 쪽, 멈추면 쉬는 쪽이 많음): 걸어다니기, 가장자리에 걸터앉아 발 흔들기, 춤(세 가지), 헤드뱅잉(4마디마다 손 들기), 비보잉(톱록 → 헤드스핀 → 프리즈), 책 읽기(책장 넘김), 졸기(꾸벅꾸벅, 음악이 다시 나오면 깜짝), 통화(말풍선, 웃음, 서성이기), 서로 놀기(하이파이브, 손잡고 폴짝, 술래잡기), 판 위 달리기, 그냥 서 있기(기지개, 둘러보기, 발 까딱, 컵 마시기). 새 곡이 시작되면 서 있던 사람들이 환호한다.
     - 판 위 달리기: 판 앞쪽이나 뒤쪽(판 표면이 화면에서 좌우로 움직이는 곳, 올라가기 전 자리가 화면 안인 곳)까지 걸어가 같은 걸음 속도로 걸어 올라간 뒤, 러닝머신처럼 판이 도는 반대 방향으로 뛰며 제자리에 있다. 걸어 올라가는 동안과 내려오는 동안에는 판에 실려 도는 방향으로 밀린다(판 속도의 35%). 밀릴 거리만큼 앞에서 올라가 달릴 자리에 닿는다. 다리는 판 표면 속도에 맞춘 느긋한 빠르기(사람이 판보다 빨라 보이지 않게)다. 판이 느려지거나 시간이 다 되면 걸어서 내려오고, 판을 들어 바꾸면 튕겨 나가 구르고 어지러워한다.
     - 다양함: 피부색 6, 머리 모양 9(짧은 머리, 단발, 긴 머리, 포니테일, 똥머리, 곱슬, 모자, 비니, 삐죽), 머리색, 옷·신발 색(일부는 앨범 강조색, 받침·배경과 비슷한 색은 피함), 안경·헤드폰·리본·목도리·가방·주근깨, 키(작은 사람 20%), 걸음 빠르기. 행동을 시작할 때마다 판 쪽이나 아무 쪽을 보고, 서서 하는 일(인사, 춤, 헤드뱅잉, 통화, 서 있기)은 40%쯤 앞(화면 쪽)을 본다. 눈을 깜빡인다. 하트, 음표, z, !, 말풍선, 땀방울, 반짝이 효과.
+    - 레코드가 왼쪽이면 오른쪽, 오른쪽이면 왼쪽처럼 화면에서 트인 쪽 자리를 새로 온 사람이 먼저 고른다(자리가 3곳 이상일 때). 걸어 옮길 때도 70%는 트인 쪽으로 간다.
     - 그리는 순서: 판 → 사람(발 위치 순서) → 톤암과 바늘. 톤암 받침판은 받침과 함께 사람 아래에 그린다.
 26. **받침 높이.** 받침이 책상보다 조금 높아 보이게, 받침 윗면 아래로 진한 옆면(판 반지름의 0.06)과 더 넓고 부드러운 그림자를 그린다.
     - 톤암 그림자: 팔과 헤드 그림자를 한 도형으로 한 번에 칠해 겹친 곳이 진해지지 않게 한다.

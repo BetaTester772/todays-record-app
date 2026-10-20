@@ -87,6 +87,7 @@ final class Settings {
         static let sideChange = "sideChange"
         static let coloredVinyl = "coloredVinyl"
         static let vinylStyle = "vinylStyle"
+        static let lineStyle = "lineStyle"
         static let crowd = "crowd"
         static let crowdPace = "crowdPace"
         static let riderPose = "riderPose"
@@ -110,6 +111,7 @@ final class Settings {
             Key.sideChange: SideChange.turn.rawValue,
             Key.coloredVinyl: false,
             Key.vinylStyle: "match",
+            Key.lineStyle: "album",
             Key.crowd: true,
             Key.crowdPace: 1,
             Key.riderPose: RiderPose.auto.rawValue,
@@ -184,6 +186,12 @@ final class Settings {
         set { defaults.set(newValue, forKey: Key.coloredVinyl) }
     }
 
+    /// 선 색을 직접 고르지 않았을 때: album(앨범 강조색) 또는 contrast(강조색의 반대 색상).
+    var lineStyle: String {
+        get { defaults.string(forKey: Key.lineStyle) == "contrast" ? "contrast" : "album" }
+        set { defaults.set(newValue, forKey: Key.lineStyle) }
+    }
+
     /// 컬러 바이닐의 색: match(앨범 색) 또는 contrast(앨범 색의 반대 색상).
     var vinylStyle: String {
         get { defaults.string(forKey: Key.vinylStyle) == "contrast" ? "contrast" : "match" }
@@ -229,6 +237,7 @@ final class Settings {
             "sideChange": sideChange.rawValue,
             "coloredVinyl": coloredVinyl,
             "vinylStyle": vinylStyle,
+            "lineStyle": lineStyle,
             "crowd": crowd,
             "crowdPace": crowdPace,
             "recordColor": color(.record),

@@ -3,7 +3,8 @@
 // The longer the music plays without a break, the more little people drop by: one 3-7 minutes in, then one every
 // 3-5 minutes, up to 6. They walk around the turntable and the desk, sit on the plinth's edge swinging their feet,
 // dance, headbang, breakdance, read, doze off, take phone calls, play together and run on the spinning record.
-// When the music stops they go home one by one, every 30-60 seconds; whoever is still there when it starts again stays.
+// Everyone stays 20-45 minutes and then makes room for someone new (at most one leaves every 5 minutes). When the music stops they go home one by one,
+// every 30-60 seconds; whoever is still there when it starts again stays.
 //
 // index.html creates it with TodaysRecordCrowd(scene) and calls update(dt) and draw(L, C) every frame.
 // `scene` gives read access to the page's state and drawing helpers (see where index.html creates it, at boot).
@@ -128,11 +129,17 @@
     const clearOf = (u, p, x, y, gap) => crowd.people.every(o => o === p || o === p.partner || o.leaving ||
       (!overlaps(u, o.tx, o.ty, x, y, gap) && !overlaps(u, o.x, o.y, x, y, gap)));
 
-    // a free spot of this kind, not in front of or behind anyone else, preferring nearer ones
-    function findSpot(L, p, kind, gap) {
+    // The open side of the screen: with the record on the left the room is on the right, and the other way round.
+    const openSide = s => S.opts.position === 'left' ? s.x > layout().cx + layout().R : S.opts.position === 'right' ? s.x < layout().cx - layout().R * 0.6 : true;
+
+    // a free spot of this kind, not in front of or behind anyone else, preferring nearer ones (and, for newcomers,
+    // the open side of the screen)
+    function findSpot(L, p, kind, gap, preferOpen) {
       const u = unitOf(L);
-      const free = spots(L).filter(s => s.kind === kind && clearOf(u, p, s.x, s.y, gap * 0.75));
+      let free = spots(L).filter(s => s.kind === kind && clearOf(u, p, s.x, s.y, gap * 0.75));
       if (!free.length) return null;
+      if (preferOpen) { const open = free.filter(openSide); if (open.length >= 3) free = open; }
+      if (!p.placed) return pick(free);   // newcomers have no position yet, so no "nearer" either
       let best = null, bd = Infinity;
       for (let i = 0; i < 5; i++) { const s = pick(free), d = Math.hypot(s.x - p.x, s.y - p.y); if (d < bd) { bd = d; best = s; } }
       return best;
@@ -213,8 +220,9 @@
         x: 0, y: 0, tx: 0, ty: 0, face: 1, path: [], act: 'walk', t: 0, dur: 0, view: 'side',
         kind: 'stand', seed: rand(0, 100), walkPhase: 0, blinkAt: 0, partner: null, then: null, leaving: false,
       };
-      const s = findSpot(L, p, 'stand', 22) || findSpot(L, p, 'edge', 22);
+      const s = findSpot(L, p, 'stand', 22, true) || findSpot(L, p, 'edge', 22, true);
       if (!s) return;
+      p.placed = true; p.born = crowd.clock; p.stay = rand(1200, 2700);   // stays 20-45 minutes, then makes room for someone new
       const fromLeft = s.x < S.W / 2;
       p.x = fromLeft ? S.inset.left - 24 * u : S.W - S.inset.right + 24 * u;
       p.y = clamp(s.y + rand(-30, 30), S.inset.top + 40 * u, S.H - S.inset.bottom - 10);
@@ -252,7 +260,7 @@
       const dur = { dance: rand(30, 60), headbang: rand(12, 20), bboy: 18, swing: rand(40, 80), read: rand(45, 90), doze: rand(40, 80), phone: rand(25, 45), idle: rand(8, 18) }[act];
 
       if (act === 'walk') {
-        const s = findSpot(L, p, chance(0.2) && hasEdge ? 'edge' : 'stand', 22);
+        const s = findSpot(L, p, chance(0.2) && hasEdge ? 'edge' : 'stand', 22, chance(0.7));
         if (s) goTo(L, p, s.x, s.y, () => { p.kind = s.kind; startAct(L, p, 'idle', rand(4, 9)); });
         else startAct(L, p, 'idle', 5);
         return;
@@ -313,6 +321,11 @@
           crowd.nextAt = people.some(p => !p.leaving) ? rand(180, 300) : rand(180, 420);
         }
         crowd.idle = 0; crowd.leaveAt = rand(30, 60); crowd.play += dt * k;
+        // comings and goings: someone who has stayed their while heads home (not mid-run or mid-game), at most one every
+        // 5 minutes, and a new face arrives a minute or three later
+        const done = crowd.play - (crowd.turnAt ?? -1e9) > 300 &&
+          people.find(p => !p.leaving && !p.runs && !p.partner && p.act !== 'walk' && (crowd.clock - p.born) / 1000 > p.stay * (1 / k));
+        if (done) { sendHome(L, done); crowd.turnAt = crowd.play; crowd.nextAt = Math.max(crowd.nextAt, crowd.play + rand(60, 180)); }
         if (crowd.play >= crowd.nextAt && people.filter(p => !p.leaving).length < MAX) {
           spawn(L, S.sceneColors()); crowd.nextAt = crowd.play + rand(180, 300);
         }

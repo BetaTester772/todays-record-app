@@ -192,6 +192,7 @@ private struct AppearancePane: View {
     @AppStorage(Settings.Key.transparent) private var transparent = false
     @AppStorage(Settings.Key.coloredVinyl) private var coloredVinyl = false
     @AppStorage(Settings.Key.vinylStyle) private var vinylStyle = "match"
+    @AppStorage(Settings.Key.lineStyle) private var lineStyle = "album"
     @AppStorage(Settings.ColorSlot.record.rawValue) private var recordColor = ""
     @AppStorage(Settings.ColorSlot.background.rawValue) private var bgColor = ""
     @AppStorage(Settings.ColorSlot.line.rawValue) private var lineColor = ""
@@ -200,7 +201,7 @@ private struct AppearancePane: View {
     @AppStorage(Settings.ColorSlot.armBase.rawValue) private var armBaseColor = ""
 
     private var colorsChanged: Bool {
-        coloredVinyl || ![recordColor, bgColor, lineColor, textColor, armColor, armBaseColor].allSatisfy(\.isEmpty)
+        coloredVinyl || lineStyle == "contrast" || ![recordColor, bgColor, lineColor, textColor, armColor, armBaseColor].allSatisfy(\.isEmpty)
     }
 
     var body: some View {
@@ -221,14 +222,14 @@ private struct AppearancePane: View {
             Section {
                 ColorRow(slot: .record, title: "Record", hex: $recordColor, vinyl: $coloredVinyl, vinylStyle: $vinylStyle)
                 ColorRow(slot: .background, title: "Background", hex: $bgColor)
-                ColorRow(slot: .line, title: "Line", hex: $lineColor)
+                ColorRow(slot: .line, title: "Line", hex: $lineColor, contrast: Binding(get: { lineStyle == "contrast" }, set: { lineStyle = $0 ? "contrast" : "album" }))
                 ColorRow(slot: .text, title: "Text", hex: $textColor)
                 ColorRow(slot: .arm, title: "Tonearm", hex: $armColor)
                 ColorRow(slot: .armBase, title: "Arm Base", hex: $armBaseColor)
                 HStack {
                     Spacer()
                     Button("Reset Colors") {
-                        coloredVinyl = false; vinylStyle = "match"
+                        coloredVinyl = false; vinylStyle = "match"; lineStyle = "album"
                         for slot in [Settings.ColorSlot.record, .background, .line, .text, .arm, .armBase] { UserDefaults.standard.set("", forKey: slot.rawValue) }
                     }
                     .disabled(!colorsChanged)
@@ -390,6 +391,8 @@ private struct ColorRow: View {
     @Binding var hex: String
     var vinyl: Binding<Bool>?
     var vinylStyle: Binding<String>?
+    /// 선처럼 앨범 색의 반대 색(Contrast)을 고를 수 있는 줄
+    var contrast: Binding<Bool>?
 
     private enum Choice: Hashable { case automatic, vinyl, contrast, custom }
 
@@ -399,10 +402,12 @@ private struct ColorRow: View {
         Binding(
             get: {
                 if !hex.isEmpty { return .custom }
+                if contrast?.wrappedValue == true { return .contrast }
                 guard vinyl?.wrappedValue == true else { return .automatic }
                 return vinylStyle?.wrappedValue == "contrast" ? .contrast : .vinyl
             },
             set: { new in
+                contrast?.wrappedValue = new == .contrast
                 vinyl?.wrappedValue = new == .vinyl || new == .contrast
                 if new == .vinyl || new == .contrast { vinylStyle?.wrappedValue = new == .contrast ? "contrast" : "match" }
                 if new == .custom {
@@ -423,6 +428,7 @@ private struct ColorRow: View {
                         Text("Colored Vinyl").tag(Choice.vinyl)
                         Text("Contrast Vinyl").tag(Choice.contrast)
                     }
+                    if contrast != nil { Text("Contrast").tag(Choice.contrast) }
                     Text("Custom").tag(Choice.custom)
                 }
                 .labelsHidden()

@@ -153,7 +153,12 @@
     while (t.length > 1 && g.measureText(t + '…').width > maxW) t = t.slice(0, -1);
     return t + '…';
   }
-  const fmt = s => { s = Math.max(0, Math.floor(s)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+  // m:ss, or h:mm:ss from an hour on
+  const fmt = s => {
+    s = Math.max(0, Math.floor(s));
+    const h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, ss = String(s % 60).padStart(2, '0');
+    return h ? h + ':' + String(m).padStart(2, '0') + ':' + ss : m + ':' + ss;
+  };
   const dayKey = () => { const d = new Date(); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); };
 
   // ---------- elements & state ----------
@@ -165,7 +170,7 @@
   // options the app can change from its menu (setOptions)
   // colors '' = taken from the album
   // sideChange: how turning to the other side of the same record looks: 'turn' (lift and turn), 'swap' (like a new album), 'needle' (needle only)
-  const opts = { position: 'right', transparent: false, windowLight: true, trail: 'afterglow', grain: 'normal', fps: 60, sideChange: 'turn', coloredVinyl: false, vinylStyle: 'match', recordColor: '', bgColor: '', lineColor: '', textColor: '', armColor: '', armBaseColor: '', shirtColor: '', pantsColor: '', hatColor: '', riderPose: 'auto', crowd: true, crowdPace: 1 };
+  const opts = { position: 'right', transparent: false, windowLight: true, trail: 'afterglow', grain: 'normal', fps: 60, sideChange: 'turn', coloredVinyl: false, vinylStyle: 'match', lineStyle: 'album', recordColor: '', bgColor: '', lineColor: '', textColor: '', armColor: '', armBaseColor: '', shirtColor: '', pantsColor: '', hatColor: '', riderPose: 'auto', crowd: true, crowdPace: 1 };
   const GRAIN = { off: 0, low: 0.45, normal: 1, high: 1.45 };   // multiplier on the original grain strength
   const glowPts = [];   // recent stylus points for the afterglow trail: { fr, a, t, c } or null for a lift
   let pal = palFromHex(DEMO[0].pal), targetPal = clonePal(pal);
@@ -618,6 +623,7 @@
         if (['turn', 'swap', 'needle'].includes(o.sideChange)) opts.sideChange = o.sideChange;
         if (typeof o.coloredVinyl === 'boolean') opts.coloredVinyl = o.coloredVinyl;
         if (o.vinylStyle === 'match' || o.vinylStyle === 'contrast') opts.vinylStyle = o.vinylStyle;
+        if (o.lineStyle === 'album' || o.lineStyle === 'contrast') opts.lineStyle = o.lineStyle;
         if (typeof o.crowd === 'boolean') opts.crowd = o.crowd;
         if ([1, 2, 5, 10].includes(o.crowdPace)) opts.crowdPace = o.crowdPace;
         if (o.riderPose === 'auto' || o.riderPose in RIDER_POSES) opts.riderPose = o.riderPose;
@@ -856,7 +862,17 @@
 
   // on colored vinyl the accent can be the record's own color, so the line is a pale (or, on a light record, deep) shade of it;
   // contrast vinyl is the opposite hue, so the accent already stands out on it
-  const lineColor = () => opts.lineColor || (opts.coloredVinyl && opts.vinylStyle !== 'contrast' && !opts.recordColor
+  // Contrast line: the opposite hue of the album's accent (yellow moved to amber or green, like the accent), kept at least
+  // a quarter of the way lighter or darker than the record so it shows even on a record of the same hue
+  function contrastLine() {
+    const a = rgb2hsl(targetPal.accent), rec = rgb2hsl(sceneColors().record);
+    let h = (a[0] + 0.5) % 1;
+    if (h > 0.11 && h < 0.2) h = h < 0.155 ? 0.09 : 0.26;
+    let l = clamp(a[2], 0.45, 0.6);
+    if (Math.abs(l - rec[2]) < 0.25) l = rec[2] > 0.5 ? rec[2] - 0.3 : rec[2] + 0.3;
+    return css(hsl2rgb([h, Math.max(0.55, a[1]), clamp(l, 0.15, 0.85)]));
+  }
+  const lineColor = () => opts.lineColor || (opts.lineStyle === 'contrast' ? contrastLine() : opts.coloredVinyl && opts.vinylStyle !== 'contrast' && !opts.recordColor
     ? css(rgb2hsl(targetPal.vinyl)[2] < 0.6 ? mix(targetPal.vinyl, [255, 255, 255], 0.72) : mix(targetPal.vinyl, [0, 0, 0], 0.5))
     : css(targetPal.accent));
 
@@ -1387,6 +1403,12 @@
     ctx.save(); plinthPath(); ctx.clip(); hudPass(C, LIGHT); ctx.restore();
   }
 
+  // the widest of the ten digits in the pixel font at this size
+  const widest = new Map();
+  function widestDigit(size) {
+    if (!widest.has(size)) widest.set(size, [...'0123456789'].reduce((m, d) => pixMask(d, size, 600).width > pixMask(m, size, 600).width ? d : m, '0'));
+    return widest.get(size);
+  }
   function hudPass(C, T) {
     const { ps, sTitle, sSmall, x0, xR, maxCss, toRight } = hudMetrics();
     let y = hudMetrics().y0;
@@ -1410,9 +1432,14 @@
       y += ps * 3;
       const n = 20, bw = ps * 3, gap = ps, filled = Math.round(prog * n);
       const time = fmt(posNow) + ' / ' + fmt(media.duration);
-      const bx = ax(n * (bw + gap) + ps * 3 + pw(time, sSmall, 600));
+      // right-aligned, the bar's place comes from the time at its longest (both sides in the song length's format, every
+      // digit at its widest), so it doesn't shift as the digits change; the time itself sits against the right edge
+      const longest = (fmt(media.duration) + ' / ' + fmt(media.duration)).replace(/\d/g, widestDigit(sSmall));
+      const timeW = toRight ? Math.max(pw(longest, sSmall, 600), pw(time, sSmall, 600)) : pw(time, sSmall, 600);
+      const bx = ax(n * (bw + gap) + ps * 3 + timeW);
       for (let i = 0; i < n; i++) { ctx.fillStyle = i < filled ? T.ink : T.faint; ctx.fillRect(bx + i * (bw + gap), y, bw, bw); }
-      drawPix(time, bx + n * (bw + gap) + ps * 3, y + bw / 2 - rowSmall / 2, sSmall, ps, T.soft, 600);
+      const tx = toRight ? xR - pw(time, sSmall, 600) : bx + n * (bw + gap) + ps * 3;
+      drawPix(time, tx, y + bw / 2 - rowSmall / 2, sSmall, ps, T.soft, 600);
       y += bw + ps * 4;
       if (side) {
         const rec = lpRecord(side);
