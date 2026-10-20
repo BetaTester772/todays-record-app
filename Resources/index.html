@@ -785,14 +785,13 @@
         }
       }
     }
-    // Changing to another album, the spindle sinks into the platter once the record is lifted off and only rises
-    // again after the new record has come all the way down onto it, up through its hole (Swap Record and Slide Over;
-    // a side turned in place keeps it up).
+    // Whenever the record is lifted (another album, or the other side turned over in place), the spindle sinks into
+    // the platter and only rises again after the record has come all the way back down, up through its hole.
     {
       let down = false;
-      if (cue && cue.kind === 'album') {
+      if (cue && (cue.kind === 'album' || cue.kind === 'flip')) {
         const e = (now - cue.t0) / cue.dur, landed = cue.swapped && !cue.out && Math.abs(recOff.x) < 0.02 && recOff.lift < 0.03;
-        down = e >= (cue.slide ? 0.25 : 0.34) && !landed;
+        down = e >= (cue.kind === 'flip' ? 0.3 : cue.slide ? 0.25 : 0.34) && !landed;
       }
       spindleH += ((down ? 0 : 1) - spindleH) * (1 - Math.exp(-dt * (down ? 8 : 4.5)));
     }
@@ -1612,7 +1611,7 @@
     }
     drawDeck(L, C);
     // the spindle shows through the hole of a record sitting on the platter; records being carried pass over it
-    const onPlatter = Math.abs(recOff.x) < 0.02 && Math.abs(recOff.y) < 0.1 && (recOff.lift < 0.03 || !(cue && cue.kind === 'album'));
+    const onPlatter = Math.abs(recOff.x) < 0.02 && Math.abs(recOff.y) < 0.1 && recOff.lift < 0.03;
     if (!onPlatter) drawSpindle(L, C);
     if (cue && cue.out) { drawRecord(L, cue.out.C, cue.out.A, cue.outOff, cue.out.rot); drawRecord(L, sceneColors(targetPal)); }
     else drawRecord(L, C);
