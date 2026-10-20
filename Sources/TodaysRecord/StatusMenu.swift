@@ -20,6 +20,8 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     private var positionItems: [Settings.Position: NSMenuItem] = [:]
     private var backgroundItems: [Bool: NSMenuItem] = [:]
     private var trailItems: [Settings.Trail: NSMenuItem] = [:]
+    private var recordColorItems: [NSMenuItem] = []
+    private let customColorItem = NSMenuItem(title: "Custom…", action: nil, keyEquivalent: "")
 
     init(settings: Settings) {
         self.settings = settings
@@ -54,6 +56,18 @@ final class StatusMenu: NSObject, NSMenuDelegate {
             background.addItem(item)
         }
         menu.addItem(submenu("Background", background))
+
+        let recordColor = NSMenu()
+        for (index, preset) in Settings.recordColorPresets.enumerated() {
+            let item = target(NSMenuItem(title: preset.title, action: nil, keyEquivalent: ""), #selector(chooseRecordColor(_:)))
+            item.representedObject = preset.hex
+            recordColorItems.append(item)
+            recordColor.addItem(item)
+            if index == 0 { recordColor.addItem(.separator()) }
+        }
+        recordColor.addItem(.separator())
+        recordColor.addItem(target(customColorItem, #selector(pickCustomColor)))
+        menu.addItem(submenu("Record Color", recordColor))
 
         let effects = NSMenu()
         effects.addItem(target(windowLightItem, #selector(toggleWindowLight)))
@@ -124,6 +138,42 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         changed()
     }
 
+    @objc private func chooseRecordColor(_ sender: NSMenuItem) {
+        settings.recordColor = sender.representedObject as? String ?? ""
+        changed()
+    }
+
+    /// macOS 색상 창으로 판 색을 직접 고른다. 움직이는 동안 바로 반영한다.
+    @objc private func pickCustomColor() {
+        let panel = NSColorPanel.shared
+        panel.showsAlpha = false
+        panel.isContinuous = true
+        if let color = Self.color(fromHex: settings.recordColor) { panel.color = color }
+        panel.setTarget(self)
+        panel.setAction(#selector(customColorChanged(_:)))
+        NSApp.activate(ignoringOtherApps: true)
+        panel.makeKeyAndOrderFront(nil)
+    }
+
+    @objc private func customColorChanged(_ sender: NSColorPanel) {
+        guard let rgb = sender.color.usingColorSpace(.sRGB) else { return }
+        let hex = String(format: "#%02X%02X%02X",
+                         Int((rgb.redComponent * 255).rounded()),
+                         Int((rgb.greenComponent * 255).rounded()),
+                         Int((rgb.blueComponent * 255).rounded()))
+        guard hex != settings.recordColor else { return }
+        settings.recordColor = hex
+        changed()
+    }
+
+    private static func color(fromHex hex: String) -> NSColor? {
+        guard hex.count == 7, let value = Int(hex.dropFirst(), radix: 16) else { return nil }
+        return NSColor(srgbRed: CGFloat((value >> 16) & 0xFF) / 255,
+                       green: CGFloat((value >> 8) & 0xFF) / 255,
+                       blue: CGFloat(value & 0xFF) / 255,
+                       alpha: 1)
+    }
+
     @objc private func clearRecord() {
         onClearRecord?()
     }
@@ -169,6 +219,10 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         positionItems.forEach { $0.value.state = $0.key == settings.position ? .on : .off }
         backgroundItems.forEach { $0.value.state = $0.key == settings.transparent ? .on : .off }
         trailItems.forEach { $0.value.state = $0.key == settings.trail ? .on : .off }
+        let color = settings.recordColor
+        let isPreset = Settings.recordColorPresets.contains { $0.hex.caseInsensitiveCompare(color) == .orderedSame }
+        recordColorItems.forEach { $0.state = ($0.representedObject as? String)?.caseInsensitiveCompare(color) == .orderedSame ? .on : .off }
+        customColorItem.state = isPreset ? .off : .on
         loginItem.state = SMAppService.mainApp.status == .enabled ? .on : .off
     }
 

@@ -16,7 +16,18 @@ final class Settings {
         static let transparent = "transparent"
         static let windowLight = "windowLight"
         static let trail = "trail"
+        static let recordColor = "recordColor"
     }
+
+    /// 메뉴에 보이는 레코드 판 색. 빈 문자열은 앨범에서 뽑은 색.
+    static let recordColorPresets: [(title: String, hex: String)] = [
+        ("Album Colors", ""),
+        ("Black", "#1C1B1E"),
+        ("White", "#F4F0E6"),
+        ("Red", "#B8323A"),
+        ("Blue", "#2F5C9E"),
+        ("Green", "#3F7A55"),
+    ]
 
     private let defaults: UserDefaults
 
@@ -28,6 +39,7 @@ final class Settings {
             Key.transparent: false,
             Key.windowLight: true,
             Key.trail: Trail.afterglow.rawValue,
+            Key.recordColor: "",
         ])
     }
 
@@ -57,6 +69,12 @@ final class Settings {
         set { defaults.set(newValue.rawValue, forKey: Key.trail) }
     }
 
+    /// "#RRGGBB" 또는 빈 문자열(앨범 색).
+    var recordColor: String {
+        get { defaults.string(forKey: Key.recordColor) ?? "" }
+        set { defaults.set(newValue, forKey: Key.recordColor) }
+    }
+
     /// `TodaysRecord.setOptions`로 보내는 값. 명세 5장.
     var webOptions: [String: Any] {
         [
@@ -64,6 +82,7 @@ final class Settings {
             "transparent": transparent,
             "windowLight": windowLight,
             "trail": trail.rawValue,
+            "recordColor": recordColor,
         ]
     }
 }
