@@ -25,12 +25,13 @@ final class Settings {
         case off, low, normal, high
     }
 
-    /// 사용자가 고를 수 있는 색. 빈 문자열이면 앨범에서 뽑은 색을 쓴다.
+    /// 사용자가 고를 수 있는 색. 빈 문자열이면 앨범에서 뽑은 색(톤암은 기본 금속색)을 쓴다.
     enum ColorSlot: String, CaseIterable {
         case record = "recordColor"
         case background = "bgColor"
         case line = "lineColor"
         case text = "textColor"
+        case arm = "armColor"
 
         var menuTitle: String {
             switch self {
@@ -38,6 +39,7 @@ final class Settings {
             case .background: return "Background Color"
             case .line: return "Line Color"
             case .text: return "Text Color"
+            case .arm: return "Arm Color"
             }
         }
 
@@ -52,6 +54,8 @@ final class Settings {
                 return [("Album Colors", ""), ("White", "#FFFFFF"), ("Black", "#1A1A1A"), ("Red", "#E0443C"), ("Orange", "#F07A2A"), ("Blue", "#3A7BD5"), ("Green", "#3FAF6A")]
             case .text:
                 return [("Album Colors", ""), ("White", "#FFFFFF"), ("Black", "#1A1A1A")]
+            case .arm:
+                return [("Default", ""), ("Black", "#26262A"), ("Gold", "#C9A45C"), ("Red", "#B8323A")]
             }
         }
     }
@@ -65,6 +69,7 @@ final class Settings {
         static let trail = "trail"
         static let grain = "grain"
         static let sideChange = "sideChange"
+        static let coloredVinyl = "coloredVinyl"
         static let autoUpdateCheck = "autoUpdateCheck"
         static let lastUpdateCheck = "lastUpdateCheck"
         static let disabledDisplays = "disabledDisplays"
@@ -83,6 +88,7 @@ final class Settings {
             Key.trail: Trail.afterglow.rawValue,
             Key.grain: Grain.normal.rawValue,
             Key.sideChange: SideChange.turn.rawValue,
+            Key.coloredVinyl: false,
             Key.autoUpdateCheck: true,
             Key.disabledDisplays: "",
             Key.fps: FrameRate.auto.rawValue,
@@ -148,6 +154,12 @@ final class Settings {
         set { defaults.set(newValue.rawValue, forKey: Key.sideChange) }
     }
 
+    /// 판을 앨범의 주된 색으로 칠할지(컬러 바이닐). Record Color를 직접 고르면 그 색이 먼저다. 명세 6장 21.
+    var coloredVinyl: Bool {
+        get { defaults.bool(forKey: Key.coloredVinyl) }
+        set { defaults.set(newValue, forKey: Key.coloredVinyl) }
+    }
+
     /// "#RRGGBB" 또는 빈 문자열(앨범 색).
     func color(_ slot: ColorSlot) -> String {
         defaults.string(forKey: slot.rawValue) ?? ""
@@ -166,10 +178,12 @@ final class Settings {
             "trail": trail.rawValue,
             "grain": grain.rawValue,
             "sideChange": sideChange.rawValue,
+            "coloredVinyl": coloredVinyl,
             "recordColor": color(.record),
             "bgColor": color(.background),
             "lineColor": color(.line),
             "textColor": color(.text),
+            "armColor": color(.arm),
         ]
     }
 }

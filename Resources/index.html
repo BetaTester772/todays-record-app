@@ -67,7 +67,8 @@
   const R_LOCAL = 600, S = 1280;
   const STORE_KEY = 'todays-record-v2';
   const FONT = 'system-ui, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif';
-  const PAL_KEYS = ['bg', 'plinth', 'record', 'label', 'accent', 'ink'];
+  // vinyl: the album's own color, used for the record when the Colored Vinyl option is on
+  const PAL_KEYS = ['bg', 'plinth', 'record', 'label', 'accent', 'ink', 'vinyl'];
   const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const darkMQ = matchMedia('(prefers-color-scheme: dark)');
   const isDark = () => {
@@ -78,16 +79,16 @@
   // Fictional demo albums (original titles and art)
   const DEMO = [
     { album: '롤러장 가는 길', artist: '핑크 플래터즈', motif: 'sun', bpm: 96,
-      pal: { bg: '#EFDADD', plinth: '#2D5C48', record: '#F6E6E8', label: '#2D5C48', accent: '#EE5A36', ink: '#23463A' },
+      pal: { bg: '#EFDADD', plinth: '#2D5C48', record: '#F6E6E8', label: '#2D5C48', accent: '#EE5A36', ink: '#23463A', vinyl: '#D97A8C' },
       tracks: [['오프닝 스핀', 168], ['롤러장 가는 길', 204], ['분홍 바퀴', 182], ['마지막 한 바퀴', 220]] },
     { album: 'Midnight Groove Line', artist: 'The Spindles', motif: 'stripes', bpm: 88,
-      pal: { bg: '#E9E3D3', plinth: '#1F2F4F', record: '#F3EEE2', label: '#F2B630', accent: '#E9A21C', ink: '#1F2F4F' },
+      pal: { bg: '#E9E3D3', plinth: '#1F2F4F', record: '#F3EEE2', label: '#F2B630', accent: '#E9A21C', ink: '#1F2F4F', vinyl: '#E2A72E' },
       tracks: [['Needle Drop', 192], ['Midnight Groove Line', 232], ['Sleeve Notes', 160]] },
     { album: '라벤더 테이프', artist: '소금빵 클럽', motif: 'dots', bpm: 104,
-      pal: { bg: '#E4DDEE', plinth: '#5B2D5E', record: '#EFEAF5', label: '#7FD1B9', accent: '#2FA987', ink: '#4A2550' },
+      pal: { bg: '#E4DDEE', plinth: '#5B2D5E', record: '#EFEAF5', label: '#7FD1B9', accent: '#2FA987', ink: '#4A2550', vinyl: '#8C5C9C' },
       tracks: [['라벤더 테이프', 178], ['B면의 오후', 210], ['늦은 포장', 185]] },
     { album: 'Side B Summer', artist: 'Ocean Label', motif: 'waves', bpm: 92,
-      pal: { bg: '#D8E8EE', plinth: '#145A5E', record: '#EAF3F5', label: '#FF7A6B', accent: '#F4604F', ink: '#0F4649' },
+      pal: { bg: '#D8E8EE', plinth: '#145A5E', record: '#EAF3F5', label: '#FF7A6B', accent: '#F4604F', ink: '#0F4649', vinyl: '#3C989E' },
       tracks: [['Side B Summer', 211], ['Salt and Static', 175], ['Low Tide', 242]] },
   ];
 
@@ -163,7 +164,7 @@
   // options the app can change from its menu (setOptions)
   // colors '' = taken from the album
   // sideChange: how turning to the other side of the same record looks: 'turn' (lift and turn), 'swap' (like a new album), 'needle' (needle only)
-  const opts = { position: 'right', transparent: false, windowLight: true, trail: 'afterglow', grain: 'normal', fps: 60, sideChange: 'turn', recordColor: '', bgColor: '', lineColor: '', textColor: '' };
+  const opts = { position: 'right', transparent: false, windowLight: true, trail: 'afterglow', grain: 'normal', fps: 60, sideChange: 'turn', coloredVinyl: false, recordColor: '', bgColor: '', lineColor: '', textColor: '', armColor: '' };
   const GRAIN = { off: 0, low: 0.45, normal: 1, high: 1.45 };   // multiplier on the original grain strength
   const glowPts = [];   // recent stylus points for the afterglow trail: { fr, a, t, c } or null for a lift
   let pal = palFromHex(DEMO[0].pal), targetPal = clonePal(pal);
@@ -297,10 +298,11 @@
     const g = c.getContext('2d', { willReadFrequently: true });
     g.drawImage(img, 0, 0, n, n);
     const d = g.getImageData(0, 0, n, n).data;
-    const px = []; let best = null, bestScore = -1;
+    const px = []; let best = null, bestScore = -1, colorful = 0;
     for (let i = 0; i < d.length; i += 4) {
       const col = [d[i], d[i + 1], d[i + 2]]; const hsl = rgb2hsl(col);
       px.push({ col, l: hsl[2] });
+      if (hsl[1] > 0.25 && hsl[2] > 0.15 && hsl[2] < 0.85) colorful++;
       const score = hsl[1] * (1 - Math.abs(hsl[2] - 0.5) * 1.6);
       if (score > bestScore) { bestScore = score; best = hsl; }
     }
@@ -312,12 +314,16 @@
     // hues of about 40-72 degrees move to amber or green, whichever is nearer
     const ah = h > 0.11 && h < 0.2 ? (h < 0.155 ? 0.09 : 0.26) : h;
     const deep = hsl2rgb([dh[0], Math.min(0.55, dh[1] + 0.1), clamp(dh[2], 0.16, 0.28)]);
+    // colored vinyl in the cover's main color; a cover with little color (under 10% of pixels) gets a dark record
+    const vinyl = colorful < n * n * 0.1 ? hsl2rgb([dh[0], Math.min(0.2, dh[1]), 0.14])
+      : hsl2rgb([h, clamp(s, 0.4, 0.7), clamp(best[2], 0.38, 0.52)]);
     return {
       bg: hsl2rgb([h, Math.min(0.45, s * 0.6 + 0.1), 0.89]),
       plinth: deep, label: deep.slice(),
       record: hsl2rgb([h, Math.min(0.35, s * 0.5 + 0.08), 0.94]),
       accent: hsl2rgb([ah, Math.max(0.55, s), clamp(best[2], 0.45, 0.58)]),
       ink: hsl2rgb([dh[0], Math.min(0.5, dh[1] + 0.1), 0.2]),
+      vinyl,
     };
   }
 
@@ -608,7 +614,8 @@
         if (o.grain in GRAIN) opts.grain = o.grain;
         if (o.fps === 30 || o.fps === 60) opts.fps = o.fps;
         if (['turn', 'swap', 'needle'].includes(o.sideChange)) opts.sideChange = o.sideChange;
-        for (const k of ['recordColor', 'bgColor', 'lineColor', 'textColor']) {
+        if (typeof o.coloredVinyl === 'boolean') opts.coloredVinyl = o.coloredVinyl;
+        for (const k of ['recordColor', 'bgColor', 'lineColor', 'textColor', 'armColor']) {
           if (typeof o[k] === 'string') opts[k] = /^#[0-9a-f]{6}$/i.test(o[k]) ? o[k] : '';
         }
         if (typeof o.transparent === 'boolean') {
@@ -840,7 +847,10 @@
     ctx.globalAlpha = 1;
   }
 
-  const lineColor = () => opts.lineColor || css(targetPal.accent);
+  // on colored vinyl the accent can be the record's own color, so the line is a pale (or, on a light record, deep) shade of it
+  const lineColor = () => opts.lineColor || (opts.coloredVinyl && !opts.recordColor
+    ? css(rgb2hsl(targetPal.vinyl)[2] < 0.6 ? mix(targetPal.vinyl, [255, 255, 255], 0.72) : mix(targetPal.vinyl, [0, 0, 0], 0.5))
+    : css(targetPal.accent));
 
   function strokeTrail(p0, p1) {
     const g = shown.tctx;
@@ -880,9 +890,11 @@
       c.bg = mix(pal.bg, [18, 21, 20], 0.84);
       c.plinth = mix(pal.plinth, [8, 10, 9], 0.35);
       c.record = mix(pal.record, [40, 38, 42], 0.62);
+      c.vinyl = mix(pal.vinyl, [40, 38, 42], 0.3);
       const h = rgb2hsl(pal.bg); c.ink = hsl2rgb([h[0], Math.min(0.4, h[1]), 0.86]);
     }
-    // colors chosen in the app's menu
+    // colors chosen in the app's settings
+    if (opts.coloredVinyl) c.record = c.vinyl;
     if (opts.recordColor) c.record = hex(opts.recordColor);
     if (opts.bgColor) {
       c.bg = hex(opts.bgColor);
@@ -894,6 +906,9 @@
     c.edge = mix(c.record, [0, 0, 0], 0.16);
     c.metal = d ? [196, 192, 194] : [250, 245, 242];
     c.metalD = mix(c.metal, [0, 0, 0], 0.16);
+    // tonearm: post, arm tube, counterweight, headshell and stylus (the base plate and knobs stay metal)
+    c.arm = opts.armColor ? hex(opts.armColor) : c.metal;
+    c.armD = mix(c.arm, [0, 0, 0], 0.16);
     c.shade = mix(c.plinth, [0, 0, 0], 0.28);
     return c;
   }
@@ -1009,7 +1024,8 @@
   }
   // gaps between tracks: smooth bands without grooves
   function drawGaps(R, C) {
-    ctx.strokeStyle = css(mix(C.record, [255, 255, 255], 0.5)); ctx.lineWidth = GAP * 0.7 * R;
+    // fainter on a colored or dark record, where half-white rings stand out too much
+    ctx.strokeStyle = css(mix(C.record, [255, 255, 255], rgb2hsl(C.record)[2] >= 0.8 ? 0.5 : 0.2)); ctx.lineWidth = GAP * 0.7 * R;
     const prev = sideFade < 1 && cue && cue.prev;
     for (const [gaps, a] of prev ? [[cue.prev.gaps, 1 - sideFade], [shown.gaps, sideFade]] : [[shown.gaps, 1]]) {
       ctx.globalAlpha = a;
@@ -1074,27 +1090,27 @@
 
     // pivot post
     const pw = 0.06 * R;
-    ctx.fillStyle = css(C.metalD); ctx.fillRect(pivot.x - pw / 2, pivot.y, pw, hp);
+    ctx.fillStyle = css(C.armD); ctx.fillRect(pivot.x - pw / 2, pivot.y, pw, hp);
     ctx.beginPath(); ctx.ellipse(G.x, G.y, pw / 2, pw / 2 * SQUASH, 0, 0, TAU); ctx.fill();
-    ctx.fillStyle = css(C.metal); ctx.beginPath(); ctx.ellipse(pivot.x, pivot.y, pw / 2, pw / 2 * SQUASH, 0, 0, TAU); ctx.fill();
+    ctx.fillStyle = css(C.arm); ctx.beginPath(); ctx.ellipse(pivot.x, pivot.y, pw / 2, pw / 2 * SQUASH, 0, 0, TAU); ctx.fill();
 
     // counterweight and arm tube
-    ctx.strokeStyle = css(C.metal); ctx.lineWidth = aw;
+    ctx.strokeStyle = css(C.arm); ctx.lineWidth = aw;
     ctx.beginPath(); ctx.moveTo(cw.x, cw.y); ctx.lineTo(pivot.x, pivot.y); ctx.stroke();
-    ctx.fillStyle = css(C.metalD); disc(ctx, cw.x, cw.y + 0.006 * R, 0.05 * R);
-    ctx.fillStyle = css(C.metal); disc(ctx, cw.x, cw.y, 0.045 * R);
-    ctx.strokeStyle = css(C.metal); ctx.lineWidth = aw;
+    ctx.fillStyle = css(C.armD); disc(ctx, cw.x, cw.y + 0.006 * R, 0.05 * R);
+    ctx.fillStyle = css(C.arm); disc(ctx, cw.x, cw.y, 0.045 * R);
+    ctx.strokeStyle = css(C.arm); ctx.lineWidth = aw;
     ctx.beginPath(); ctx.moveTo(pivot.x, pivot.y); ctx.lineTo(head.x, head.y); ctx.stroke();
 
     // cartridge and needle
     const cwid = 0.046 * R, chh = hs * 0.8;
     ctx.fillStyle = css(C.accent); rrect(ctx, head.x - cwid / 2, head.y, cwid, chh, 0.008 * R); ctx.fill();
-    ctx.strokeStyle = css(C.metalD); ctx.lineWidth = Math.max(1, 0.006 * R);
+    ctx.strokeStyle = css(C.armD); ctx.lineWidth = Math.max(1, 0.006 * R);
     ctx.beginPath(); ctx.moveTo(head.x, head.y + chh); ctx.lineTo(head.x, head.y + hs); ctx.stroke();
     // headshell plate
     const ang = Math.atan2(head.y - pivot.y, head.x - pivot.x);
     ctx.save(); ctx.translate(head.x, head.y); ctx.rotate(ang);
-    ctx.fillStyle = css(C.metal); rrect(ctx, -0.05 * R, -0.03 * R, 0.11 * R, 0.06 * R, 0.012 * R); ctx.fill();
+    ctx.fillStyle = css(C.arm); rrect(ctx, -0.05 * R, -0.03 * R, 0.11 * R, 0.06 * R, 0.012 * R); ctx.fill();
     ctx.restore();
 
     drawRider(head.x + 0.006 * R, head.y - 0.012 * R, clamp(R * 0.16, 26, 90), C, now);

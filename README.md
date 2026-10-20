@@ -73,7 +73,7 @@ Click the record icon in the menu bar:
 
 - **General**: Show Wallpaper, Open at Login, Frame Rate (Auto uses 30 fps on battery), Clear This Record, automatic update checks
 - **Displays**: choose which displays show the record
-- **Appearance**: record position, transparent background, record / background / line colors (from the album or your own)
+- **Appearance**: record position, transparent background, **Colored Vinyl** (the record takes the album's main color), record / background / line / text colors (from the album or your own), tonearm color
 - **Effects**: window light that follows the time of day, line trail (keep or afterglow), grain
 - **Players**: permission status for Music and Spotify
 

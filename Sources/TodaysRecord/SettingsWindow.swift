@@ -184,10 +184,12 @@ private struct DisplaysPane: View {
 private struct AppearancePane: View {
     @AppStorage(Settings.Key.position) private var position = Settings.Position.right.rawValue
     @AppStorage(Settings.Key.transparent) private var transparent = false
+    @AppStorage(Settings.Key.coloredVinyl) private var coloredVinyl = false
     @AppStorage(Settings.ColorSlot.record.rawValue) private var recordColor = ""
     @AppStorage(Settings.ColorSlot.background.rawValue) private var bgColor = ""
     @AppStorage(Settings.ColorSlot.line.rawValue) private var lineColor = ""
     @AppStorage(Settings.ColorSlot.text.rawValue) private var textColor = ""
+    @AppStorage(Settings.ColorSlot.arm.rawValue) private var armColor = ""
 
     var body: some View {
         Pane {
@@ -205,10 +207,19 @@ private struct AppearancePane: View {
                 .pickerStyle(.segmented)
             }
             Section {
+                Toggle("Colored Vinyl", isOn: $coloredVinyl)
+                    .disabled(!recordColor.isEmpty)
+                Text(recordColor.isEmpty
+                     ? "The record takes the album's main color, like colored vinyl."
+                     : "Turn on From Album for Record Color to use this.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Section {
                 ColorRow(title: "Record Color", hex: $recordColor)
                 ColorRow(title: "Background Color", hex: $bgColor)
                 ColorRow(title: "Line Color", hex: $lineColor)
                 ColorRow(title: "Text Color", hex: $textColor)
+                ColorRow(title: "Arm Color", hex: $armColor, automatic: "Default")
             }
         }
     }
@@ -290,16 +301,17 @@ private struct Pane<Content: View>: View {
     }
 }
 
-/// "From Album"이 켜져 있으면 앨범 색, 끄면 직접 고른 색.
+/// "From Album"이 켜져 있으면 앨범 색, 끄면 직접 고른 색. 톤암처럼 기본 색이 앨범 색이 아니면 `automatic`에 다른 이름을 준다.
 private struct ColorRow: View {
     let title: String
     @Binding var hex: String
+    var automatic = "From Album"
 
     var body: some View {
         HStack {
             Text(title)
             Spacer()
-            Toggle("From Album", isOn: Binding(
+            Toggle(automatic, isOn: Binding(
                 get: { hex.isEmpty },
                 set: { hex = $0 ? "" : (hex.isEmpty ? "#808080" : hex) }
             ))
