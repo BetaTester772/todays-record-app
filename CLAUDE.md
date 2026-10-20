@@ -45,6 +45,7 @@ scripts/run.sh --windowed       # 일반 창으로 띄워 디버깅 (Safari 웹 
 scripts/run.sh --log-nowplaying # Music·Spotify 알림과 AppleScript 결과 출력
 scripts/run.sh --settings       # 시작할 때 설정 창 열기
 swift scripts/make-icon.swift   # 앱 아이콘(Resources/AppIcon.icns) 다시 만들기
+scripts/package.sh              # 배포용 Universal zip (dist/)
 log stream --predicate 'subsystem == "com.todaysrecord"'   # 로그 보기
 ```
 

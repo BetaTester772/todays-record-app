@@ -1,5 +1,6 @@
 #!/bin/bash
 # .app 번들 조립과 애드혹 서명. 결과: build/TodaysRecord.app
+# UNIVERSAL=1이면 Apple Silicon과 Intel이 함께 든 실행 파일로 만든다(배포용, scripts/package.sh).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -7,8 +8,10 @@ CONFIG="${CONFIG:-release}"
 APP="$ROOT/build/TodaysRecord.app"
 
 cd "$ROOT"
-swift build -c "$CONFIG"
-BIN="$(swift build -c "$CONFIG" --show-bin-path)/TodaysRecord"
+ARCH_FLAGS=()
+if [ "${UNIVERSAL:-0}" = "1" ]; then ARCH_FLAGS=(--arch arm64 --arch x86_64); fi
+swift build -c "$CONFIG" ${ARCH_FLAGS[@]+"${ARCH_FLAGS[@]}"}
+BIN="$(swift build -c "$CONFIG" ${ARCH_FLAGS[@]+"${ARCH_FLAGS[@]}"} --show-bin-path)/TodaysRecord"
 
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
