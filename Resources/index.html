@@ -1216,8 +1216,9 @@
         slideOff(media.title, M.sTitle, 800, M.ps, M.maxCss), slideOff(media.artist, M.sSmall, 600, M.ps, M.maxCss),
         slideOff(media.album, M.sSmall, 600, M.ps, M.maxCss)].join('|') : '',
     ].join('|');
-    const x = M.toRight ? M.xR - M.maxCss - 8 : M.x0 - 8;
-    cachedLayer('hud', key, { x, y: 0, w: M.maxCss + 80, h: M.y0 + 360 }, () => paintHUD(C, L));
+    const wMax = Math.max(M.maxCss, Math.min(W * 0.5, 640));   // the hint line can be wider than the song info
+    const x = M.toRight ? M.xR - wMax - 8 : M.x0 - 8;
+    cachedLayer('hud', key, { x, y: 0, w: wMax + 80, h: M.y0 + 360 }, () => paintHUD(C, L));
   }
 
   // The text is drawn twice: dark ink clipped to the background, and a light metal tone clipped to the dark plinth,
@@ -1269,11 +1270,16 @@
     } else {
       const hint = (media.source === 'we' && !weEnabled) ? 'Turn on Media Integration in Wallpaper Engine settings'
         : (media.source === 'local' && !localOk) ? 'The helper (nowplaying.py) is not running'
-        : media.source === 'native' ? 'Play something in Music or Spotify to drop the needle'
+        : media.source === 'native' ? 'Play something to drop the needle'
         : media.source === 'local' ? 'Play something in Apple Music to drop the needle'
         : 'Play some music to drop the needle';
       // the hint wraps onto more lines at word breaks instead of being cut off
-      for (const line of wrapPix(hint, sSmall, 600, ps, maxCss)) y += drawPix(line, ax(pw(line, sSmall, 600)), y, sSmall, ps, T.soft, 600).h;
+      // the hint may run wider than the song info (up to half the screen) so it stays on one line
+      const hintW = Math.max(maxCss, Math.min(W * 0.5, 640));
+      for (const line of wrapPix(hint, sSmall, 600, ps, hintW)) {
+        const w = pw(line, sSmall, 600);
+        y += drawPix(line, toRight ? xR - w : x0, y, sSmall, ps, T.soft, 600).h;
+      }
       y += ps * 6;
     }
 
