@@ -162,7 +162,7 @@
   const inset = { top: 0, right: 0, bottom: 0, left: 0 };   // screen edges under the menu bar and Dock (set by the app)
   // options the app can change from its menu (setOptions)
   // colors '' = taken from the album
-  const opts = { position: 'right', transparent: false, windowLight: true, trail: 'afterglow', grain: 'normal', recordColor: '', bgColor: '', lineColor: '' };
+  const opts = { position: 'right', transparent: false, windowLight: true, trail: 'afterglow', grain: 'normal', fps: 60, recordColor: '', bgColor: '', lineColor: '' };
   const GRAIN = { off: 0, low: 0.45, normal: 1, high: 1.45 };   // multiplier on the original grain strength
   const glowPts = [];   // recent stylus points for the afterglow trail: { fr, a, t, c } or null for a lift
   let pal = palFromHex(DEMO[0].pal), targetPal = clonePal(pal);
@@ -585,6 +585,7 @@
         if (typeof o.windowLight === 'boolean') opts.windowLight = o.windowLight;
         if (o.trail === 'keep' || o.trail === 'afterglow') opts.trail = o.trail;
         if (o.grain in GRAIN) opts.grain = o.grain;
+        if (o.fps === 30 || o.fps === 60) opts.fps = o.fps;
         for (const k of ['recordColor', 'bgColor', 'lineColor']) {
           if (typeof o[k] === 'string') opts[k] = /^#[0-9a-f]{6}$/i.test(o[k]) ? o[k] : '';
         }
@@ -594,6 +595,7 @@
         }
       },
       clearRecord,
+      setPaused,
       setInsets(v) { for (const k of ['top', 'right', 'bottom', 'left']) inset[k] = Math.max(0, +(v && v[k]) || 0); },
       setVolume(v) {
         vol.level = v && typeof v.level === 'number' ? clamp(v.level) : null;
@@ -622,6 +624,7 @@
 
   // ---------- persistence ----------
   function save() {
+    if (NATIVE && NATIVE.role === 'mirror') return;   // only the primary screen writes the record (other screens read it)
     try {
       localStorage.setItem(STORE_KEY, JSON.stringify({
         date: todayKey, today, demo: media.source === 'demo' ? { a: demo.a, t: demo.t } : null,
@@ -1392,14 +1395,24 @@
     initDemo();
     addEventListener('load', () => { if (hasWE() && media.source === 'demo') initWE(); });
   }
-  let last = performance.now();
+  let last = performance.now(), rafId = 0, paused = false, skipFrame = false;
   function frame(now) {
+    rafId = requestAnimationFrame(frame);
+    // fps 30: draw every other frame; dt still covers the skipped one so speeds stay the same
+    if (opts.fps === 30 && (skipFrame = !skipFrame)) return;
     const dt = Math.min(0.05, (now - last) / 1000); last = now;
     update(dt, now);
     draw(now);
-    requestAnimationFrame(frame);
   }
-  requestAnimationFrame(t => { last = t; requestAnimationFrame(frame); });
+  // Paused: the loop stops entirely. On resume the time in between is skipped, not played back at once.
+  function setPaused(p) {
+    p = !!p;
+    if (p === paused) return;
+    paused = p;
+    if (p) { cancelAnimationFrame(rafId); save(); }
+    else rafId = requestAnimationFrame(t => { last = t; rafId = requestAnimationFrame(frame); });
+  }
+  rafId = requestAnimationFrame(t => { last = t; rafId = requestAnimationFrame(frame); });
   if (NATIVE) postNative({ type: 'ready' });
 })();
 </script>

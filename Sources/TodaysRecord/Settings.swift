@@ -10,6 +10,16 @@ final class Settings {
         case keep, afterglow
     }
 
+    /// 표시할 화면. 명세 4.3.
+    enum Displays: String, CaseIterable {
+        case main, all
+    }
+
+    /// 초당 프레임. auto는 배터리일 때 30, 아니면 60. 명세 4.7.
+    enum FrameRate: String, CaseIterable {
+        case auto, fps30 = "30", fps60 = "60"
+    }
+
     /// 화면 그레인(잡음 무늬) 세기.
     enum Grain: String, CaseIterable {
         case off, low, normal, high
@@ -49,6 +59,8 @@ final class Settings {
         static let windowLight = "windowLight"
         static let trail = "trail"
         static let grain = "grain"
+        static let displays = "displays"
+        static let fps = "fps"
     }
 
     private let defaults: UserDefaults
@@ -62,6 +74,8 @@ final class Settings {
             Key.windowLight: true,
             Key.trail: Trail.afterglow.rawValue,
             Key.grain: Grain.normal.rawValue,
+            Key.displays: Displays.main.rawValue,
+            Key.fps: FrameRate.auto.rawValue,
         ])
     }
 
@@ -94,6 +108,16 @@ final class Settings {
     var grain: Grain {
         get { Grain(rawValue: defaults.string(forKey: Key.grain) ?? "") ?? .normal }
         set { defaults.set(newValue.rawValue, forKey: Key.grain) }
+    }
+
+    var displays: Displays {
+        get { Displays(rawValue: defaults.string(forKey: Key.displays) ?? "") ?? .main }
+        set { defaults.set(newValue.rawValue, forKey: Key.displays) }
+    }
+
+    var fps: FrameRate {
+        get { FrameRate(rawValue: defaults.string(forKey: Key.fps) ?? "") ?? .auto }
+        set { defaults.set(newValue.rawValue, forKey: Key.fps) }
     }
 
     /// "#RRGGBB" 또는 빈 문자열(앨범 색).
