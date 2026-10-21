@@ -1,6 +1,6 @@
 # TurnTable — macOS 앱 명세서
 
-버전 0.25 · 2026-10-21 (0.2: LP 면 나누기, iTunes 검색 국가 대체 · 0.3: 음량 노브, 면 램프 · 0.4: 색 섞기 전환, 곡 안 위치 이동 · 0.5: 화면 문구 영어 · 0.6: 긴 이름 흐르기 · 0.7: 메뉴 막대·Dock 피하기 · 0.8: 오늘 들은 곡 수만, 노란 강조색 피하기 · 0.9: M2 설정 메뉴, 창문 빛, 잔상 · 0.10: 판 색 고르기, 시간대 색감 · 0.11: 배경색, 선 색 고르기 · 0.12: 그레인 세기 · 0.13: M4 절전, 여러 화면, 그리기 최적화 · 0.14: Spotify 지원 · 0.15: 설정 창, 화면별 켜기, 앱 아이콘 · 0.16: 배포 zip, README · 0.17: M5 뺌 · 0.18: 긴 앨범 LP 세트 · 0.19: 면 바꾸기 동작 · 0.20: 자연스러운 움직임, 글자 색 · 0.21: 앱 안 업데이트, 배포 인증서 · 0.22: 업데이트 설치 자리, 실패 이유, 응용 프로그램 폴더로 옮기기 · 0.23: 컬러 바이닐, 톤암·받침판 색, 색 설정 정리, 이 Mac에 설치 · 0.24: 모여드는 사람들(crowd.js), 받침 높이, 캐릭터 포즈, Characters 탭 · 0.25: 이름을 TurnTable로)
+버전 0.26 · 2026-10-21 (0.2: LP 면 나누기, iTunes 검색 국가 대체 · 0.3: 음량 노브, 면 램프 · 0.4: 색 섞기 전환, 곡 안 위치 이동 · 0.5: 화면 문구 영어 · 0.6: 긴 이름 흐르기 · 0.7: 메뉴 막대·Dock 피하기 · 0.8: 오늘 들은 곡 수만, 노란 강조색 피하기 · 0.9: M2 설정 메뉴, 창문 빛, 잔상 · 0.10: 판 색 고르기, 시간대 색감 · 0.11: 배경색, 선 색 고르기 · 0.12: 그레인 세기 · 0.13: M4 절전, 여러 화면, 그리기 최적화 · 0.14: Spotify 지원 · 0.15: 설정 창, 화면별 켜기, 앱 아이콘 · 0.16: 배포 zip, README · 0.17: M5 뺌 · 0.18: 긴 앨범 LP 세트 · 0.19: 면 바꾸기 동작 · 0.20: 자연스러운 움직임, 글자 색 · 0.21: 앱 안 업데이트, 배포 인증서 · 0.22: 업데이트 설치 자리, 실패 이유, 응용 프로그램 폴더로 옮기기 · 0.23: 컬러 바이닐, 톤암·받침판 색, 색 설정 정리, 이 Mac에 설치 · 0.24: 모여드는 사람들(crowd.js), 받침 높이, 캐릭터 포즈, Characters 탭 · 0.25: 이름을 TurnTable로 · 0.26: 싱글은 7인치 판)
 
 ## 1. 개요
 
@@ -233,13 +233,13 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
 |---|---|
 | General | Show Wallpaper, Open at Login (`SMAppService.mainApp` 등록/해제), Frame Rate(Auto / 30 / 60, 4.7. Auto는 배터리일 때 30), Clear This Record, Check for Updates Automatically와 버전·Check Now·업데이트 버튼(4.10) |
 | Displays | 연결된 화면마다 켜기/끄기 (4.3). 화면이 바뀌면 목록을 다시 읽는다 |
-| Appearance | Record Position(Left / Center / Right), Background(Default / Transparent). 그 아래 **Colors** 묶음 하나에 색을 모은다(6장 21): Record(Album / Colored Vinyl / Contrast Vinyl / Custom), Background·Text(Album / Custom), Line(Album / Contrast / Custom), Tonearm·Arm Base·Arm Rest·Spindle·Knobs(Default / Custom). 기본은 지금 색 그대로이고, Custom일 때만 오른쪽에 색 상자가 보인다. Custom을 처음 고르면 미리 정한 색(판 검정, 배경 크림 등)에서 시작한다. Reset Colors는 모두 기본으로 되돌린다(바꾼 것이 없으면 비활성) |
+| Appearance | Record Position(Left / Center / Right), Background(Default / Transparent), Singles(7-inch / 12-inch, 6장 30). 그 아래 **Colors** 묶음 하나에 색을 모은다(6장 21): Record(Album / Colored Vinyl / Contrast Vinyl / Custom), Background·Text(Album / Custom), Line(Album / Contrast / Custom), Tonearm·Arm Base·Arm Rest·Spindle·Knobs(Default / Custom). 기본은 지금 색 그대로이고, Custom일 때만 오른쪽에 색 상자가 보인다. Custom을 처음 고르면 미리 정한 색(판 검정, 배경 크림 등)에서 시작한다. Reset Colors는 모두 기본으로 되돌린다(바꾼 것이 없으면 비활성) |
 | Effects | Window Light(6장 19), Trail(Keep / Afterglow, 6장 20), Grain(Off / Low / Normal / High), Side Change(Lift & Turn / Swap Record / Needle Only, 6장 23), Album Change(Swap Record / Slide Over, 6장 28) |
 | Characters | Rider(바늘 위 캐릭터): Pose(Auto / Sit / Lean Back / Cross-Legged / Hug Knees, 6장 27). Rider Colors(따로 아래 칸): Shirt·Pants(Album / Custom), Hat(Default / Custom), Reset Colors. Crowd: Crowd(켜기/끄기, 기본 켬), Crowd Pace(1× / 2× / 5× / 10×, 6장 25) |
 | Sound | Record Sounds(켜기/끄기, 기본 꺼짐), Volume, Needle & Record, Motor, Surface Noise, Play Test Sound(6장 29) |
 | Players | Music·Spotify 제어 권한 상태와 자동화 설정 열기 |
 
-설정은 `UserDefaults`에 저장한다(키 `enabled`, `position`, `transparent`, `windowLight`, `trail`, `grain`, `sideChange`, `albumChange`, `coloredVinyl`, `vinylStyle`, `lineStyle`, `crowd`, `crowdPace`, `sound`, `soundVolume`, `soundNeedle`, `soundMotor`, `soundNoise`, `riderPose`, `hatColor`, `recordColor`, `bgColor`, `lineColor`, `textColor`, `armColor`, `armBaseColor`, `spindleColor`, `knobColor`, `restColor`, `shirtColor`, `pantsColor`, `disabledDisplays`, `fps`). 설정 창은 `@AppStorage`로 같은 키(`Settings.Key`)에 바로 쓰고, 앱은 `UserDefaults.didChangeNotification`을 받아 한 번에 모아 창과 모든 웹뷰에 반영한다(`setOptions`). 앱 시작 시와 웹뷰가 준비될 때도 적용한다. 화면과 메뉴 문구는 영어로 쓴다. 로그인 항목이 사용자 승인을 기다리는 상태(`requiresApproval`)면 시스템 설정의 로그인 항목 화면을 연다.
+설정은 `UserDefaults`에 저장한다(키 `enabled`, `position`, `transparent`, `windowLight`, `trail`, `grain`, `sideChange`, `albumChange`, `singles`, `coloredVinyl`, `vinylStyle`, `lineStyle`, `crowd`, `crowdPace`, `sound`, `soundVolume`, `soundNeedle`, `soundMotor`, `soundNoise`, `riderPose`, `hatColor`, `recordColor`, `bgColor`, `lineColor`, `textColor`, `armColor`, `armBaseColor`, `spindleColor`, `knobColor`, `restColor`, `shirtColor`, `pantsColor`, `disabledDisplays`, `fps`). 설정 창은 `@AppStorage`로 같은 키(`Settings.Key`)에 바로 쓰고, 앱은 `UserDefaults.didChangeNotification`을 받아 한 번에 모아 창과 모든 웹뷰에 반영한다(`setOptions`). 앱 시작 시와 웹뷰가 준비될 때도 적용한다. 화면과 메뉴 문구는 영어로 쓴다. 로그인 항목이 사용자 승인을 기다리는 상태(`requiresApproval`)면 시스템 설정의 로그인 항목 화면을 연다.
 
 **앱 아이콘.** `scripts/make-icon.swift`가 앱 화면과 같은 색(분홍 배경, 초록 받침, 크림색 판, 초록 라벨, 주황 바늘)으로 macOS 아이콘 격자(1024 안 824 둥근 사각형)에 그려 `iconutil`로 `Resources/AppIcon.icns`를 만든다. `Info.plist`의 `CFBundleIconFile`이 가리킨다.
 
@@ -271,7 +271,7 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
 | `TodaysRecord.nowPlaying(payload)` | 4.5의 JSON |
 | `TodaysRecord.art(dataURL, version)` | 앨범 커버 |
 | `TodaysRecord.setPaused(bool, {sound})` | 그리기 멈춤/재개. sound가 true면 그리기만 멈추고 소리는 계속(창이 가려졌을 때, 6장 29) |
-| `TodaysRecord.setOptions({position, transparent, windowLight, trail, fps})` | position: `"left"`, `"center"`, `"right"` · transparent: bool · windowLight: bool · trail: `"keep"` 또는 `"afterglow"` · grain: `"off"`, `"low"`, `"normal"`, `"high"`(기존 세기의 0, 0.45, 1, 1.45배) · sideChange: `"turn"`, `"swap"`, `"needle"`(6장 23) · albumChange: `"swap"`, `"slide"`(6장 28) · coloredVinyl: bool, vinylStyle: `"match"`·`"contrast"`, lineStyle: `"album"`·`"contrast"`(6장 21) · crowd: bool, crowdPace: 1·2·5·10(6장 25) · sound: `{on, volume(0~1), needle, motor, noise}`(6장 29) · riderPose: `"auto"`, `"sit"`, `"lean"`, `"cross"`, `"hug"`(6장 27) · hatColor: `"#RRGGBB"` 또는 `""`(기본 흰색) · recordColor, bgColor, lineColor, textColor: `"#RRGGBB"` 또는 `""`(앨범 색) · armColor, armBaseColor, spindleColor, knobColor, restColor: `"#RRGGBB"` 또는 `""`(기본 금속색) · shirtColor, pantsColor: `"#RRGGBB"` 또는 `""`(앨범 색) · fps: 30 또는 60(앱이 설정과 전원에 따라 정해 보낸다) |
+| `TodaysRecord.setOptions({position, transparent, windowLight, trail, fps})` | position: `"left"`, `"center"`, `"right"` · transparent: bool · windowLight: bool · trail: `"keep"` 또는 `"afterglow"` · grain: `"off"`, `"low"`, `"normal"`, `"high"`(기존 세기의 0, 0.45, 1, 1.45배) · sideChange: `"turn"`, `"swap"`, `"needle"`(6장 23) · albumChange: `"swap"`, `"slide"`(6장 28) · singles: `"seven"`, `"twelve"`(6장 30) · coloredVinyl: bool, vinylStyle: `"match"`·`"contrast"`, lineStyle: `"album"`·`"contrast"`(6장 21) · crowd: bool, crowdPace: 1·2·5·10(6장 25) · sound: `{on, volume(0~1), needle, motor, noise}`(6장 29) · riderPose: `"auto"`, `"sit"`, `"lean"`, `"cross"`, `"hug"`(6장 27) · hatColor: `"#RRGGBB"` 또는 `""`(기본 흰색) · recordColor, bgColor, lineColor, textColor: `"#RRGGBB"` 또는 `""`(앨범 색) · armColor, armBaseColor, spindleColor, knobColor, restColor: `"#RRGGBB"` 또는 `""`(기본 금속색) · shirtColor, pantsColor: `"#RRGGBB"` 또는 `""`(앨범 색) · fps: 30 또는 60(앱이 설정과 전원에 따라 정해 보낸다) |
 | `TodaysRecord.clearRecord()` | 지금 판의 선 지우기 |
 | `TodaysRecord.testSound()` | 바늘 내리는 소리를 한 번 들려준다(설정을 꺼 둬도). 6장 29 |
 | `TodaysRecord.setInsets({top, right, bottom, left})` | 메뉴 막대와 Dock이 덮는 화면 가장자리(4.3) |
@@ -380,6 +380,11 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
     - 주 화면(`role` primary)에서만 소리를 낸다. 잠금, 잠자기, 배경화면 끔 동안은 오디오도 멈춘다. 창이 다른 창(전체 화면 앱 등)에 가려졌을 때는 그리기만 멈추고 소리는 계속 낸다: `setPaused(true, {sound: true})`를 받으면 0.25초마다 소리만 갱신해 표면 잡음과 모터 소리가 음악 재생·일시정지를 따른다(사용자 요청).
     - 웹뷰 설정 `mediaTypesRequiringUserActionForPlayback = []`(누르지 않아도 재생).
     - 시험용: `window.__renderSound(name)`으로 소리를 WAV로 렌더해 듣거나 잴 수 있다(`reel`은 모든 소리를 순서대로).
+30. **싱글은 7인치 판(`singles`, 사용자 요청).** 디스크의 곡 수가 3곡 이하(디스크 1장)인 앨범은 실제 싱글처럼 작은 7인치 판에 그린다. 곡이 짧은데 LP 전체 폭을 쓰면 바늘이 너무 많이 움직여서다. 기본 `seven`, `twelve`면 지금처럼 LP 크기다. 곡 수를 모르면 LP다. 미리보기 앨범은 그대로 LP다.
+    - 크기는 LP의 0.58배. 라벨은 판 반지름의 52%, 소리골은 바깥 95.5%에서 안쪽 60%까지라, 바늘이 움직이는 폭이 LP의 약 42%다. 반지름은 모두 LP 기준 단위로 두어 바늘 위치, 선 기록, 곡 띠가 그대로 맞는다. 판 구멍과 축은 같은 크기다.
+    - 판 아래에 플래터(받침보다 조금 어두운 원과 옅은 테두리, LP보다 살짝 작음)를 그린다. LP에 가려져 평소엔 보이지 않고, 7인치 판 둘레와 판을 들어 바꾸는 동안 보인다.
+    - 이미 만든 판은 설정을 바꿔도 크기가 그대로이고, 다음에 새로 놓는 판부터 바뀐다.
+    - 7인치 판 위에서는 사람들이 달리지 않는다(자리가 좁음).
 
 ## 7. 성능 목표
 

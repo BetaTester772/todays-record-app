@@ -174,7 +174,8 @@
       const p = toScreen(L, Math.cos(a) * r * L.R, Math.sin(a) * r * L.R), o = S.recOff;
       return { x: p.x + o.x * L.R, y: p.y + o.y * L.R - o.lift * 0.04 * L.R };
     }
-    const recordSteady = () => S.shown && !S.cue && !S.recOff.lift && S.spinVel > 0.6 * TAU * RPS;
+    // not on a small 7-inch single: there is no room to run
+    const recordSteady = () => S.shown && (!S.shown.fmt || S.shown.fmt.size === 1) && !S.cue && !S.recOff.lift && S.spinVel > 0.6 * TAU * RPS;
     // how the record's surface moves on screen at angle a (per unit of turn)
     const surfaceDir = a => ({ x: -Math.sin(a) * Math.cos(TILT) - Math.cos(a) * SQUASH * Math.sin(TILT), y: -Math.sin(a) * Math.sin(TILT) + Math.cos(a) * SQUASH * Math.cos(TILT) });
     // A treadmill spot: on the back or front of the record, where the surface moves left-right on screen, so the

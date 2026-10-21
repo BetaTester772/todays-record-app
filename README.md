@@ -31,6 +31,7 @@ After that, updates come through the app (**Check for Updates…** in the menu, 
 - The album cover becomes the record label, and the colors of the whole scene come from it
 - The needle moves inward as the song plays and draws a line in the album's color
 - Albums are split into LP sides (up to 6 songs per side). Songs on the same side share a record; a new side flips it
+- Singles (up to 3 songs) play on a smaller 7-inch record
 - Volume knob follows the system volume, side lamps show which side you're on
 - Light from a window moves across the desk with the time of day
 - A small character sits on the needle. The longer you keep listening, the more people show up around the turntable (up to 6). They dance, read, doze off, talk on the phone, breakdance, play tag and run on the record. They leave one by one after the music stops
@@ -82,7 +83,7 @@ Everything else is in Settings:
 |---|---|
 | General | Show wallpaper, open at login, frame rate, updates |
 | Displays | Which displays show the record |
-| Appearance | Record position, transparent background, colors |
+| Appearance | Record position, transparent background, 7-inch singles, colors |
 | Effects | Window light, trail (keep or afterglow), grain, how a side change or a new album looks (swap the record or slide the new one over) |
 | Characters | The character's pose and colors, crowd on/off and speed |
 | Sound | Optional record player sounds: needle drop and lift, record slide, motor, surface noise |

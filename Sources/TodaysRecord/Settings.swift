@@ -98,6 +98,7 @@ final class Settings {
         static let grain = "grain"
         static let sideChange = "sideChange"
         static let albumChange = "albumChange"
+        static let singles = "singles"
         static let coloredVinyl = "coloredVinyl"
         static let vinylStyle = "vinylStyle"
         static let lineStyle = "lineStyle"
@@ -128,6 +129,7 @@ final class Settings {
             Key.grain: Grain.normal.rawValue,
             Key.sideChange: SideChange.turn.rawValue,
             Key.albumChange: "swap",
+            Key.singles: "seven",
             Key.coloredVinyl: false,
             Key.vinylStyle: "match",
             Key.lineStyle: "album",
@@ -222,6 +224,12 @@ final class Settings {
         set { defaults.set(newValue, forKey: Key.albumChange) }
     }
 
+    /// 싱글(디스크 곡 수 3곡 이하)을 그릴 판: seven(7인치) 또는 twelve(LP 크기). 명세 6장 30.
+    var singles: String {
+        get { defaults.string(forKey: Key.singles) == "twelve" ? "twelve" : "seven" }
+        set { defaults.set(newValue, forKey: Key.singles) }
+    }
+
     /// 컬러 바이닐의 색: match(앨범 색) 또는 contrast(앨범 색의 반대 색상).
     var vinylStyle: String {
         get { defaults.string(forKey: Key.vinylStyle) == "contrast" ? "contrast" : "match" }
@@ -273,6 +281,7 @@ final class Settings {
             "grain": grain.rawValue,
             "sideChange": sideChange.rawValue,
             "albumChange": albumChange,
+            "singles": singles,
             "coloredVinyl": coloredVinyl,
             "vinylStyle": vinylStyle,
             "lineStyle": lineStyle,

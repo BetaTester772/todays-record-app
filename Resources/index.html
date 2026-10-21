@@ -62,6 +62,11 @@
   const TAU = Math.PI * 2;
   const RPS = 5 / 60;                 // visual platter speed at x1
   const R_OUT = 0.955, R_IN = 0.47, LABEL_R = 0.40, GAP = 0.014;
+  // Singles (a disc of up to SINGLE_MAX songs) go on a 7-inch record: smaller, with a bigger label and a narrower
+  // groove area, so the needle moves less over a short song. Radii are in R (a 12-inch record), like the needle's.
+  const SINGLE_MAX = 3, SEVEN = 0.58;
+  const LP_FMT = { size: 1, rOut: R_OUT, rIn: R_IN, label: LABEL_R };
+  const SEVEN_FMT = { size: SEVEN, rOut: R_OUT * SEVEN, rIn: 0.6 * SEVEN, label: 0.52 * SEVEN };
   const SIDE_LEN = 1320;              // assumed side length (s) when the track list is unknown
   const ARM = { bx: 1.13, by: -0.72, len: 1.17 };   // tonearm pivot and length, in record radii
   const REST_PHI = 1.64;              // arm angle when parked on its rest
@@ -171,7 +176,7 @@
   // options the app can change from its menu (setOptions)
   // colors '' = taken from the album
   // sideChange: how turning to the other side of the same record looks: 'turn' (lift and turn), 'swap' (like a new album), 'needle' (needle only)
-  const opts = { position: 'right', transparent: false, windowLight: true, trail: 'afterglow', grain: 'normal', fps: 60, sideChange: 'turn', albumChange: 'swap', coloredVinyl: false, vinylStyle: 'match', lineStyle: 'album', recordColor: '', bgColor: '', lineColor: '', textColor: '', armColor: '', armBaseColor: '', spindleColor: '', knobColor: '', restColor: '', shirtColor: '', pantsColor: '', hatColor: '', riderPose: 'auto', crowd: true, crowdPace: 1,
+  const opts = { position: 'right', transparent: false, windowLight: true, trail: 'afterglow', grain: 'normal', fps: 60, sideChange: 'turn', albumChange: 'swap', singles: 'seven', coloredVinyl: false, vinylStyle: 'match', lineStyle: 'album', recordColor: '', bgColor: '', lineColor: '', textColor: '', armColor: '', armBaseColor: '', spindleColor: '', knobColor: '', restColor: '', shirtColor: '', pantsColor: '', hatColor: '', riderPose: 'auto', crowd: true, crowdPace: 1,
     sound: { on: false, volume: 0.5, needle: true, motor: true, noise: true } };
   const GRAIN = { off: 0, low: 0.45, normal: 1, high: 1.45 };   // multiplier on the original grain strength
   const glowPts = [];   // recent stylus points for the afterglow trail: { fr, a, t, c } or null for a lift
@@ -358,7 +363,7 @@
   function createAlbum(key, info) {
     const trail = document.createElement('canvas'); trail.width = trail.height = S;
     const A = { key, title: info.albumTitle, artist: info.artist, label: info.label, pal: clonePal(info.pal),
-      trail, tctx: trail.getContext('2d'), gaps: (info.gaps || []).slice(), fixedGaps: !!info.gaps, cursor: R_OUT };
+      trail, tctx: trail.getContext('2d'), fmt: info.fmt || LP_FMT, gaps: (info.gaps || []).slice(), fixedGaps: !!info.gaps, cursor: R_OUT };
     if (saved && saved.album && saved.album.key === key) {
       const s = saved.album;
       if (!A.fixedGaps && Array.isArray(s.gaps)) A.gaps = s.gaps;
@@ -419,10 +424,10 @@
   }
 
   // ---------- demo source ----------
-  function bandsFor(alb) {
+  function bandsFor(alb, F = LP_FMT) {
     const total = alb.tracks.reduce((s, t) => s + t[1], 0);
-    const span = (R_OUT - R_IN) - GAP * (alb.tracks.length - 1);
-    let cur = R_OUT;
+    const span = (F.rOut - F.rIn) - GAP * (alb.tracks.length - 1);
+    let cur = F.rOut;
     return alb.tracks.map(t => { const w = span * t[1] / total; const b = { start: cur, end: cur - w }; cur -= w + GAP; return b; });
   }
   DEMO.forEach(a => { a.bands = bandsFor(a); a.gaps = a.bands.slice(1).map(b => b.start + GAP / 2); });
@@ -539,7 +544,7 @@
     const perDisc = Math.ceil(sd.sides / 2), disc = Math.round(sd.first / sd.sides);
     return { first: Math.floor(sd.index / 2) * 2, number: disc * perDisc + Math.floor(sd.index / 2) + 1, total: (sd.discs || 1) * perDisc };
   }
-  function lpSide(d) {
+  function lpSide(d, F = LP_FMT) {
     const n = d.trackCount | 0, k = d.trackNumber | 0;
     if (n < 1 || k < 1 || k > n) return null;
     const sides = Math.ceil(n / SIDE_MAX), base = Math.floor(n / sides), extra = n % sides;
@@ -548,7 +553,7 @@
     const durs = Array.isArray(d.trackDurations) && d.trackDurations.length === n ? d.trackDurations : null;
     const lens = Array.from({ length: count }, (_, i) => (durs && +durs[first - 1 + i]) || 0);
     const equal = lens.some(l => !(l > 0));
-    const bands = bandsFor({ tracks: lens.map(l => ['', equal ? 1 : l]) });
+    const bands = bandsFor({ tracks: lens.map(l => ['', equal ? 1 : l]) }, F);
     const disc = Math.max(1, d.discNumber | 0);
     return { disc, discs: Math.max(1, d.discCount | 0, disc), side, sides, first: (disc - 1) * sides, index: k - first, count, number: k, total: n, band: bands[k - first], gaps: bands.slice(1).map(b => b.start + GAP / 2) };
   }
@@ -566,15 +571,19 @@
       media.position = d.position || 0; media.duration = Math.max(1, d.duration || 1); media.posAt = now;
       const albumArtist = d.albumArtist || d.artist || '';
       const baseKey = 'am:' + (d.album || albumArtist || 'unknown') + '|' + albumArtist;
-      const lp = lpSide(d);
+      let lp = lpSide(d);
       side = lp && { first: lp.first, sides: lp.sides, index: lp.side, number: lp.number, total: lp.total, discs: lp.discs };
       const albumKey = lp ? sideKey(baseKey, lp) : baseKey;
       const known = albums.get(albumKey) || (lp && sideSibling(baseKey));
+      // a single goes on a 7-inch record (a record already made keeps its size if the setting changes)
+      const made = albums.get(albumKey);
+      const fmt = made ? made.fmt : lp && lp.total <= SINGLE_MAX && lp.discs === 1 && opts.singles !== 'twelve' ? SEVEN_FMT : LP_FMT;
+      if (lp && fmt !== LP_FMT) lp = lpSide(d, fmt);
       const P = known ? known.pal : clonePal(targetPal);
       beginTrack({
         albumKey, albumTitle: d.album || '', artist: albumArtist, pal: P,
         label: known ? known.label : makeLabel({ title: d.album || d.title, artist: albumArtist, motif: 'none' }, P),
-        band: lp ? lp.band : undefined, gaps: lp ? lp.gaps : undefined,
+        band: lp ? lp.band : undefined, gaps: lp ? lp.gaps : undefined, fmt,
       });
     }
     const next = d.state === 'playing' ? 'playing' : 'paused';
@@ -628,6 +637,7 @@
         if (o.fps === 30 || o.fps === 60) opts.fps = o.fps;
         if (['turn', 'swap', 'needle'].includes(o.sideChange)) opts.sideChange = o.sideChange;
         if (o.albumChange === 'swap' || o.albumChange === 'slide') opts.albumChange = o.albumChange;
+        if (o.singles === 'seven' || o.singles === 'twelve') opts.singles = o.singles;
         if (typeof o.coloredVinyl === 'boolean') opts.coloredVinyl = o.coloredVinyl;
         if (o.vinylStyle === 'match' || o.vinylStyle === 'contrast') opts.vinylStyle = o.vinylStyle;
         if (o.lineStyle === 'album' || o.lineStyle === 'contrast') opts.lineStyle = o.lineStyle;
@@ -1010,6 +1020,17 @@
     ctx.restore();
   }
 
+  // The platter under the record: a 12-inch record covers it, so it shows around a 7-inch single and while records are
+  // lifted off for a change.
+  function drawPlatter(L, C) {
+    const R = L.R;
+    ctx.save(); plane(L);
+    ctx.fillStyle = css(mix(C.plinth, [0, 0, 0], 0.16)); disc(ctx, 0, 0, 0.97 * R);
+    ctx.strokeStyle = css(mix(C.plinth, [255, 255, 255], 0.14)); ctx.lineWidth = 0.012 * R;
+    ctx.beginPath(); ctx.arc(0, 0, 0.965 * R, 0, TAU); ctx.stroke();
+    ctx.restore();
+  }
+
   function drawSpecks(now) {
     const ps = 2;
     for (const sp of specks) {
@@ -1095,21 +1116,22 @@
   // The hole is cut a little smaller than the spindle: it lies in the record's tilted plane while the spindle's foot is
   // drawn level, so a same-size hole peeked out past the spindle at its lower left.
   const holeR = R => Math.max(2.5, 0.022 * R);
-  function disc0(R) { ctx.beginPath(); ctx.arc(0, 0, R, 0, TAU); ctx.arc(0, 0, holeR(R) * 0.8, 0, TAU, true); }
+  // r: the record's radius (smaller for a 7-inch); the hole follows the spindle, so it is sized from R
+  function disc0(r, R = r) { ctx.beginPath(); ctx.arc(0, 0, r, 0, TAU); ctx.arc(0, 0, holeR(R) * 0.8, 0, TAU, true); }
 
   function drawRecordBase(L, C, ox, oy, lift, A = shown) {
-    const R = L.R, k = L.k;
+    const R = L.R, k = L.k, f = A ? A.fmt.size : 1, r = R * f;
     const thick = Math.max(3, 0.022 * R), sc = 1 + 0.03 * lift, up = lift * 0.04 * R;
     ctx.save(); ctx.translate(L.cx + ox, L.cy + oy + thick - up); ctx.rotate(TILT); ctx.scale(sc, SQUASH * sc);
     ctx.shadowColor = `rgba(0,0,0,${0.22 + 0.1 * lift})`;
     ctx.shadowBlur = 24 + 30 * lift; ctx.shadowOffsetX = 10 + 20 * lift; ctx.shadowOffsetY = 14 + 24 * lift;
-    disc0(R); ctx.fillStyle = css(C.edge); ctx.fill('evenodd');
+    disc0(r, R); ctx.fillStyle = css(C.edge); ctx.fill('evenodd');
     ctx.restore();
 
     ctx.save(); ctx.translate(L.cx + ox, L.cy + oy - up); ctx.rotate(TILT); ctx.scale(sc, SQUASH * sc);
-    disc0(R); ctx.fillStyle = css(C.record); ctx.fill('evenodd');
+    disc0(r, R); ctx.fillStyle = css(C.record); ctx.fill('evenodd');
     ctx.clip('evenodd');
-    ctx.drawImage(rgb2hsl(C.record)[2] < 0.4 ? groovesLight : grooves, -S / 2 * k, -S / 2 * k, S * k, S * k);
+    ctx.drawImage(rgb2hsl(C.record)[2] < 0.4 ? groovesLight : grooves, -S / 2 * k * f, -S / 2 * k * f, S * k * f, S * k * f);
     if (lift || ox || oy || sideFade !== 1) drawGaps(R, C, A);
     ctx.restore();
   }
@@ -1130,16 +1152,16 @@
   function drawRecord(L, C, A = shown, off = recOff, rot = spin) {
     if (!A) return;
     const main = A === shown;
-    const R = L.R, k = L.k;
+    const R = L.R, k = L.k, r = R * A.fmt.size;
     const ox = off.x * R, oy = off.y * R, lift = off.lift;
     const sc = 1 + 0.03 * lift, up = lift * 0.04 * R;
     if (main && !ox && !oy && !lift && sideFade === 1) {
-      const key = [layoutKey(L), toHex(C.record), toHex(C.edge)].join('|');
+      const key = [layoutKey(L), toHex(C.record), toHex(C.edge), A.fmt.size].join('|');
       cachedLayer('record', key, { x: L.cx - 1.25 * R, y: L.cy - 0.85 * R, w: 2.5 * R + 60, h: 1.7 * R + 70 }, () => drawRecordBase(L, C, 0, 0, 0));
     } else drawRecordBase(L, C, ox, oy, lift, A);
 
     ctx.save(); ctx.translate(L.cx + ox, L.cy + oy - up); ctx.rotate(TILT); ctx.scale(sc, SQUASH * sc);
-    ctx.save(); disc0(R); ctx.clip('evenodd');
+    ctx.save(); disc0(r, R); ctx.clip('evenodd');
     if (main && !ox && !oy && !lift && sideFade === 1) drawGaps(R, C);
     ctx.rotate(rot);
     if (opts.trail === 'afterglow') { if (main) drawGlow(R, performance.now()); }
@@ -1149,13 +1171,13 @@
       ctx.globalAlpha = sideFade; ctx.drawImage(shown.trail, -S / 2 * k, -S / 2 * k, S * k, S * k);
       ctx.globalAlpha = 1;
     } else ctx.drawImage(A.trail, -S / 2 * k, -S / 2 * k, S * k, S * k);
-    if (A.label) { const lr = LABEL_R * R; ctx.drawImage(A.label, -lr, -lr, 2 * lr, 2 * lr); }
+    if (A.label) { const lr = A.fmt.label * R; ctx.drawImage(A.label, -lr, -lr, 2 * lr, 2 * lr); }
     ctx.restore();
-    const gr = ctx.createLinearGradient(-R, -R, R, R), sheen = isDark() ? 0.07 : 0.16;
+    const gr = ctx.createLinearGradient(-r, -r, r, r), sheen = isDark() ? 0.07 : 0.16;
     gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.43, 'rgba(255,255,255,0)');
     gr.addColorStop(0.5, `rgba(255,255,255,${sheen})`);
     gr.addColorStop(0.57, 'rgba(255,255,255,0)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
-    ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(0, 0, R, 0, TAU); ctx.arc(0, 0, LABEL_R * R * 1.02, 0, TAU, true); ctx.fill('evenodd');
+    ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(0, 0, r, 0, TAU); ctx.arc(0, 0, A.fmt.label * R * 1.02, 0, TAU, true); ctx.fill('evenodd');
     ctx.restore();
   }
 
@@ -1652,7 +1674,7 @@
     if (opts.transparent) ctx.clearRect(0, 0, W, H);
     else {
       cachedLayer('table', [layoutKey(L), toHex(C.bg), toHex(C.plinth), isDark()].join('|'), { x: 0, y: 0, w: W, h: H }, () => {
-        ctx.fillStyle = css(C.bg); ctx.fillRect(0, 0, W, H); drawPlinth(L, C);
+        ctx.fillStyle = css(C.bg); ctx.fillRect(0, 0, W, H); drawPlinth(L, C); drawPlatter(L, C);
       });
       drawSpecks(now);
     }
@@ -1705,7 +1727,7 @@
     get arm() {
       const fr = stylusFr(), outLift = cue && cue.out && cue.outOff ? cue.outOff.lift : 0;
       return {
-        lift: armLift, onRecord: !!shown && fr <= R_OUT + 0.02 && fr >= R_IN - 0.05 && recOff.lift < 0.03,
+        lift: armLift, onRecord: !!shown && fr <= shown.fmt.rOut + 0.02 && fr >= shown.fmt.rIn - 0.05 && recOff.lift < 0.03,
         playing: media.state === 'playing', spinTarget: media.state === 'playing' ? 1 : 0,
         recLift: Math.max(recOff.lift, outLift), recSlide: !!(cue && cue.kind === 'album'),
       };

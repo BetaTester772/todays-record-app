@@ -192,6 +192,7 @@ private struct DisplaysPane: View {
 private struct AppearancePane: View {
     @AppStorage(Settings.Key.position) private var position = Settings.Position.right.rawValue
     @AppStorage(Settings.Key.transparent) private var transparent = false
+    @AppStorage(Settings.Key.singles) private var singles = "seven"
     @AppStorage(Settings.Key.coloredVinyl) private var coloredVinyl = false
     @AppStorage(Settings.Key.vinylStyle) private var vinylStyle = "match"
     @AppStorage(Settings.Key.lineStyle) private var lineStyle = "album"
@@ -223,6 +224,13 @@ private struct AppearancePane: View {
                     Text("Transparent").tag(true)
                 }
                 .pickerStyle(.segmented)
+                Picker("Singles", selection: $singles) {
+                    Text("7-inch").tag("seven")
+                    Text("12-inch").tag("twelve")
+                }
+                .pickerStyle(.segmented)
+                Text("Singles of up to 3 songs play on a smaller 7-inch record, so the needle moves less.")
+                    .font(.caption).foregroundStyle(.secondary)
             }
             Section {
                 ColorRow(slot: .record, title: "Record", hex: $recordColor, vinyl: $coloredVinyl, vinylStyle: $vinylStyle)
