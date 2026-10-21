@@ -972,13 +972,15 @@
       ctx.globalAlpha = 1;
     }
 
-    function draw(L, C) {
+    // part: 'under' draws the people off the record (index.html puts them under a record lifted for a change),
+    // 'over' the ones on it and the effects. Without it, everyone.
+    function draw(L, C, part) {
       const now = crowd.clock;
       if (S.opts.transparent || !crowd.people.length && !crowd.fx.length) return;
       ctx = S.ctx;
-      const order = crowd.people.slice().sort((a, b) => a.y - b.y);
+      const order = crowd.people.filter(p => !part || (part === 'over') === !!p.runs).sort((a, b) => a.y - b.y);
       for (const p of order) drawPerson(p, L, now);
-      drawFx(C, clamp(unitOf(L), 1.2, 3));
+      if (part !== 'under') drawFx(C, clamp(unitOf(L), 1.2, 3));
     }
 
     // where the song info is, so nobody stands in front of it

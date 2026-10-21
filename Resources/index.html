@@ -1661,12 +1661,13 @@
     // lifted and carried, the spindle is under them and shows only through their holes as it sinks; it rises once the
     // new record is down.
     const onPlatter = Math.abs(recOff.x) < 0.02 && Math.abs(recOff.y) < 0.1 && recOff.lift < 0.03;
-    if (!onPlatter) drawSpindle(L, C);
+    // The crowd stands below the tonearm and needle (the arm's base plate is part of the deck, under everyone).
+    // A record lifted and carried for a change passes over the people around it; only those on the record stay on top.
+    if (!onPlatter) { drawSpindle(L, C); if (crowd) crowd.draw(L, C, 'under'); }
     if (cue && cue.out) { drawRecord(L, cue.out.C, cue.out.A, cue.outOff, cue.out.rot); drawRecord(L, sceneColors(targetPal)); }
     else drawRecord(L, C);
     if (onPlatter) drawSpindle(L, C);
-    // the crowd stands below the tonearm and needle (the arm's base plate is part of the deck, under everyone)
-    if (crowd) crowd.draw(L, C);
+    if (crowd) crowd.draw(L, C, onPlatter ? undefined : 'over');
     drawArm(L, C, now);
     drawParticles(C);
     if (opts.windowLight && !opts.transparent) drawLight(L);
