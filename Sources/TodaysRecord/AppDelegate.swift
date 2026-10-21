@@ -39,6 +39,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.onClearRecord = clearRecord
         menu.onOpenSettings = { [weak self] in self?.settingsWindow.show() }
         settingsModel.onClearRecord = clearRecord
+        settingsModel.onTestSound = { [weak self] in
+            (self?.wallpaper?.webViews.first { $0.role == .primary } ?? self?.wallpaper?.webViews.first)?.testSound()
+        }
         statusMenu = menu
 
         updater.onChange = { [weak self] state in

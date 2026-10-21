@@ -62,6 +62,7 @@ Sources/TodaysRecord/
 Resources/
 ├─ index.html              레코드 화면 (기존 파일, 6장에 따라 일부 수정)
 ├─ crowd.js                모여드는 사람들 (6장 25). 없으면 index.html은 사람 없이 그대로 동작
+├─ sound.js                레코드 소리 (6장 29). 없으면 소리 없이 그대로 동작
 ├─ Info.plist              번들 정보
 └─ AppIcon.icns            앱 아이콘 (scripts/make-icon.swift로 만든다)
 Tests/TodaysRecordTests/    고르기 규칙, 상태 해석, 곡 위치 단위 테스트 (`swift test`)
@@ -235,9 +236,10 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
 | Appearance | Record Position(Left / Center / Right), Background(Default / Transparent). 그 아래 **Colors** 묶음 하나에 색을 모은다(6장 21): Record(Album / Colored Vinyl / Contrast Vinyl / Custom), Background·Text(Album / Custom), Line(Album / Contrast / Custom), Tonearm·Arm Base·Arm Rest·Spindle·Knobs(Default / Custom). 기본은 지금 색 그대로이고, Custom일 때만 오른쪽에 색 상자가 보인다. Custom을 처음 고르면 미리 정한 색(판 검정, 배경 크림 등)에서 시작한다. Reset Colors는 모두 기본으로 되돌린다(바꾼 것이 없으면 비활성) |
 | Effects | Window Light(6장 19), Trail(Keep / Afterglow, 6장 20), Grain(Off / Low / Normal / High), Side Change(Lift & Turn / Swap Record / Needle Only, 6장 23), Album Change(Swap Record / Slide Over, 6장 28) |
 | Characters | Rider(바늘 위 캐릭터): Pose(Auto / Sit / Lean Back / Cross-Legged / Hug Knees, 6장 27). Rider Colors(따로 아래 칸): Shirt·Pants(Album / Custom), Hat(Default / Custom), Reset Colors. Crowd: Crowd(켜기/끄기, 기본 켬), Crowd Pace(1× / 2× / 5× / 10×, 6장 25) |
+| Sound | Record Sounds(켜기/끄기, 기본 꺼짐), Volume, Needle & Record, Motor, Surface Noise, Play Test Sound(6장 29) |
 | Players | Music·Spotify 제어 권한 상태와 자동화 설정 열기 |
 
-설정은 `UserDefaults`에 저장한다(키 `enabled`, `position`, `transparent`, `windowLight`, `trail`, `grain`, `sideChange`, `albumChange`, `coloredVinyl`, `vinylStyle`, `lineStyle`, `crowd`, `crowdPace`, `riderPose`, `hatColor`, `recordColor`, `bgColor`, `lineColor`, `textColor`, `armColor`, `armBaseColor`, `spindleColor`, `knobColor`, `restColor`, `shirtColor`, `pantsColor`, `disabledDisplays`, `fps`). 설정 창은 `@AppStorage`로 같은 키(`Settings.Key`)에 바로 쓰고, 앱은 `UserDefaults.didChangeNotification`을 받아 한 번에 모아 창과 모든 웹뷰에 반영한다(`setOptions`). 앱 시작 시와 웹뷰가 준비될 때도 적용한다. 화면과 메뉴 문구는 영어로 쓴다. 로그인 항목이 사용자 승인을 기다리는 상태(`requiresApproval`)면 시스템 설정의 로그인 항목 화면을 연다.
+설정은 `UserDefaults`에 저장한다(키 `enabled`, `position`, `transparent`, `windowLight`, `trail`, `grain`, `sideChange`, `albumChange`, `coloredVinyl`, `vinylStyle`, `lineStyle`, `crowd`, `crowdPace`, `sound`, `soundVolume`, `soundNeedle`, `soundMotor`, `soundNoise`, `riderPose`, `hatColor`, `recordColor`, `bgColor`, `lineColor`, `textColor`, `armColor`, `armBaseColor`, `spindleColor`, `knobColor`, `restColor`, `shirtColor`, `pantsColor`, `disabledDisplays`, `fps`). 설정 창은 `@AppStorage`로 같은 키(`Settings.Key`)에 바로 쓰고, 앱은 `UserDefaults.didChangeNotification`을 받아 한 번에 모아 창과 모든 웹뷰에 반영한다(`setOptions`). 앱 시작 시와 웹뷰가 준비될 때도 적용한다. 화면과 메뉴 문구는 영어로 쓴다. 로그인 항목이 사용자 승인을 기다리는 상태(`requiresApproval`)면 시스템 설정의 로그인 항목 화면을 연다.
 
 **앱 아이콘.** `scripts/make-icon.swift`가 앱 화면과 같은 색(분홍 배경, 초록 받침, 크림색 판, 초록 라벨, 주황 바늘)으로 macOS 아이콘 격자(1024 안 824 둥근 사각형)에 그려 `iconutil`로 `Resources/AppIcon.icns`를 만든다. `Info.plist`의 `CFBundleIconFile`이 가리킨다.
 
@@ -269,8 +271,9 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
 | `TodaysRecord.nowPlaying(payload)` | 4.5의 JSON |
 | `TodaysRecord.art(dataURL, version)` | 앨범 커버 |
 | `TodaysRecord.setPaused(bool)` | 그리기 멈춤/재개 |
-| `TodaysRecord.setOptions({position, transparent, windowLight, trail, fps})` | position: `"left"`, `"center"`, `"right"` · transparent: bool · windowLight: bool · trail: `"keep"` 또는 `"afterglow"` · grain: `"off"`, `"low"`, `"normal"`, `"high"`(기존 세기의 0, 0.45, 1, 1.45배) · sideChange: `"turn"`, `"swap"`, `"needle"`(6장 23) · albumChange: `"swap"`, `"slide"`(6장 28) · coloredVinyl: bool, vinylStyle: `"match"`·`"contrast"`, lineStyle: `"album"`·`"contrast"`(6장 21) · crowd: bool, crowdPace: 1·2·5·10(6장 25) · riderPose: `"auto"`, `"sit"`, `"lean"`, `"cross"`, `"hug"`(6장 27) · hatColor: `"#RRGGBB"` 또는 `""`(기본 흰색) · recordColor, bgColor, lineColor, textColor: `"#RRGGBB"` 또는 `""`(앨범 색) · armColor, armBaseColor, spindleColor, knobColor, restColor: `"#RRGGBB"` 또는 `""`(기본 금속색) · shirtColor, pantsColor: `"#RRGGBB"` 또는 `""`(앨범 색) · fps: 30 또는 60(앱이 설정과 전원에 따라 정해 보낸다) |
+| `TodaysRecord.setOptions({position, transparent, windowLight, trail, fps})` | position: `"left"`, `"center"`, `"right"` · transparent: bool · windowLight: bool · trail: `"keep"` 또는 `"afterglow"` · grain: `"off"`, `"low"`, `"normal"`, `"high"`(기존 세기의 0, 0.45, 1, 1.45배) · sideChange: `"turn"`, `"swap"`, `"needle"`(6장 23) · albumChange: `"swap"`, `"slide"`(6장 28) · coloredVinyl: bool, vinylStyle: `"match"`·`"contrast"`, lineStyle: `"album"`·`"contrast"`(6장 21) · crowd: bool, crowdPace: 1·2·5·10(6장 25) · sound: `{on, volume(0~1), needle, motor, noise}`(6장 29) · riderPose: `"auto"`, `"sit"`, `"lean"`, `"cross"`, `"hug"`(6장 27) · hatColor: `"#RRGGBB"` 또는 `""`(기본 흰색) · recordColor, bgColor, lineColor, textColor: `"#RRGGBB"` 또는 `""`(앨범 색) · armColor, armBaseColor, spindleColor, knobColor, restColor: `"#RRGGBB"` 또는 `""`(기본 금속색) · shirtColor, pantsColor: `"#RRGGBB"` 또는 `""`(앨범 색) · fps: 30 또는 60(앱이 설정과 전원에 따라 정해 보낸다) |
 | `TodaysRecord.clearRecord()` | 지금 판의 선 지우기 |
+| `TodaysRecord.testSound()` | 바늘 내리는 소리를 한 번 들려준다(설정을 꺼 둬도). 6장 29 |
 | `TodaysRecord.setInsets({top, right, bottom, left})` | 메뉴 막대와 Dock이 덮는 화면 가장자리(4.3) |
 | `TodaysRecord.setVolume({level, muted})` | 시스템 음량. level: 0~1(모르면 생략), muted: bool (4.6.1) |
 
@@ -370,6 +373,13 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
     - 톤암 그림자: 모든 부분의 그림자가 같은 빛 방향으로, 높이에 비례해 떨어진다(기둥은 바닥에서 꼭대기까지, 팔과 균형추는 기둥 높이, 헤드는 제 높이). 기둥, 팔, 균형추, 헤드 그림자를 한 도형으로 한 번에 칠해 겹친 곳이 진해지지 않게 한다.
 27. **캐릭터 포즈.** 바늘 위 캐릭터는 다리 늘어뜨리고 앉기(기본), 뒤로 기대기, 책상다리, 무릎 껴안기 중 하나로 앉는다. 설정 Pose가 Auto(기본)면 새 곡이 시작될 때 45% 확률로 다른 포즈로, 하나를 고르면 그 포즈로 0.5초에 걸쳐 바뀐다. 윗옷·바지·모자 색은 Characters 탭에서 고른다(`shirtColor`, `pantsColor`, `hatColor`). 박자에 맞춰 위아래로 튀던 동작은 뺐다(사용자 요청).
 28. **다른 앨범으로 바꿀 때(`albumChange`, 사용자 요청).** `swap`(기본, Swap Record)은 지금처럼 옛 판을 들어 오른쪽으로 빼고 새 판을 왼쪽에서 가져온다. `slide`(Slide Over)는 바늘이 쉬는 자리로 간 뒤, 두 판이 조금 떠오른 채로 옛 판은 왼쪽 위(약 28°)로 빠지며 돌던 힘이 남아 천천히 멈추고, 조금 뒤(약 0.6초) 새 판이 같은 왼쪽 위에서 더 낮은 길(약 14°)로 옛 판 위를 지나 들어와 내려앉는다(각 약 1.8초, 전체 4.2초). 빠지고 들어오는 거리는 화면 배치로 계산해 판(테두리, 그림자 포함)이 화면 왼쪽 끝 밖에서 시작하고 끝나, 화면 안에서 갑자기 생기거나 사라지지 않는다. 바늘은 새 판이 다 내려앉은 뒤 내려간다. 옛 판은 바꾸는 순간의 색, 라벨, 선을 그대로 지닌 채 그리고, 새 판은 처음부터 새 앨범 색으로 그린다(배경 색은 평소처럼 서서히 바뀜). 축(스핀들)은 판에 붙이지 않고 늘 플래터 가운데에 그린다. 판을 들어 옮기는 동안에는 판이 축 위로 지나가고, 판이 놓여 있으면 축이 판 구멍으로 올라와 보인다. 다른 앨범으로 바꿀 때(Swap Record, Slide Over)는 판이 들리면 축이 플래터 속으로 내려가고, 새 판이 완전히 내려앉은 뒤에야 판 구멍으로 천천히 올라온다. 판에는 축보다 조금 작은(축 반지름의 80%) 구멍을 뚫어 그 아래가 비쳐 보이게 한다(구멍은 판의 기울어진 면에, 축 밑면은 수평으로 그려서 같은 크기면 축 왼쪽 아래로 구멍이 삐져나왔다). 판이 들리면 축은 판 아래에 그려져 구멍 사이로만 보이며 내려가고(Swap Record는 판이 곧바로 옆으로 움직이므로 조금 먼저 내려가기 시작), 판이 위로 비켜나면 판에 가려진다. 판을 옮기는 동안과 새 판이 떠 있는 동안에도 판 아래에 그린다. 같은 판의 반대 면으로 돌릴 때(Lift & Turn)도 같다: 판이 떠오르면 축이 내려가고, 다 내려앉은 뒤 올라온다.
+29. **레코드 소리(`Resources/sound.js`, 사용자 요청).** 녹음 파일 없이 Web Audio로 만든 작은 소리를 음악 위에 얹는다. 기본 꺼짐, 설정 Sound 탭에서 켠다. `index.html`은 `TodaysRecordSound(scene)`으로 만들고 매 프레임 `update`를 부른다. 소리는 턴테이블 상태만 읽는다: 바늘 높이와 판 위인지, 모터가 향하는 속도, 판이 들렸는지.
+    - 바늘 내림(낮은 "툭" + 닿는 틱 + 짧은 치직), 바늘 들기(작은 틱), 판 들기(사각 바람 소리), 판 밀기(Slide Over·Swap Record에서 "스르륵", 펠트에 걸리는 떨림), 판 내려놓기(둔한 "툭"), 모터 시작·정지(스위치 딸깍 + 낮게 도는 소리가 올라갔다 사라짐 / 내려가며 사라짐), 표면 잡음(바늘이 판 위에서 재생 중일 때만 옅은 쉿 소리와 탁탁 튀는 소리, 6초 무작위 반복).
+    - 앱을 처음 켤 때는 모터 소리를 내지 않는다(재생 중에 켜져도 조용히 시작). 일시정지·재개 때는 낸다.
+    - 크기: Volume(0~1)을 1.6제곱해 쓰고, 압축기(-18dB, 4:1)를 거친다. Volume 50%에서 바늘 내림 최고치 약 -18dBFS, 표면 잡음 평균 약 -45dBFS(오프라인으로 렌더해 잼, 2026-10-21).
+    - 주 화면(`role` primary)에서만 소리를 낸다. 멈춤(`setPaused(true)`: 잠금, 잠자기, 가려짐) 동안은 오디오도 멈춘다.
+    - 웹뷰 설정 `mediaTypesRequiringUserActionForPlayback = []`(누르지 않아도 재생).
+    - 시험용: `window.__renderSound(name)`으로 소리를 WAV로 렌더해 듣거나 잴 수 있다(`reel`은 모든 소리를 순서대로).
 
 ## 7. 성능 목표
 

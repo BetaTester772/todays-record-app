@@ -103,6 +103,11 @@ final class Settings {
         static let lineStyle = "lineStyle"
         static let crowd = "crowd"
         static let crowdPace = "crowdPace"
+        static let sound = "sound"
+        static let soundVolume = "soundVolume"
+        static let soundNeedle = "soundNeedle"
+        static let soundMotor = "soundMotor"
+        static let soundNoise = "soundNoise"
         static let riderPose = "riderPose"
         static let autoUpdateCheck = "autoUpdateCheck"
         static let lastUpdateCheck = "lastUpdateCheck"
@@ -128,6 +133,11 @@ final class Settings {
             Key.lineStyle: "album",
             Key.crowd: true,
             Key.crowdPace: 1,
+            Key.sound: false,
+            Key.soundVolume: 0.5,
+            Key.soundNeedle: true,
+            Key.soundMotor: true,
+            Key.soundNoise: true,
             Key.riderPose: RiderPose.auto.rawValue,
             Key.autoUpdateCheck: true,
             Key.disabledDisplays: "",
@@ -224,6 +234,13 @@ final class Settings {
         set { defaults.set(newValue, forKey: Key.crowd) }
     }
 
+    /// 레코드 소리(명세 6장 29): 켜기, 크기(0~1), 바늘·판 소리, 모터 소리, 표면 잡음. 기본 꺼짐.
+    var soundOptions: [String: Any] {
+        ["on": defaults.bool(forKey: Key.sound), "volume": min(1, max(0, defaults.double(forKey: Key.soundVolume))),
+         "needle": defaults.bool(forKey: Key.soundNeedle), "motor": defaults.bool(forKey: Key.soundMotor),
+         "noise": defaults.bool(forKey: Key.soundNoise)]
+    }
+
     /// 사람들이 모이고 흩어지는 시간 배율(1, 2, 5, 10). 명세 6장 25.
     var crowdPace: Int {
         get { [1, 2, 5, 10].contains(defaults.integer(forKey: Key.crowdPace)) ? defaults.integer(forKey: Key.crowdPace) : 1 }
@@ -261,6 +278,7 @@ final class Settings {
             "lineStyle": lineStyle,
             "crowd": crowd,
             "crowdPace": crowdPace,
+            "sound": soundOptions,
             "recordColor": color(.record),
             "bgColor": color(.background),
             "lineColor": color(.line),

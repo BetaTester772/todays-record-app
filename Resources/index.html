@@ -53,6 +53,7 @@
 
 
 <script src="crowd.js"></script>
+<script src="sound.js"></script>
 <script>
 (() => {
   'use strict';
@@ -170,7 +171,8 @@
   // options the app can change from its menu (setOptions)
   // colors '' = taken from the album
   // sideChange: how turning to the other side of the same record looks: 'turn' (lift and turn), 'swap' (like a new album), 'needle' (needle only)
-  const opts = { position: 'right', transparent: false, windowLight: true, trail: 'afterglow', grain: 'normal', fps: 60, sideChange: 'turn', albumChange: 'swap', coloredVinyl: false, vinylStyle: 'match', lineStyle: 'album', recordColor: '', bgColor: '', lineColor: '', textColor: '', armColor: '', armBaseColor: '', spindleColor: '', knobColor: '', restColor: '', shirtColor: '', pantsColor: '', hatColor: '', riderPose: 'auto', crowd: true, crowdPace: 1 };
+  const opts = { position: 'right', transparent: false, windowLight: true, trail: 'afterglow', grain: 'normal', fps: 60, sideChange: 'turn', albumChange: 'swap', coloredVinyl: false, vinylStyle: 'match', lineStyle: 'album', recordColor: '', bgColor: '', lineColor: '', textColor: '', armColor: '', armBaseColor: '', spindleColor: '', knobColor: '', restColor: '', shirtColor: '', pantsColor: '', hatColor: '', riderPose: 'auto', crowd: true, crowdPace: 1,
+    sound: { on: false, volume: 0.5, needle: true, motor: true, noise: true } };
   const GRAIN = { off: 0, low: 0.45, normal: 1, high: 1.45 };   // multiplier on the original grain strength
   const glowPts = [];   // recent stylus points for the afterglow trail: { fr, a, t, c } or null for a lift
   let pal = palFromHex(DEMO[0].pal), targetPal = clonePal(pal);
@@ -184,6 +186,8 @@
   let track = null;        // { start, end, fixed }
   let cue = null;          // tonearm / record-change animation
   let crowd = null;        // the little people who drop by (crowd.js)
+  let sound = null;        // record player sounds (sound.js)
+  let spinTarget = 0;      // the platter speed the motor is heading for
   let armPhi = REST_PHI, armLift = 0.1;
   let spin = 0, spinVel = 0, spinAcc = 0, beatEnv = 0, lastBeat = -1, legPhase = 0, legClock = 0;
   let warpLift = 0;   // how far the record's warp lifts the needle right now
@@ -630,6 +634,10 @@
         if (o.lineStyle === 'album' || o.lineStyle === 'contrast') opts.lineStyle = o.lineStyle;
         if (typeof o.crowd === 'boolean') opts.crowd = o.crowd;
         if ([1, 2, 5, 10].includes(o.crowdPace)) opts.crowdPace = o.crowdPace;
+        if (o.sound && typeof o.sound === 'object') {
+          const v = o.sound;
+          opts.sound = { on: !!v.on, volume: Math.min(1, Math.max(0, +v.volume || 0)), needle: v.needle !== false, motor: v.motor !== false, noise: v.noise !== false };
+        }
         if (o.riderPose === 'auto' || o.riderPose in RIDER_POSES) opts.riderPose = o.riderPose;
         for (const k of ['recordColor', 'bgColor', 'lineColor', 'textColor', 'armColor', 'armBaseColor', 'spindleColor', 'knobColor', 'restColor', 'shirtColor', 'pantsColor', 'hatColor']) {
           if (typeof o[k] === 'string') opts[k] = /^#[0-9a-f]{6}$/i.test(o[k]) ? o[k] : '';
@@ -640,6 +648,7 @@
         }
       },
       clearRecord,
+      testSound() { if (sound) sound.test(); },
       setPaused,
       setInsets(v) { for (const k of ['top', 'right', 'bottom', 'left']) inset[k] = Math.max(0, +(v && v[k]) || 0); },
       setVolume(v) {
@@ -810,6 +819,7 @@
 
     const spd = media.source === 'demo' ? PREVIEW_SPEED : 1;
     const target = playing ? TAU * RPS * spd : 0;
+    spinTarget = target;
     // the platter has a little weight: it eases into and out of speed in about half a second (critically damped)
     const SPIN_W = 9.5;
     spinAcc += (SPIN_W * SPIN_W * (target - spinVel) - 2 * SPIN_W * spinAcc) * dt;
@@ -853,6 +863,7 @@
     for (const p of particles) { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 170 * dt; p.life -= dt; }
     particles = particles.filter(p => p.life > 0);
     if (crowd) crowd.update(dt);
+    if (sound) sound.update(dt);
 
     if (now - lastDayCheck > 3000) {
       lastDayCheck = now;
@@ -1688,6 +1699,20 @@
     fn: { layout, layoutKey, toScreen, armTip, phiOf, toHex, hex, css, mix, clamp, lerp, rand, easeInOut, easeOut, wander, rrect, disc, drawPix },
   });
 
+  // Sounds (sound.js) only read the turntable's state: the needle's height and place, the motor, the record's lift.
+  // Only the primary screen plays them, so several displays don't double up.
+  if (window.TodaysRecordSound) sound = window.TodaysRecordSound({
+    opts, get role() { return NATIVE ? NATIVE.role : 'primary'; },
+    get arm() {
+      const fr = stylusFr(), outLift = cue && cue.out && cue.outOff ? cue.outOff.lift : 0;
+      return {
+        lift: armLift, onRecord: !!shown && fr <= R_OUT + 0.02 && fr >= R_IN - 0.05 && recOff.lift < 0.03,
+        playing: media.state === 'playing', spinTarget,
+        recLift: Math.max(recOff.lift, outLift), recSlide: !!(cue && cue.kind === 'album'),
+      };
+    },
+  });
+
   resize();
   load();
   if (NATIVE) { if (NATIVE.demo) initDemo(); else initNative(); }
@@ -1711,6 +1736,7 @@
     p = !!p;
     if (p === paused) return;
     paused = p;
+    if (sound) sound.setPaused(p);
     if (p) { cancelAnimationFrame(rafId); save(); }
     else rafId = requestAnimationFrame(t => { last = t; rafId = requestAnimationFrame(frame); });
   }

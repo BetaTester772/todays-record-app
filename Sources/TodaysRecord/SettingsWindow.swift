@@ -26,6 +26,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
                 ("Appearance", "paintpalette", AnyView(AppearancePane())),
                 ("Effects", "sparkles", AnyView(EffectsPane())),
                 ("Characters", "person.2", AnyView(CharactersPane())),
+                ("Sound", "speaker.wave.2", AnyView(SoundPane(model: model))),
                 ("Players", "music.note", AnyView(PlayersPane(model: model))),
             ]
             for (title, symbol, view) in panes {
@@ -69,6 +70,7 @@ final class SettingsModel: ObservableObject {
     @Published var update: Updater.State = .idle
 
     var onClearRecord: (() -> Void)?
+    var onTestSound: (() -> Void)?
     var onCheckForUpdates: (() -> Void)?
     var onInstallUpdate: (() -> Void)?
     let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
@@ -355,6 +357,55 @@ private struct CharactersPane: View {
                     .font(.caption).foregroundStyle(.secondary)
                     .multilineTextAlignment(.leading)
                     .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+    }
+}
+
+/// 레코드 소리. 명세 6장 29.
+private struct SoundPane: View {
+    @ObservedObject var model: SettingsModel
+    @AppStorage(Settings.Key.sound) private var sound = false
+    @AppStorage(Settings.Key.soundVolume) private var volume = 0.5
+    @AppStorage(Settings.Key.soundNeedle) private var needle = true
+    @AppStorage(Settings.Key.soundMotor) private var motor = true
+    @AppStorage(Settings.Key.soundNoise) private var noise = true
+
+    var body: some View {
+        Pane {
+            Section {
+                Toggle("Record Sounds", isOn: $sound)
+                LabeledContent("Volume") {
+                    HStack {
+                        Image(systemName: "speaker.fill").foregroundStyle(.secondary)
+                        Slider(value: $volume, in: 0...1)
+                        Image(systemName: "speaker.wave.3.fill").foregroundStyle(.secondary)
+                    }
+                }
+                .disabled(!sound)
+            } footer: {
+                Text("Quiet record player sounds over your music. Played on the main display only, and paused when the screen is locked or covered.")
+                    .font(.caption).foregroundStyle(.secondary)
+                    .multilineTextAlignment(.leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            Section {
+                Toggle("Needle & Record", isOn: $needle)
+                Text("The needle touching down and lifting off, a record lifted, slid and set down.")
+                    .font(.caption).foregroundStyle(.secondary)
+                Toggle("Motor", isOn: $motor)
+                Text("The platter spinning up and winding down.")
+                    .font(.caption).foregroundStyle(.secondary)
+                Toggle("Surface Noise", isOn: $noise)
+                Text("A soft hiss and crackle while the needle is in the groove.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            .disabled(!sound)
+            Section {
+                HStack {
+                    Spacer()
+                    Button("Play Test Sound") { model.onTestSound?() }
+                }
             }
         }
     }

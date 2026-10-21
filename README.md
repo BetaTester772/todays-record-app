@@ -37,6 +37,7 @@ After that, updates come through the app (**Check for Updates…** in the menu, 
 - Colors can be left to follow the album or set yourself: record, background, line, text, tonearm, the character's clothes, or colored vinyl in the album's color (or its opposite color)
 - Record on the left, center or right, or a transparent background over your own wallpaper
 - Works on multiple displays, avoids the menu bar and Dock, and clicks go through to the desktop
+- Optional record player sounds, made in code: the needle dropping, the platter spinning up, a soft crackle in the groove
 - Stops drawing when the screen is locked, asleep or covered; 30 fps on battery
 
 ## Screenshots
@@ -84,6 +85,7 @@ Everything else is in Settings:
 | Appearance | Record position, transparent background, colors |
 | Effects | Window light, trail (keep or afterglow), grain, how a side change or a new album looks (swap the record or slide the new one over) |
 | Characters | The character's pose and colors, crowd on/off and speed |
+| Sound | Optional record player sounds: needle drop and lift, record slide, motor, surface noise |
 | Players | Music and Spotify permission status |
 
 ## FAQ

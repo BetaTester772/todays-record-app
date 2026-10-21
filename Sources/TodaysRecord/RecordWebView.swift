@@ -32,6 +32,8 @@ final class RecordWebView: WKWebView {
 
         let config = WKWebViewConfiguration()
         config.websiteDataStore = .default()
+        // 레코드 소리(명세 6장 29)는 사용자가 누르지 않아도 재생돼야 한다.
+        config.mediaTypesRequiringUserActionForPlayback = []
         let controller = WKUserContentController()
         controller.addUserScript(WKUserScript(
             source: Self.nativeScript(role: role, screenID: screenID, demo: options.demo),
@@ -97,6 +99,11 @@ final class RecordWebView: WKWebView {
 
     func clearRecord() {
         call("clearRecord", [])
+    }
+
+    /// 설정 창의 Play Test Sound. 소리를 꺼 둬도 한 번 들려준다.
+    func testSound() {
+        call("testSound", [])
     }
 
     /// 투명 배경이면 웹뷰도 배경을 그리지 않는다. 명세 4.4.

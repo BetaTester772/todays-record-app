@@ -20,6 +20,7 @@ cp "$BIN" "$APP/Contents/MacOS/TodaysRecord"
 cp "$ROOT/Resources/Info.plist" "$APP/Contents/Info.plist"
 cp "$ROOT/Resources/index.html" "$APP/Contents/Resources/index.html"
 cp "$ROOT/Resources/crowd.js" "$APP/Contents/Resources/crowd.js"
+cp "$ROOT/Resources/sound.js" "$APP/Contents/Resources/sound.js"
 if [ -f "$ROOT/Resources/AppIcon.icns" ]; then
   cp "$ROOT/Resources/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
 fi
