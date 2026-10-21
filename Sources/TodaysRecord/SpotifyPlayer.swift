@@ -35,6 +35,40 @@ final class SpotifyPlayer: Player {
         ITunesSearch.download(url, completion: completion)
     }
 
+    /// 알림(`com.spotify.client.PlaybackStateChanged`) 값으로 만든 정보. AppleScript를 기다리지 않고 바로 반영한다.
+    /// 커버 주소는 알림에 없어 `needsDetails`로 표시하고 AppleScript 결과로 채운다. 상태를 알 수 없으면 nil.
+    static func parse(notification userInfo: [AnyHashable: Any]) -> NowPlayingInfo? {
+        func text(_ key: String) -> String { userInfo[key] as? String ?? "" }
+        func number(_ key: String) -> Double {
+            (userInfo[key] as? NSNumber)?.doubleValue ?? parseNumber(userInfo[key] as? String ?? "")
+        }
+        switch text("Player State") {
+        case "Stopped":
+            return .stopped
+        case "Playing", "Paused":
+            break
+        default:
+            return nil
+        }
+        let id = text("Track ID")
+        guard !id.isEmpty else { return nil }
+
+        var info = NowPlayingInfo()
+        info.state = text("Player State") == "Playing" ? .playing : .paused
+        info.title = text("Name")
+        info.artist = text("Artist")
+        info.album = text("Album")
+        info.albumArtist = text("Album Artist")
+        info.duration = number("Duration") / 1000
+        info.position = number("Playback Position")
+        info.id = id
+        info.trackNumber = Int(number("Track Number"))
+        info.discNumber = Int(number("Disc Number"))
+        info.isAd = id.hasPrefix("spotify:ad:")
+        info.needsDetails = true
+        return info
+    }
+
     static func parse(_ output: String) -> NowPlayingInfo {
         guard !output.isEmpty, output != "notrunning", output != "stopped" else { return .stopped }
         var fields = output.components(separatedBy: fieldSeparator)

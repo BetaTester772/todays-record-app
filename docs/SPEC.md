@@ -1,6 +1,6 @@
 # TurnTable — macOS 앱 명세서
 
-버전 0.26 · 2026-10-21 (0.2: LP 면 나누기, iTunes 검색 국가 대체 · 0.3: 음량 노브, 면 램프 · 0.4: 색 섞기 전환, 곡 안 위치 이동 · 0.5: 화면 문구 영어 · 0.6: 긴 이름 흐르기 · 0.7: 메뉴 막대·Dock 피하기 · 0.8: 오늘 들은 곡 수만, 노란 강조색 피하기 · 0.9: M2 설정 메뉴, 창문 빛, 잔상 · 0.10: 판 색 고르기, 시간대 색감 · 0.11: 배경색, 선 색 고르기 · 0.12: 그레인 세기 · 0.13: M4 절전, 여러 화면, 그리기 최적화 · 0.14: Spotify 지원 · 0.15: 설정 창, 화면별 켜기, 앱 아이콘 · 0.16: 배포 zip, README · 0.17: M5 뺌 · 0.18: 긴 앨범 LP 세트 · 0.19: 면 바꾸기 동작 · 0.20: 자연스러운 움직임, 글자 색 · 0.21: 앱 안 업데이트, 배포 인증서 · 0.22: 업데이트 설치 자리, 실패 이유, 응용 프로그램 폴더로 옮기기 · 0.23: 컬러 바이닐, 톤암·받침판 색, 색 설정 정리, 이 Mac에 설치 · 0.24: 모여드는 사람들(crowd.js), 받침 높이, 캐릭터 포즈, Characters 탭 · 0.25: 이름을 TurnTable로 · 0.26: 싱글은 7인치 판)
+버전 0.27 · 2026-10-21 (0.2: LP 면 나누기, iTunes 검색 국가 대체 · 0.3: 음량 노브, 면 램프 · 0.4: 색 섞기 전환, 곡 안 위치 이동 · 0.5: 화면 문구 영어 · 0.6: 긴 이름 흐르기 · 0.7: 메뉴 막대·Dock 피하기 · 0.8: 오늘 들은 곡 수만, 노란 강조색 피하기 · 0.9: M2 설정 메뉴, 창문 빛, 잔상 · 0.10: 판 색 고르기, 시간대 색감 · 0.11: 배경색, 선 색 고르기 · 0.12: 그레인 세기 · 0.13: M4 절전, 여러 화면, 그리기 최적화 · 0.14: Spotify 지원 · 0.15: 설정 창, 화면별 켜기, 앱 아이콘 · 0.16: 배포 zip, README · 0.17: M5 뺌 · 0.18: 긴 앨범 LP 세트 · 0.19: 면 바꾸기 동작 · 0.20: 자연스러운 움직임, 글자 색 · 0.21: 앱 안 업데이트, 배포 인증서 · 0.22: 업데이트 설치 자리, 실패 이유, 응용 프로그램 폴더로 옮기기 · 0.23: 컬러 바이닐, 톤암·받침판 색, 색 설정 정리, 이 Mac에 설치 · 0.24: 모여드는 사람들(crowd.js), 받침 높이, 캐릭터 포즈, Characters 탭 · 0.25: 이름을 TurnTable로 · 0.26: 싱글은 7인치 판 · 0.27: Spotify 알림 값 바로 반영, KR 스토어 묻지 않음, 앨범 곡 목록 저장)
 
 ## 1. 개요
 
@@ -132,7 +132,8 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
 - 숫자는 지역 설정에 따라 소수점이 쉼표일 수 있으니 문자열로 받으면 `,`를 `.`로 바꿔 해석한다.
 - macOS 27의 Music 사전에서는 `tell application "Music"` 안에서 변수 이름 `st`가 컴파일되지 않는다. 참고 구현의 `st`는 `pstate`로 바꿔 쓴다.
 
-**(3) 앨범 곡 목록.** 곡이 바뀌어 새 앨범이 나오면 iTunes Search API로 그 앨범의 곡 목록(디스크, 곡 번호, 제목, 길이)을 한 번 받아 앨범별로 기억한다(`AlbumTracks`). 찾는 동안 최대 3초까지 새 곡 상태를 보내지 않고 기다리며, 시간이 넘거나 찾지 못하면 목록 없이 보낸다.
+**(3) 앨범 곡 목록.** 곡이 바뀌어 새 앨범이 나오면 iTunes Search API로 그 앨범의 곡 목록(디스크, 곡 번호, 제목, 길이)을 한 번 받아 앨범별로 기억한다(`AlbumTracks`). 찾는 동안 최대 3초까지 새 곡 상태를 보내지 않고 기다리며, 시간이 넘거나 찾지 못하면 목록 없이 보낸다. 기다리지 않고 먼저 보여주면 화면이 같은 곡의 늦게 온 면 정보를 반영하지 않아(6장 10, 곡 ID가 바뀔 때만 판을 정함) 싱글이 12인치로, 면 나누기 없이 그려진다. 그래서 기다린다.
+- 찾은 곡 목록은 캐시 폴더(`~/Library/Caches/com.todaysrecord.app/AlbumTracks.json`)에 저장해 앱을 다시 켜도 기다리지 않는다. 최근 500개 앨범까지 두고, 못 찾은 앨범은 저장하지 않는다(나중에 iTunes에 올라올 수 있어 다음 실행 때 다시 찾는다). 파일을 읽지 못하면 무시한다.
 - 라이브러리에 없는 스트리밍 곡은 AppleScript의 `track number`, `track count`, `disc number`, `disc count`가 모두 0이다(2026-10 확인). 이때는 곡 목록에서 제목이 같은 곡(없으면 길이가 1초 이내로 같은 곡이 하나뿐일 때 그 곡)으로 곡 번호와 디스크를 정한다. 찾은 곡의 길이가 Music 값과 3초 넘게 다르면 다른 판본의 목록일 수 있으므로 쓰지 않는다.
 - 디스크의 곡 번호가 1부터 빠짐없이 이어지지 않거나, Music이 준 곡 수와 다르면 목록을 쓰지 않는다.
 
@@ -165,7 +166,7 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
 ### 4.5.1 Spotify (`SpotifyPlayer`)
 
 - 번들 ID `com.spotify.client`. 실행 중이 아니면 묻지 않고, 절대 실행시키지 않는다. 스크립트도 `if application "Spotify" is running`으로 감싼다.
-- 분산 알림 `com.spotify.client.PlaybackStateChanged`를 구독한다. 재생, 일시정지, 곡 변경 때 바로 온다. `userInfo` 키는 `Name`, `Artist`, `Album`, `Album Artist`, `Track ID`, `Track Number`, `Disc Number`, `Duration`(밀리초), `Playback Position`(초), `Player State`(`Playing`/`Paused`/…), `Has Artwork`, `Play Count`, `Popularity`다(2026-10 확인). Music과 같이 알림은 묻는 계기로만 쓰고 값은 AppleScript로 읽는다.
+- 분산 알림 `com.spotify.client.PlaybackStateChanged`를 구독한다. 재생, 일시정지, 곡 변경 때 바로 온다. `userInfo` 키는 `Name`, `Artist`, `Album`, `Album Artist`, `Track ID`, `Track Number`, `Disc Number`, `Duration`(밀리초), `Playback Position`(초), `Player State`(`Playing`/`Paused`/…), `Has Artwork`, `Play Count`, `Popularity`다(2026-10 확인). 알림이 오면 이 값으로 곧바로 반영하고(AppleScript를 기다리지 않음), 0.2초 뒤 AppleScript로 한 번 더 물어 커버 주소(`artwork url`)를 채운다. 알림만으로 만든 정보로는 커버를 가져오지 않고 AppleScript 결과가 오면 가져온다. 제어 권한이 없으면(4.5 권한) 알림 값을 쓰지 않는다. 2026-10-21 측정: 일시정지·재생과 이미 찾은 앨범의 곡 전환이 0.31초에서 0초로 줄었다. 곡 안에서 위치를 옮길 때는 알림이 오지 않는다(10초마다 하는 위치 보정 때 반영).
 - AppleScript로 `player state`, `player position`(초)과 `current track`의 `name`, `artist`, `album`, `album artist`, `duration`, `track number`, `disc number`, `id`(`spotify:track:…`), `artwork url`을 묻는다. `duration`은 사전에 초로 적혀 있지만 실제로는 밀리초다(2026-10 확인, Spotify 1.3.5).
 - 곡 수, 디스크 수, BPM은 주지 않는다(0). 곡 번호와 디스크는 Spotify 값을 쓰고, 곡 수와 곡 길이는 4.5 (3)의 곡 목록에서 얻는다. 곡 수로 판본을 확인할 수 없으므로, 목록에서 그 번호 곡의 길이가 Spotify 값과 3초 넘게 다르면 목록을 쓰지 않는다.
 - 광고(`id`가 `spotify:ad:`로 시작)는 곡으로 치지 않고 화면과 메뉴에 `stopped`로 보낸다. 판 기록과 오늘 들은 곡 수에 들어가지 않는다. 플레이어 고르기(4.5.2)에서는 재생 중으로 보아, 광고 때문에 다른 플레이어로 넘어갔다 돌아오지 않게 한다.
@@ -186,9 +187,9 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
 
 - 곡 ID가 바뀔 때만 가져온다.
 - 1순위: 플레이어가 주는 커버. Music은 AppleScript로 `artwork 1 of current track`의 `raw data`, Spotify는 `artwork url`의 이미지를 받는다.
-- 2순위(커버가 없거나 실패): iTunes Search API `https://itunes.apple.com/search?term=<아티스트 앨범>&entity=album&limit=5&country=<국가>`에서 앨범 이름이 같은 결과(없으면 첫 결과)의 `artworkUrl100`에서 `100x100bb`를 `600x600bb`로 바꿔 받는다. 국가 기본값 `KR`, 설정으로 변경 가능.
+- 2순위(커버가 없거나 실패): iTunes Search API `https://itunes.apple.com/search?term=<아티스트 앨범>&entity=album&limit=5&country=<국가>`에서 앨범 이름이 같은 결과(없으면 첫 결과)의 `artworkUrl100`에서 `100x100bb`를 `600x600bb`로 바꿔 받는다. 국가 기본값 `US`, 설정(`artworkCountry`)으로 변경 가능.
 - 앨범 찾기는 먼저 `entity=song`, `term=<아티스트 제목>`으로 하고(스트리밍 곡의 앨범은 앨범 검색에 잘 걸리지 않음), 못 찾으면 위의 앨범 검색을 쓴다. 앨범 이름과 곡 제목이 같은 결과를 먼저 고른다. 앨범 이름은 대소문자와, iTunes가 싱글·EP 이름 끝에 붙이는 ` - Single`, ` - EP`를 무시하고 비교한다(Spotify 앨범 이름에는 붙지 않는다. 2026-10 확인: `アイドル` ↔ `アイドル - Single`).
-- 2026-10 확인 결과 `country=KR`은 search, lookup 모두 결과가 0건이다(한국 iTunes Store는 음악을 팔지 않음). 그래서 설정 국가로 찾지 못하면 `US`로 한 번 더 찾는다. 찾은 앨범의 `collectionId`로 `lookup?id=<id>&entity=song`을 불러 곡 목록과 길이(`trackTimeMillis`)도 얻는다(4.5의 (3)).
+- 2026-10 확인 결과 `country=KR`은 search, lookup 모두 결과가 0건이다(한국 iTunes Store는 음악을 팔지 않음). 그래서 `KR`은 묻지 않고(설정이 `KR`이어도 `US`만 찾는다), 다른 설정 국가로 찾지 못하면 `US`로 한 번 더 찾는다. 2026-10-21 측정: 새 앨범으로 바뀔 때 0.52~0.66초가 줄어 1.4~2.0초에서 0.52~0.72초가 됐다. 찾은 앨범의 `collectionId`로 `lookup?id=<id>&entity=song`을 불러 곡 목록과 길이(`trackTimeMillis`)도 얻는다(4.5의 (3)).
 - PNG/JPEG 바이트를 base64 data URL로 바꿔 `TodaysRecord.art(dataURL, version)`으로 보낸다. 같은 커버를 다시 보내지 않는다.
 
 ### 4.6.1 시스템 음량 (`SystemVolume`)

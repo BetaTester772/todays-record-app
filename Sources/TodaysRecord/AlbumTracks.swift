@@ -18,6 +18,32 @@ final class AlbumTracks {
     private var cache: [String: [ITunesSearch.Track]] = [:]
     private var waiting: [String: [() -> Void]] = [:]
 
+    /// 찾은 곡 목록을 저장하는 파일. 앱을 다시 켜도 한 번 찾은 앨범은 기다리지 않는다.
+    /// 다시 받을 수 있는 자료라 캐시 폴더에 둔다. nil이면 저장하지 않는다.
+    private let storeURL: URL?
+    /// 저장해 둘 앨범 수. 넘으면 오래된 것부터 뺀다.
+    private let maxStored: Int
+    /// 저장한 앨범 키. 오래된 것부터.
+    private var stored: [String] = []
+    private let saveQueue = DispatchQueue(label: "com.todaysrecord.albumtracks", qos: .utility)
+
+    private struct Entry: Codable {
+        let key: String
+        let tracks: [ITunesSearch.Track]
+    }
+
+    static var defaultStoreURL: URL? {
+        FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first?
+            .appendingPathComponent("com.todaysrecord.app", isDirectory: true)
+            .appendingPathComponent("AlbumTracks.json")
+    }
+
+    init(storeURL: URL? = AlbumTracks.defaultStoreURL, maxStored: Int = 500) {
+        self.storeURL = storeURL
+        self.maxStored = maxStored
+        loadStored()
+    }
+
     static func key(for info: NowPlayingInfo) -> String {
         let artist = info.albumArtist.isEmpty ? info.artist : info.albumArtist
         return "\(artist)|\(info.album)"
@@ -102,9 +128,58 @@ final class AlbumTracks {
     }
 
     private func finish(_ key: String, _ tracks: [ITunesSearch.Track]) {
-        cache[key] = tracks
+        remember(tracks, forKey: key)
         Log.nowPlaying.info("앨범 곡 목록 \(key, privacy: .public): \(tracks.count)곡")
         release(key)
+    }
+
+    /// 찾은 곡 목록을 기억한다. 못 찾은 앨범(빈 목록)은 이번 실행에서만 기억한다.
+    func store(_ tracks: [ITunesSearch.Track], for info: NowPlayingInfo) {
+        remember(tracks, forKey: Self.key(for: info))
+    }
+
+    private func remember(_ tracks: [ITunesSearch.Track], forKey key: String) {
+        cache[key] = tracks
+        guard !tracks.isEmpty, storeURL != nil else { return }
+        stored.removeAll { $0 == key }
+        stored.append(key)
+        if stored.count > maxStored {
+            let dropped = stored.prefix(stored.count - maxStored)
+            dropped.forEach { cache[$0] = nil }
+            stored.removeFirst(dropped.count)
+        }
+        save()
+    }
+
+    private func loadStored() {
+        guard let storeURL, let data = try? Data(contentsOf: storeURL) else { return }
+        guard let entries = try? JSONDecoder().decode([Entry].self, from: data) else {
+            Log.nowPlaying.error("앨범 곡 목록 파일을 읽지 못해 무시함")
+            return
+        }
+        for entry in entries.suffix(maxStored) where !entry.tracks.isEmpty {
+            cache[entry.key] = entry.tracks
+            stored.append(entry.key)
+        }
+        Log.nowPlaying.info("저장한 앨범 곡 목록 \(self.stored.count)개 읽음")
+    }
+
+    private func save() {
+        guard let storeURL else { return }
+        let entries = stored.compactMap { key in cache[key].map { Entry(key: key, tracks: $0) } }
+        saveQueue.async {
+            do {
+                try FileManager.default.createDirectory(at: storeURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+                try JSONEncoder().encode(entries).write(to: storeURL, options: .atomic)
+            } catch {
+                Log.nowPlaying.error("앨범 곡 목록 저장 실패 \(error.localizedDescription, privacy: .public)")
+            }
+        }
+    }
+
+    /// 테스트용. 저장이 끝날 때까지 기다린다.
+    func waitForSave() {
+        saveQueue.sync {}
     }
 
     private func release(_ key: String) {

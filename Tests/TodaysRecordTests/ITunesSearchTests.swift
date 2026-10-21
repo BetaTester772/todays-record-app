@@ -50,3 +50,21 @@ final class ITunesSearchTests: XCTestCase {
         XCTAssertEqual(match?["collectionId"] as? Int, 2)
     }
 }
+
+/// 어느 스토어부터 찾을지. 명세 4.6.
+final class ITunesCountryTests: XCTestCase {
+    /// 한국 스토어는 음악을 팔지 않아 search, lookup 모두 0건이다. 묻느라 매번 0.5초 넘게 쓴다(2026-10 측정).
+    func testKoreaStoreIsSkipped() {
+        XCTAssertEqual(ITunesSearch.countries(setting: "KR"), ["US"])
+        XCTAssertEqual(ITunesSearch.countries(setting: "kr"), ["US"])
+    }
+
+    func testDefaultIsUS() {
+        XCTAssertEqual(ITunesSearch.countries(setting: nil), ["US"])
+    }
+
+    func testOtherStoreFallsBackToUS() {
+        XCTAssertEqual(ITunesSearch.countries(setting: "JP"), ["JP", "US"])
+        XCTAssertEqual(ITunesSearch.countries(setting: "US"), ["US"])
+    }
+}
