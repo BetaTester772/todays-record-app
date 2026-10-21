@@ -202,7 +202,7 @@
     // Each new action may turn the person: toward the record and the music, or any way at all, and sometimes they
     // face the viewer.
     function startAct(L, p, act, dur) {
-      p.act = act; p.t = 0; p.dur = dur;
+      p.act = act; p.t = 0; p.dur = dur; p.lookBack = false;
       p.style = Math.floor(Math.random() * 3);
       p.idle = pick(['stand', 'stand', 'stretch', 'look', 'tap', 'cup']);
       const sitting = p.kind === 'edge' || act === 'read' || act === 'doze' || act === 'swing';
@@ -211,7 +211,7 @@
     }
 
     function goTo(L, p, x, y, then) {
-      p.tx = x; p.ty = y; p.path = route(L, p.x, p.y, x, y); p.then = then; p.act = 'walk'; p.t = 0; p.view = 'side';
+      p.tx = x; p.ty = y; p.path = route(L, p.x, p.y, x, y); p.then = then; p.act = 'walk'; p.t = 0; p.view = 'side'; p.lookBack = false;
     }
 
     function spawn(L, C) {
@@ -494,13 +494,13 @@
           const sway = Math.sin(beat * Math.PI), bob = pulse * 1.6 * u;
           P.hipY += bob * 0.6; P.mouth = 'smile';
           if (p.style === 0) {   // arms up, swaying
-            const up = Math.floor(beat) % 2;
-            P.armB = up ? [-3 * u, -24 * u] : [-4 * u, -8 * u]; P.armF = up ? [4 * u, -8 * u] : [3 * u, -25 * u];
+            const up = 0.5 - 0.5 * Math.cos(beat * Math.PI);   // arms trade places smoothly, one beat each way
+            P.armB = [lerp(-4, -3, up) * u, lerp(-8, -24, up) * u]; P.armF = [lerp(3, 4, up) * u, lerp(-25, -8, up) * u];
             P.lean = sway * 0.12; legs(-sway * 1.2 * u, -sway * 1.2 * u, bob * 0.5);
           } else if (p.style === 1) {   // side steps: arms wide, then a clap
-            const st = Math.sin(beat * Math.PI * 0.5), clap = bp < 0.18;
+            const st = Math.sin(beat * Math.PI * 0.5), clap = Math.pow(1 - bp, 5);   // hands meet on the beat and drift apart
             legs(st * 2.2 * u - 1.2 * u, st * 2.2 * u + 1.2 * u, bob * 0.6);
-            P.armB = clap ? [3 * u, -9 * u] : [-6 * u, -14 * u]; P.armF = clap ? [3.6 * u, -9.4 * u] : [7 * u, -15 * u];
+            P.armB = [lerp(-6, 3, clap) * u, lerp(-14, -9, clap) * u]; P.armF = [lerp(7, 3.6, clap) * u, lerp(-15, -9.4, clap) * u];
             P.head = st * 0.1;
           } else {   // the twist
             const tw = Math.sin(beat * Math.PI);
@@ -513,7 +513,8 @@
         case 'headbang': {
           P.lean = 0.12 + pulse * 0.32; P.head = 0.15 + pulse * 0.5; P.mouth = 'o';
           P.armB = [-2 * u, -2 * u];
-          P.armF = Math.floor(beat / 4) % 2 ? [3 * u, -26 * u] : [5 * u, -6 * u];   // horns up every other bar
+          const horns = 0.5 - 0.5 * Math.cos(beat / 4 * Math.PI);   // horns up and down again over two bars
+          P.armF = [lerp(5, 3, horns) * u, lerp(-6, -26, horns) * u];
           legs(-1.4 * u, 1.6 * u, pulse * u); P.hair = pulse;
           break;
         }
@@ -612,9 +613,10 @@
     }
 
     function phoneTalk(p, P, now, u) {
-      const laugh = Math.sin(now / 2600 + p.seed * 3) > 0.92;
-      if (laugh) { P.head = -0.25 + Math.sin(now / 70) * 0.05; P.mouth = 'o'; P.hipY -= Math.abs(Math.sin(now / 90)) * 0.8 * u; }
-      else P.mouth = Math.sin(now / 160 + p.seed) > 0.2 ? 'o' : '';
+      // a laugh now and then: the head tips back and the shoulders shake, easing in and out
+      const lw = clamp((Math.sin(now / 2600 + p.seed * 3) - 0.86) / 0.08), laugh = lw > 0.5;
+      P.head = lerp(P.head || 0, -0.25 + Math.sin(now / 70) * 0.05, lw); P.hipY -= lw * Math.abs(Math.sin(now / 90)) * 0.8 * u;
+      P.mouth = laugh ? 'o' : Math.sin(now / 160 + p.seed) > 0.2 ? 'o' : '';
       if (chance(0.006)) crowd.fx.push({ type: laugh ? 'heart' : 'dots', x: p.x + p.face * 9 * u * p.k, y: p.y - 40 * u * p.k, t: 0, life: 1.4 });
     }
 
@@ -670,14 +672,16 @@
         case 'dance': {
           P.mouth = 'smile';
           if (p.style === 0) {   // one arm up, then the other
-            const up = Math.floor(beat) % 2;
-            P.armL = up ? [-4 * u, -25 * u] : [-6.4 * u, -6 * u]; P.armR = up ? [6.4 * u, -6 * u] : [4 * u, -25 * u];
-            P.dx = Math.sin(beat * Math.PI) * 1.4 * u; P.hipY += pulse * u; P.liftL = up ? 0 : pulse * 1.2 * u; P.liftR = up ? pulse * 1.2 * u : 0;
+            const up = 0.5 - 0.5 * Math.cos(beat * Math.PI);
+            P.armL = [lerp(-6.4, -4, up) * u, lerp(-6, -25, up) * u]; P.armR = [lerp(4, 6.4, up) * u, lerp(-25, -6, up) * u];
+            P.dx = Math.sin(beat * Math.PI) * 1.4 * u; P.hipY += pulse * u; P.liftL = (1 - up) * pulse * 1.2 * u; P.liftR = up * pulse * 1.2 * u;
           } else if (p.style === 1) {   // robot
-            const b = Math.floor(beat) % 4;
-            P.armL = [[-8 * u, -11 * u], [-5 * u, -20 * u], [-8 * u, -11 * u], [-4 * u, -4 * u]][b];
-            P.armR = [[5 * u, -20 * u], [8 * u, -11 * u], [4 * u, -4 * u], [8 * u, -11 * u]][b];
-            P.head = [0.12, -0.12, 0.12, -0.12][b]; P.mouth = '';
+            // robot: holds each pose, then moves to the next one quickly in the last quarter of the beat
+            const b = Math.floor(beat) % 4, n = (b + 1) % 4, w = easeInOut(clamp(((beat % 1) - 0.75) / 0.25));
+            const L1 = [[-8, -11], [-5, -20], [-8, -11], [-4, -4]], R1 = [[5, -20], [8, -11], [4, -4], [8, -11]], H1 = [0.12, -0.12, 0.12, -0.12];
+            P.armL = [lerp(L1[b][0], L1[n][0], w) * u, lerp(L1[b][1], L1[n][1], w) * u];
+            P.armR = [lerp(R1[b][0], R1[n][0], w) * u, lerp(R1[b][1], R1[n][1], w) * u];
+            P.head = lerp(H1[b], H1[n], w); P.mouth = '';
           } else {   // jumping, arms up in the air
             const j = Math.max(0, Math.sin(beat * Math.PI));
             P.hipY -= j * 4 * u; P.liftL = P.liftR = j * 2 * u;
@@ -688,8 +692,8 @@
         }
         case 'headbang': {
           P.headY = pulse * 2.6 * u; P.head = Math.sin(beat * Math.PI) * 0.1; P.mouth = 'o'; P.hair = pulse;
-          const horns = Math.floor(beat / 4) % 2;
-          P.armL = horns ? [-5 * u, -24 * u] : [-5.6 * u, -3 * u]; P.armR = horns ? [5 * u, -24 * u] : [5.6 * u, -3 * u];
+          const horns = 0.5 - 0.5 * Math.cos(beat / 4 * Math.PI);
+          P.armL = [lerp(-5.6, -5, horns) * u, lerp(-3, -24, horns) * u]; P.armR = [lerp(5.6, 5, horns) * u, lerp(-3, -24, horns) * u];
           P.hipY += pulse * 0.8 * u;
           break;
         }
@@ -715,18 +719,51 @@
       const lift = p.hopArc || 0;
       ctx.save(); ctx.translate(p.x, p.y);
       ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-      if (p.view === 'front' && !p.runs) drawFront(p, L, now, u, lift);
+      // turning between the front and side views: the figure narrows to a sliver, swaps, and widens again (0.25 s)
+      const want = p.view === 'front' && !p.runs ? 'front' : 'side', dtv = Math.min(0.1, (now - (p.viewAt ?? now)) / 1000); p.viewAt = now;
+      if (p.dv === undefined) { p.dv = want; p.vs = 1; }
+      if (p.dv !== want) { p.vs -= dtv * 8; if (p.vs <= 0.08) { p.vs = 0.08; p.dv = want; } }
+      else p.vs = Math.min(1, p.vs + dtv * 8);
+      if (p.vs < 1) ctx.scale(p.vs, 1);
+      if (p.dv === 'front') drawFront(p, L, now, u, lift);
       else drawSide(p, L, now, u, lift);
       ctx.restore();
+    }
+
+    // ----- smoothing between poses -----
+    // A turn is shown by squashing the figure to a sliver and opening it out the other way, over about a fifth of a second.
+    function turnScale(p, face, now) {
+      const dt = Math.min(0.1, (now - (p.turnAt ?? now)) / 1000); p.turnAt = now;
+      if (p.fs === undefined) p.fs = face;
+      p.fs += (face - p.fs) * (1 - Math.exp(-dt * 14));
+      if (Math.abs(face - p.fs) < 0.01) p.fs = face;
+      return Math.sign(p.fs || face) * Math.max(0.08, Math.abs(p.fs));
+    }
+    // From one action to the next, every joint eases from where it was to the new pose over 0.3 s.
+    function blendPose(a, b, w) {
+      if (typeof b === 'number') return typeof a === 'number' ? a + (b - a) * w : b;
+      if (Array.isArray(b)) return Array.isArray(a) ? b.map((v, i) => blendPose(a[i], v, w)) : b;
+      if (b && typeof b === 'object') { const o = {}; for (const k in b) o[k] = a && typeof a === 'object' ? blendPose(a[k], b[k], w) : b[k]; return o; }
+      return b;
+    }
+    function settle(p, P, key, slot, now) {
+      const st = p[slot] || (p[slot] = {});
+      if (st.key !== key) { st.from = st.last; st.at = now; st.key = key; }
+      let out = P;
+      const w = st.from ? easeInOut(clamp((now - st.at) / 300)) : 1;
+      if (w < 1 && !(P.flip || P.freeze || st.from.flip || st.from.freeze)) out = blendPose(st.from, P, w);
+      st.last = out;
+      return out;
     }
 
     function shadow(x, y, w) { ctx.fillStyle = 'rgba(0,0,0,0.14)'; ctx.beginPath(); ctx.ellipse(x, y, w, w / 3, 0, 0, TAU); ctx.fill(); }
 
     function drawSide(p, L, now, u, up) {
       const act = p.kind === 'edge' && (p.act === 'idle' || p.act === 'wait') ? 'swing' : p.act;
-      const P = sidePose(p, act, now, u), lk = p.look;
+      const P = settle(p, sidePose(p, act, now, u), act + '|' + p.style + '|' + p.kind + '|' + (p.game || ''), 'smS', now), lk = p.look;
       let face = p.act === 'play' && p.game === 'tag' && p.chaseFace ? p.chaseFace : p.face;
-      if (p.lookBack) face = -face;
+      if (p.lookBack && (p.act === 'idle' || p.act === 'wait')) face = -face;   // looking back over the shoulder, standing only
+      face = turnScale(p, face, now);
       const shirt = hex(lk.shirt), shirtD = css(mix(shirt, [0, 0, 0], 0.2)), pants = hex(lk.pants), pantsD = css(mix(pants, [0, 0, 0], 0.28));
       const sit = P.sit === 'edge';
       shadow(sit ? face * 4 * u : 0, sit ? PLINTH_T * L.R + u : 0.6 * u, (P.flip || P.freeze ? 9 : 6) * u);
@@ -734,7 +771,7 @@
       if (p.roll) { ctx.translate(0, -12 * u); ctx.rotate(p.roll); ctx.translate(0, 12 * u); }
       // headspin: upside down with the top of the head on the floor (hip 22.5u up); freeze: tipped over onto one hand
       if (P.flip) { ctx.translate(0, -22.5 * u); ctx.rotate(Math.PI); ctx.scale(Math.sign(P.sx || 1) * Math.max(0.3, Math.abs(P.sx)), 1); }
-      else if (P.freeze) { ctx.translate(0, -20 * u); ctx.rotate((Math.PI - 0.5) * face); }
+      else if (P.freeze) { ctx.translate(0, -20 * u); ctx.rotate((Math.PI - 0.5) * Math.sign(face)); }
       ctx.scale(face, 1);
       ctx.translate(0, P.hipY);
       const shoe = (fx, fy) => { ctx.fillStyle = lk.shoes; rrect(ctx, fx - 2 * u, fy - 2.6 * u, 5.2 * u, 2.8 * u, 1.2 * u); ctx.fill(); };
@@ -857,7 +894,7 @@
     }
 
     function drawFront(p, L, now, u, up) {
-      const P = frontPose(p, p.act, now, u), lk = p.look, dark = '#2A2527';
+      const P = settle(p, frontPose(p, p.act, now, u), p.act + '|' + p.style, 'smF', now), lk = p.look, dark = '#2A2527';
       const shirt = hex(lk.shirt), shirtD = css(mix(shirt, [0, 0, 0], 0.18)), pants = css(hex(lk.pants));
       shadow(P.dx, 0.6 * u, 6.4 * u);
       ctx.translate(P.dx, -up + P.hipY);
