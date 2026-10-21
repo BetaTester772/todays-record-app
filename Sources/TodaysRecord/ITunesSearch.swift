@@ -27,7 +27,7 @@ enum ITunesSearch {
         countries(setting: UserDefaults.standard.string(forKey: countryKey))
     }
 
-    struct Track {
+    struct Track: Codable {
         let disc: Int
         let number: Int
         let name: String
