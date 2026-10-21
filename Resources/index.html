@@ -187,7 +187,6 @@
   let cue = null;          // tonearm / record-change animation
   let crowd = null;        // the little people who drop by (crowd.js)
   let sound = null;        // record player sounds (sound.js)
-  let spinTarget = 0;      // the platter speed the motor is heading for
   let armPhi = REST_PHI, armLift = 0.1;
   let spin = 0, spinVel = 0, spinAcc = 0, beatEnv = 0, lastBeat = -1, legPhase = 0, legClock = 0;
   let warpLift = 0;   // how far the record's warp lifts the needle right now
@@ -819,7 +818,6 @@
 
     const spd = media.source === 'demo' ? PREVIEW_SPEED : 1;
     const target = playing ? TAU * RPS * spd : 0;
-    spinTarget = target;
     // the platter has a little weight: it eases into and out of speed in about half a second (critically damped)
     const SPIN_W = 9.5;
     spinAcc += (SPIN_W * SPIN_W * (target - spinVel) - 2 * SPIN_W * spinAcc) * dt;
@@ -1707,7 +1705,7 @@
       const fr = stylusFr(), outLift = cue && cue.out && cue.outOff ? cue.outOff.lift : 0;
       return {
         lift: armLift, onRecord: !!shown && fr <= R_OUT + 0.02 && fr >= R_IN - 0.05 && recOff.lift < 0.03,
-        playing: media.state === 'playing', spinTarget,
+        playing: media.state === 'playing', spinTarget: media.state === 'playing' ? 1 : 0,
         recLift: Math.max(recOff.lift, outLift), recSlide: !!(cue && cue.kind === 'album'),
       };
     },
@@ -1732,11 +1730,17 @@
     draw(now);
   }
   // Paused: the loop stops entirely. On resume the time in between is skipped, not played back at once.
-  function setPaused(p) {
+  // o.sound: keep the sounds going while drawing stops (the window is only covered, by a full-screen app for example).
+  // The surface noise and the motor then follow the music on a slow timer; locked or asleep stops everything.
+  let soundTimer = 0;
+  function setPaused(p, o) {
     p = !!p;
+    const keep = p && !!(o && o.sound);
+    if (sound) sound.setPaused(p && !keep);
+    clearInterval(soundTimer); soundTimer = 0;
+    if (keep && sound) soundTimer = setInterval(() => sound.update(0.25), 250);
     if (p === paused) return;
     paused = p;
-    if (sound) sound.setPaused(p);
     if (p) { cancelAnimationFrame(rafId); save(); }
     else rafId = requestAnimationFrame(t => { last = t; rafId = requestAnimationFrame(frame); });
   }

@@ -270,7 +270,7 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
 |---|---|
 | `TodaysRecord.nowPlaying(payload)` | 4.5의 JSON |
 | `TodaysRecord.art(dataURL, version)` | 앨범 커버 |
-| `TodaysRecord.setPaused(bool)` | 그리기 멈춤/재개 |
+| `TodaysRecord.setPaused(bool, {sound})` | 그리기 멈춤/재개. sound가 true면 그리기만 멈추고 소리는 계속(창이 가려졌을 때, 6장 29) |
 | `TodaysRecord.setOptions({position, transparent, windowLight, trail, fps})` | position: `"left"`, `"center"`, `"right"` · transparent: bool · windowLight: bool · trail: `"keep"` 또는 `"afterglow"` · grain: `"off"`, `"low"`, `"normal"`, `"high"`(기존 세기의 0, 0.45, 1, 1.45배) · sideChange: `"turn"`, `"swap"`, `"needle"`(6장 23) · albumChange: `"swap"`, `"slide"`(6장 28) · coloredVinyl: bool, vinylStyle: `"match"`·`"contrast"`, lineStyle: `"album"`·`"contrast"`(6장 21) · crowd: bool, crowdPace: 1·2·5·10(6장 25) · sound: `{on, volume(0~1), needle, motor, noise}`(6장 29) · riderPose: `"auto"`, `"sit"`, `"lean"`, `"cross"`, `"hug"`(6장 27) · hatColor: `"#RRGGBB"` 또는 `""`(기본 흰색) · recordColor, bgColor, lineColor, textColor: `"#RRGGBB"` 또는 `""`(앨범 색) · armColor, armBaseColor, spindleColor, knobColor, restColor: `"#RRGGBB"` 또는 `""`(기본 금속색) · shirtColor, pantsColor: `"#RRGGBB"` 또는 `""`(앨범 색) · fps: 30 또는 60(앱이 설정과 전원에 따라 정해 보낸다) |
 | `TodaysRecord.clearRecord()` | 지금 판의 선 지우기 |
 | `TodaysRecord.testSound()` | 바늘 내리는 소리를 한 번 들려준다(설정을 꺼 둬도). 6장 29 |
@@ -377,7 +377,7 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
     - 바늘 내림(낮은 "툭" + 닿는 틱 + 짧은 치직), 바늘 들기(작은 틱), 판 들기(사각 바람 소리), 판 밀기(Slide Over·Swap Record에서 "스르륵", 펠트에 걸리는 떨림), 판 내려놓기(둔한 "툭"), 모터 시작·정지(스위치 딸깍 + 낮게 도는 소리가 올라갔다 사라짐 / 내려가며 사라짐), 표면 잡음(바늘이 판 위에서 재생 중일 때만 옅은 쉿 소리와 탁탁 튀는 소리, 6초 무작위 반복).
     - 앱을 처음 켤 때는 모터 소리를 내지 않는다(재생 중에 켜져도 조용히 시작). 일시정지·재개 때는 낸다.
     - 크기: Volume(0~1)을 1.6제곱해 쓰고, 압축기(-18dB, 4:1)를 거친다. Volume 50%에서 바늘 내림 최고치 약 -18dBFS, 표면 잡음 평균 약 -45dBFS(오프라인으로 렌더해 잼, 2026-10-21).
-    - 주 화면(`role` primary)에서만 소리를 낸다. 멈춤(`setPaused(true)`: 잠금, 잠자기, 가려짐) 동안은 오디오도 멈춘다.
+    - 주 화면(`role` primary)에서만 소리를 낸다. 잠금, 잠자기, 배경화면 끔 동안은 오디오도 멈춘다. 창이 다른 창(전체 화면 앱 등)에 가려졌을 때는 그리기만 멈추고 소리는 계속 낸다: `setPaused(true, {sound: true})`를 받으면 0.25초마다 소리만 갱신해 표면 잡음과 모터 소리가 음악 재생·일시정지를 따른다(사용자 요청).
     - 웹뷰 설정 `mediaTypesRequiringUserActionForPlayback = []`(누르지 않아도 재생).
     - 시험용: `window.__renderSound(name)`으로 소리를 WAV로 렌더해 듣거나 잴 수 있다(`reel`은 모든 소리를 순서대로).
 

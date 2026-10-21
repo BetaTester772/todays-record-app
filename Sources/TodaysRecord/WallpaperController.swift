@@ -140,9 +140,11 @@ final class WallpaperController {
     }
 
     /// 웹뷰마다 멈출지 정한다: 전체 멈춤, 배경화면 끔, 또는 그 창이 보이지 않을 때.
+    /// 창이 가려졌을 뿐이면(전체 화면 앱 등) 그리기만 멈추고 소리는 계속 낸다. 잠금·잠자기·배경화면 끔은 소리도 멈춘다.
     private func updatePaused() {
         for entry in entries.values {
             let visible = entry.window.occlusionState.contains(.visible)
+            entry.webView.keepSound = !globalPaused && settings.enabled
             entry.webView.paused = globalPaused || !settings.enabled || !visible
         }
     }

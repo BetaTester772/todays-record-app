@@ -23,6 +23,10 @@ final class RecordWebView: WKWebView {
     var paused = false {
         didSet { if paused != oldValue { sendPaused() } }
     }
+    /// 그리기를 멈춰도 소리는 계속 낼지(창이 다른 창에 가려졌을 때만). 명세 6장 29.
+    var keepSound = false {
+        didSet { if keepSound != oldValue { sendPaused() } }
+    }
     private let pageURL: URL?
 
     init(frame: NSRect, role: Role, screenID: String, options: LaunchOptions) {
@@ -86,7 +90,7 @@ final class RecordWebView: WKWebView {
     }
 
     private func sendPaused() {
-        call("setPaused", [paused])
+        call("setPaused", [paused, ["sound": keepSound]])
     }
 
     private func sendInsets() {
