@@ -570,7 +570,9 @@
       media.bpm = d.bpm > 0 ? d.bpm : 0;
       media.position = d.position || 0; media.duration = Math.max(1, d.duration || 1); media.posAt = now;
       const albumArtist = d.albumArtist || d.artist || '';
-      const baseKey = 'am:' + (d.album || albumArtist || 'unknown') + '|' + albumArtist;
+      // The album is told apart by its album artist, never by the song's artist: Music leaves the album artist empty
+      // for some streamed albums (soundtracks, compilations), where every song has a different artist.
+      const baseKey = 'am:' + (d.album ? d.album + '|' + (d.albumArtist || '') : 'unknown|' + albumArtist);
       let lp = lpSide(d);
       side = lp && { first: lp.first, sides: lp.sides, index: lp.side, number: lp.number, total: lp.total, discs: lp.discs };
       const albumKey = lp ? sideKey(baseKey, lp) : baseKey;
