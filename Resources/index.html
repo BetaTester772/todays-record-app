@@ -1159,14 +1159,33 @@
     ctx.fillStyle = css(C.spindle); ctx.beginPath(); ctx.ellipse(cx, cy - sh, sr, sr * SQUASH, 0, 0, TAU); ctx.fill();
   }
 
+  // The counterweight hangs on a short stub behind the pivot. It swings a little when the arm moves sideways and bobs
+  // when the arm is lifted or set down, lagging behind and settling like a weight on a soft spring.
+  const cwSpring = { a: 0, va: 0, b: 0, vb: 0, phi: null, lift: null, t: 0 };
+  function counterweightSway(now) {
+    const dt = cwSpring.t ? Math.min(0.05, (now - cwSpring.t) / 1000) : 0; cwSpring.t = now;
+    const lift = armLift + warpLift;
+    if (cwSpring.phi === null || dt <= 0) { cwSpring.phi = armPhi; cwSpring.lift = lift; return cwSpring; }
+    const dPhi = (armPhi - cwSpring.phi) / dt, dLift = (lift - cwSpring.lift) / dt;
+    cwSpring.phi = armPhi; cwSpring.lift = lift;
+    // the arm's motion pushes the weight the other way; the spring (about 3 Hz, lightly damped) pulls it back
+    const W = 19, Z = 0.32;
+    cwSpring.va += (-W * W * cwSpring.a - 2 * Z * W * cwSpring.va - dPhi * 9) * dt; cwSpring.a += cwSpring.va * dt;
+    cwSpring.vb += (-W * W * cwSpring.b - 2 * Z * W * cwSpring.vb - dLift * 9) * dt; cwSpring.b += cwSpring.vb * dt;
+    cwSpring.a = clamp(cwSpring.a, -0.35, 0.35); cwSpring.b = clamp(cwSpring.b, -0.5, 0.5);
+    return cwSpring;
+  }
+
   function drawArm(L, C, now) {
     const R = L.R;
-    const tip = armTip(armPhi);
-    const back = { x: ARM.bx - 0.2 * Math.cos(armPhi), y: ARM.by - 0.2 * Math.sin(armPhi) };
+    const tip = armTip(armPhi), sw = counterweightSway(now);
+    // a lever: the stub behind the pivot turns with the arm, plus the weight's sideways swing
+    const back = { x: ARM.bx - 0.2 * Math.cos(armPhi + sw.a * 0.25), y: ARM.by - 0.2 * Math.sin(armPhi + sw.a * 0.25) };
     const G = toScreen(L, ARM.bx * R, ARM.by * R), T = toScreen(L, tip.x * R, tip.y * R), K = toScreen(L, back.x * R, back.y * R);
     stylus.x = T.x; stylus.y = T.y;
     const hp = 0.08 * R, hs = 0.03 * R, lp = (armLift + warpLift) * 0.14 * R, aw = Math.max(2, 0.022 * R);
-    const pivot = { x: G.x, y: G.y - hp }, cw = { x: K.x, y: K.y - hp };
+    // lifting the head tips the lever, so the weight end dips (the stub is a sixth of the arm's length), and it bobs
+    const pivot = { x: G.x, y: G.y - hp }, cw = { x: K.x, y: K.y - hp + lp * 0.3 + sw.b * 0.02 * R };
     const head = { x: T.x, y: T.y - hs - lp };
 
     // Shadows on the surface: every part's shadow falls the same way from the light, further the higher the part is
