@@ -26,6 +26,8 @@ struct NowPlayingInfo: Equatable {
     var artworkURL: URL?
     /// Spotify 광고. 고르기에서는 그대로 보고, 화면에는 정지로 보낸다(4.5.1).
     var isAd = false
+    /// 알림 값만으로 만든 정보라 커버 주소 등이 아직 없다(Spotify, 4.5.1). AppleScript 결과로 채운다.
+    var needsDetails = false
 
     static let stopped = NowPlayingInfo()
 
@@ -144,7 +146,12 @@ final class NowPlaying {
                 .joined(separator: "\n")
             stdout("[알림] \(note.name.rawValue)\n\(info)")
         }
-        // 곡이 바뀔 때 알림이 연달아 올 수 있어 짧게 모아서 한 번 묻는다.
+        // Spotify 알림에는 곡 정보가 다 들어 있어 기다리지 않고 바로 반영한다(4.5.1).
+        // 권한이 없으면 정지로 보여야 하므로(4.5) 알림 값을 쓰지 않는다.
+        if kind == .spotify, !deniedPlayers.contains(kind), let info = SpotifyPlayer.parse(notification: note.userInfo ?? [:]) {
+            handle(kind, .info(info))
+        }
+        // 곡이 바뀔 때 알림이 연달아 올 수 있어 짧게 모아서 한 번 묻는다. Spotify는 커버 주소를 이걸로 채운다.
         pendingQueries[kind]?.cancel()
         let work = DispatchWorkItem { [weak self] in
             self?.pendingQueries[kind] = nil
@@ -233,6 +240,7 @@ final class NowPlaying {
     private func apply(_ newInfo: NowPlayingInfo, from kind: PlayerKind) {
         var info = newInfo
         let trackChanged = info.id != current.id
+        let fetchArt = Self.shouldFetchArtwork(new: info, previous: current, hasArt: currentArt != nil)
         if info.state != .stopped, let place = albumTracks.placement(for: info) {
             info.trackNumber = place.trackNumber
             info.trackCount = place.trackCount
@@ -253,9 +261,16 @@ final class NowPlaying {
         onUpdate?(info)
         updatePollTimer()
 
-        if trackChanged, info.state != .stopped, let player = players[kind] {
+        if fetchArt, let player = players[kind] {
             fetchArtwork(for: info, from: player)
         }
+    }
+
+    /// 이 곡의 커버를 지금 가져와야 하나. 알림만으로 만든 정보(`needsDetails`)에는 커버 주소가 없어(Spotify)
+    /// 같은 곡의 자세한 정보가 올 때까지 미룬다. 그러지 않으면 iTunes 검색으로 다른 커버를 받을 수 있다.
+    static func shouldFetchArtwork(new info: NowPlayingInfo, previous: NowPlayingInfo, hasArt: Bool) -> Bool {
+        guard info.state != .stopped, !info.needsDetails else { return false }
+        return info.id != previous.id || (previous.needsDetails && !hasArt)
     }
 
     private func fetchArtwork(for info: NowPlayingInfo, from player: Player) {
