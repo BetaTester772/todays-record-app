@@ -1,7 +1,6 @@
 #!/bin/bash
-# 배포용 zip을 만든다. 결과: dist/TurnTable-<버전>.zip과 TurnTable-<버전>.sha256,
-# 그리고 이름을 바꾸기 전(0.4.x) 앱의 업데이트용 TodaysRecord-<버전>.zip과 .zip.sha256(안의 앱은 같고 이름만 TodaysRecord.app).
-# 옛 앱은 릴리스에서 처음 보이는 .zip.sha256을 쓰므로, 새 체크섬 파일 이름에는 .zip을 넣지 않는다.
+# 배포용 zip을 만든다. 결과: dist/TurnTable-<버전>.zip과 TurnTable-<버전>.sha256.
+# (0.7.2까지는 이름을 바꾸기 전(0.4.x) 앱을 위해 TodaysRecord-<버전>.zip도 만들었다. 0.8.0부터 뺐다.)
 # Apple Silicon과 Intel이 함께 든 실행 파일로 조립하고, 배포용 인증서로 서명한다(공증은 하지 않음, README 참고).
 set -euo pipefail
 
@@ -9,7 +8,6 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$ROOT/Resources/Info.plist")"
 DIST="$ROOT/dist"
 ZIP="$DIST/TurnTable-$VERSION.zip"
-OLDZIP="$DIST/TodaysRecord-$VERSION.zip"
 
 UNIVERSAL=1 "$ROOT/scripts/bundle.sh" >/dev/null
 APP="$ROOT/build/TurnTable.app"
@@ -29,14 +27,8 @@ codesign -d -r- "$APP" 2>&1 | tail -1
 lipo -info "$APP/Contents/MacOS/TurnTable"
 
 mkdir -p "$DIST"
-rm -f "$ZIP" "$DIST/TurnTable-$VERSION.sha256" "$OLDZIP" "$OLDZIP.sha256"
+rm -f "$ZIP" "$DIST/TurnTable-$VERSION.sha256"
 # ditto는 확장 속성과 서명을 지켜서 압축한다(Finder의 '압축'과 같은 방식).
 ditto -c -k --keepParent "$APP" "$ZIP"
 (cd "$DIST" && shasum -a 256 "$(basename "$ZIP")" > "TurnTable-$VERSION.sha256")
-# 옛 이름 사본: 서명은 번들 폴더 이름과 상관없어 그대로 유효하다
-OLDTMP="$(mktemp -d)"; ditto "$APP" "$OLDTMP/TodaysRecord.app"
-codesign --verify --strict "$OLDTMP/TodaysRecord.app"
-ditto -c -k --keepParent "$OLDTMP/TodaysRecord.app" "$OLDZIP"; rm -rf "$OLDTMP"
-(cd "$DIST" && shasum -a 256 "$(basename "$OLDZIP")" > "$(basename "$OLDZIP").sha256")
 echo "$ZIP"; cat "$DIST/TurnTable-$VERSION.sha256"
-echo "$OLDZIP"; cat "$OLDZIP.sha256"

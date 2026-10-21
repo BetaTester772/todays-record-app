@@ -14,16 +14,16 @@ final class UpdaterTests: XCTestCase {
 
     func testParsesLatestReleaseAssets() throws {
         let json = """
-        {"tag_name": "v0.4.0", "html_url": "https://github.com/soysaucecrab/todays-record-app/releases/tag/v0.4.0",
+        {"tag_name": "v0.8.0", "html_url": "https://github.com/soysaucecrab/todays-record-app/releases/tag/v0.8.0",
          "assets": [
-           {"name": "TodaysRecord-0.4.0.zip.sha256", "browser_download_url": "https://example.com/TodaysRecord-0.4.0.zip.sha256"},
-           {"name": "TodaysRecord-0.4.0.zip", "browser_download_url": "https://example.com/TodaysRecord-0.4.0.zip"}
+           {"name": "TurnTable-0.8.0.sha256", "browser_download_url": "https://example.com/TurnTable-0.8.0.sha256"},
+           {"name": "TurnTable-0.8.0.zip", "browser_download_url": "https://example.com/TurnTable-0.8.0.zip"}
          ]}
         """
         let release = try XCTUnwrap(Updater.parse(Data(json.utf8)))
-        XCTAssertEqual(release.version, "0.4.0")
-        XCTAssertEqual(release.zipURL.lastPathComponent, "TodaysRecord-0.4.0.zip")
-        XCTAssertEqual(release.checksumURL.lastPathComponent, "TodaysRecord-0.4.0.zip.sha256")
+        XCTAssertEqual(release.version, "0.8.0")
+        XCTAssertEqual(release.zipURL.lastPathComponent, "TurnTable-0.8.0.zip")
+        XCTAssertEqual(release.checksumURL.lastPathComponent, "TurnTable-0.8.0.sha256")
     }
 
     func testReleaseWithoutZipIsIgnored() {
@@ -66,16 +66,16 @@ final class UpdaterRenameTests: XCTestCase {
         return Updater.parse(Data(json.utf8))
     }
 
+    /// 0.5.0~0.7.2 릴리스에는 두 이름이 함께 있다.
     func testPrefersTheNewNameWithItsOwnChecksum() throws {
         let r = try XCTUnwrap(release(["TodaysRecord-0.5.0.zip.sha256", "TodaysRecord-0.5.0.zip", "TurnTable-0.5.0.sha256", "TurnTable-0.5.0.zip"]))
         XCTAssertEqual(r.zipURL.lastPathComponent, "TurnTable-0.5.0.zip")
         XCTAssertEqual(r.checksumURL.lastPathComponent, "TurnTable-0.5.0.sha256")
     }
 
-    func testOldReleasesStillWork() throws {
-        let r = try XCTUnwrap(release(["TodaysRecord-0.4.2.zip", "TodaysRecord-0.4.2.zip.sha256"]))
-        XCTAssertEqual(r.zipURL.lastPathComponent, "TodaysRecord-0.4.2.zip")
-        XCTAssertEqual(r.checksumURL.lastPathComponent, "TodaysRecord-0.4.2.zip.sha256")
+    /// 0.8.0부터 릴리스에는 TurnTable 이름의 zip만 올린다. 옛 이름 zip만 있는 릴리스(0.4.x)는 받지 않는다.
+    func testOldNameOnlyReleaseIsIgnored() {
+        XCTAssertNil(release(["TodaysRecord-0.4.2.zip", "TodaysRecord-0.4.2.zip.sha256"]))
     }
 
     func testOldNameAppRenamesItself() throws {

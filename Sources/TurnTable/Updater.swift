@@ -93,13 +93,11 @@ final class Updater {
                 .flatMap { $0["browser_download_url"] as? String }
                 .flatMap(URL.init(string:))
         }
-        // 0.5.0부터 앱 이름은 TurnTable: TurnTable-<v>.zip과 TurnTable-<v>.sha256. 이름을 바꾸기 전 앱을 위해
-        // 옛 이름 TodaysRecord-<v>.zip과 .zip.sha256도 함께 올린다(옛 앱은 처음 보이는 .zip.sha256을 쓰므로 새 쪽은 .zip을 뺀다).
+        // 릴리스에는 TurnTable-<v>.zip과 TurnTable-<v>.sha256을 올린다(0.7.2까지는 옛 이름 zip도 함께 있었다).
         let names = assets.compactMap { $0["name"] as? String }
-        guard let zipName = names.first(where: { $0.hasPrefix(Self.appName + "-") && $0.hasSuffix(".zip") })
-                ?? names.first(where: { $0.hasPrefix("TodaysRecord-") && $0.hasSuffix(".zip") }),
+        guard let zipName = names.first(where: { $0.hasPrefix(Self.appName + "-") && $0.hasSuffix(".zip") }),
               let zip = asset({ $0 == zipName }),
-              let sum = asset({ $0 == zipName + ".sha256" || $0 == zipName.dropLast(4) + ".sha256" }) else { return nil }
+              let sum = asset({ $0 == zipName.dropLast(4) + ".sha256" }) else { return nil }
         let version = tag.hasPrefix("v") ? String(tag.dropFirst()) : tag
         return Release(version: version, pageURL: page, zipURL: zip, checksumURL: sum)
     }
@@ -178,9 +176,8 @@ final class Updater {
         let zip = work.appendingPathComponent("update.zip")
         try zipData.write(to: zip)
         try run("/usr/bin/ditto", ["-x", "-k", zip.path, work.path])
-        // zip 안에는 TurnTable.app(옛 이름 zip이면 TodaysRecord.app)
-        let newApp = [Self.appName + ".app", "TodaysRecord.app"].map { work.appendingPathComponent($0) }
-            .first { fm.fileExists(atPath: $0.path) } ?? work.appendingPathComponent(Self.appName + ".app")
+        // zip 안에는 TurnTable.app이 있다.
+        let newApp = work.appendingPathComponent(Self.appName + ".app")
         guard let bundle = Bundle(url: newApp), bundle.bundleIdentifier == Bundle.main.bundleIdentifier else {
             throw fm.fileExists(atPath: newApp.path) ? InstallError.wrongApp : InstallError.notAnApp
         }
