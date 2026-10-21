@@ -292,7 +292,7 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
 
 1. **native 소스.** `window.__TR_NATIVE__`가 있으면 `media.source = 'native'`로 시작하고 미리보기 데이터를 쓰지 않는다. `TodaysRecord.nowPlaying`은 기존 `applyNowPlaying`을 재사용한다. 커버는 `TodaysRecord.art`로 받아 기존 `applyArt` 경로를 쓴다. 준비되면 `ready`를 보낸다.
 2. **앱 실행 인자 `--demo`.** Swift가 `__TR_NATIVE__.demo = true`를 넣으면 미리보기 데이터로 동작한다.
-3. **멈춤.** `setPaused(true)`면 `requestAnimationFrame` 루프를 멈추고, false면 시간 차이를 건너뛰고 재개한다(멈춘 동안의 시간이 한꺼번에 흐르지 않게).
+3. **멈춤.** `setPaused(true)`면 `requestAnimationFrame` 루프를 멈추고, false면 시간 차이를 건너뛰고 재개한다(멈춘 동안의 시간이 한꺼번에 흐르지 않게). 다만 멈춘 동안 같은 곡이 계속 재생됐으면, 재개할 때 그동안 재생된 만큼 판을 돌려 놓는다. 그러면 멈춘 자리와 지금 바늘 자리를 잇는 선이 직선이 아니라 그 시간 동안 그렸을 나선이 된다(사용자 요청: 다른 화면에서 돌아오면 선이 쭉 그어지던 문제).
 4. **프레임 제한.** `fps`가 30이면 프레임을 하나 걸러 그린다.
 5. **레코드 위치.** `layout()`의 가로 중심을 left ≈ 0.32W, center ≈ 0.5W, right ≈ 0.57W(현재값)로 바꾼다. 곡 정보 표시는 레코드 반대쪽 위에 둔다(left일 때 오른쪽 위, 오른쪽 정렬). 곡 정보는 받침 바깥은 진한 글씨, 받침 위는 밝은 금속색 글씨로 두 번 잘라 그려서, 받침 경계에 걸친 줄도 읽히게 한다.
 6. **투명 배경.** transparent면 배경 채우기와 받침(plinth)을 그리지 않고, 레코드·톤암·노브·곡 정보만 그린다. 그레인은 레코드 영역에만 적용하거나 생략한다.

@@ -925,7 +925,7 @@
   function strokeTrail(p0, p1) {
     const g = shown.tctx;
     let da = p1.a - p0.a;
-    const steps = Math.max(1, Math.ceil(Math.abs(da) / 0.035));
+    const steps = Math.min(30000, Math.max(1, Math.ceil(Math.abs(da) / 0.035)));
     const C = S / 2;
     g.strokeStyle = lineColor(); g.lineWidth = 1.8; g.lineCap = 'round'; g.lineJoin = 'round';
     g.beginPath();
@@ -1732,7 +1732,7 @@
   // Paused: the loop stops entirely. On resume the time in between is skipped, not played back at once.
   // o.sound: keep the sounds going while drawing stops (the window is only covered, by a full-screen app for example).
   // The surface noise and the motor then follow the music on a slow timer; locked or asleep stops everything.
-  let soundTimer = 0;
+  let soundTimer = 0, pauseMark = null;
   function setPaused(p, o) {
     p = !!p;
     const keep = p && !!(o && o.sound);
@@ -1741,6 +1741,14 @@
     if (keep && sound) soundTimer = setInterval(() => sound.update(0.25), 250);
     if (p === paused) return;
     paused = p;
+    const t = performance.now();
+    if (p) pauseMark = { key: media.key, pos: currentPos(t) };
+    else if (pauseMark && pauseMark.key === media.key && prevPt) {
+      // The song played on while drawing was stopped (the screen covered, say). Turn the record by as much as it would
+      // have turned in that time, so the next line runs on as the spiral the needle traced instead of a straight jump.
+      const played = currentPos(t) - pauseMark.pos;
+      if (played > 0.2) spin += TAU * RPS * played;
+    }
     if (p) { cancelAnimationFrame(rafId); save(); }
     else rafId = requestAnimationFrame(t => { last = t; rafId = requestAnimationFrame(frame); });
   }
