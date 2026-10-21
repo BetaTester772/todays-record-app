@@ -1,5 +1,5 @@
 import XCTest
-@testable import TodaysRecord
+@testable import TurnTable
 
 /// 앨범 곡 목록으로 곡 위치 정하기. 명세 4.5 (3), 4.5.1.
 final class AlbumTracksTests: XCTestCase {

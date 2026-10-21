@@ -8,7 +8,7 @@ final class RecordWebView: WKWebView {
         case mirror
     }
 
-    static let messageName = "todaysRecord"
+    static let messageName = "turnTable"
 
     let role: Role
     let screenID: String
@@ -127,7 +127,7 @@ final class RecordWebView: WKWebView {
             Log.web.error("\(function, privacy: .public) 인자를 직렬화하지 못함")
             return
         }
-        let script = "TodaysRecord.\(function).apply(null, \(String(decoding: data, as: UTF8.self)));"
+        let script = "TurnTable.\(function).apply(null, \(String(decoding: data, as: UTF8.self)));"
         evaluateJavaScript(script) { _, error in
             if let error {
                 Log.web.error("\(function, privacy: .public) 호출 실패 \(error.localizedDescription, privacy: .public)")

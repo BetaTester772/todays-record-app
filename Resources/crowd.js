@@ -6,13 +6,13 @@
 // Everyone stays 20-45 minutes and then makes room for someone new (at most one leaves every 5 minutes). When the music stops they go home one by one,
 // every 30-60 seconds; whoever is still there when it starts again stays.
 //
-// index.html creates it with TodaysRecordCrowd(scene) and calls update(dt) and draw(L, C) every frame.
+// index.html creates it with TurnTableCrowd(scene) and calls update(dt) and draw(L, C) every frame.
 // `scene` gives read access to the page's state and drawing helpers (see where index.html creates it, at boot).
 // Without this file the page works as before, just without the crowd.
 (() => {
   'use strict';
 
-  window.TodaysRecordCrowd = function createCrowd(S) {
+  window.TurnTableCrowd = function createCrowd(S) {
     const { layout, layoutKey, toScreen, armTip, phiOf, toHex, hex, css, mix, clamp, lerp, rand, easeInOut, easeOut, wander, rrect, disc, drawPix } = S.fn;
     const { TAU, TILT, SQUASH, ARM, R_IN, R_OUT, REST_PHI, PLINTH_T, RPS } = S.geo;
     let ctx = null;

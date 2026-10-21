@@ -4,7 +4,7 @@
 // spinning up and winding down, a record lifted off, slid and set down, and a quiet surface noise (hiss and crackle)
 // while the needle is in the groove. Off by default; set up in Settings → Sound.
 //
-// index.html creates it with TodaysRecordSound(scene) and calls update(dt, now) every frame. Each sound is a function of
+// index.html creates it with TurnTableSound(scene) and calls update(dt, now) every frame. Each sound is a function of
 // (audio context, destination, start time), so the same code also renders offline for testing (window.__renderSound).
 (() => {
   'use strict';
@@ -144,7 +144,7 @@
     return out;
   }
 
-  window.TodaysRecordSound = function createSound(S) {
+  window.TurnTableSound = function createSound(S) {
     const opts = () => S.opts.sound || {};
     let ac = null, master = null, bed = null, bedOn = 0;
     const prev = { contact: null, target: null, lifted: false };

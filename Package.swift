@@ -2,17 +2,17 @@
 import PackageDescription
 
 let package = Package(
-    name: "TodaysRecord",
+    name: "TurnTable",
     platforms: [.macOS(.v14)],
     targets: [
         .executableTarget(
-            name: "TodaysRecord",
-            path: "Sources/TodaysRecord"
+            name: "TurnTable",
+            path: "Sources/TurnTable"
         ),
         .testTarget(
-            name: "TodaysRecordTests",
-            dependencies: ["TodaysRecord"],
-            path: "Tests/TodaysRecordTests"
+            name: "TurnTableTests",
+            dependencies: ["TurnTable"],
+            path: "Tests/TurnTableTests"
         ),
     ]
 )

@@ -1,5 +1,5 @@
 import XCTest
-@testable import TodaysRecord
+@testable import TurnTable
 
 /// 명세 4.10 업데이트 확인.
 final class UpdaterTests: XCTestCase {

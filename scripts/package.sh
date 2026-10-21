@@ -26,7 +26,7 @@ else
 fi
 codesign --verify --strict "$APP"
 codesign -d -r- "$APP" 2>&1 | tail -1
-lipo -info "$APP/Contents/MacOS/TodaysRecord"
+lipo -info "$APP/Contents/MacOS/TurnTable"
 
 mkdir -p "$DIST"
 rm -f "$ZIP" "$DIST/TurnTable-$VERSION.sha256" "$OLDZIP" "$OLDZIP.sha256"

@@ -19,8 +19,10 @@ if [ -n "$SIGN_ID" ]; then
   codesign --force --sign "$SIGN_ID" --timestamp=none "$BUILT"
 fi
 
+# 0.7.x까지는 실행 파일 이름이 TodaysRecord였다. 그 버전이 켜져 있어도 끈다.
+pkill -x TurnTable 2>/dev/null || true
 pkill -x TodaysRecord 2>/dev/null || true
-for _ in 1 2 3 4 5 6 7 8 9 10; do pgrep -x TodaysRecord >/dev/null || break; sleep 0.3; done
+for _ in 1 2 3 4 5 6 7 8 9 10; do pgrep -x TurnTable >/dev/null || pgrep -x TodaysRecord >/dev/null || break; sleep 0.3; done
 # 옛 이름 앱을 지울 때는 새 앱이 처음 켜질 때 로그인 항목을 새 위치로 다시 등록하게 한다
 if [ -d "$OLD" ]; then defaults write com.todaysrecord.app renamedApp -bool true; fi
 rm -rf "$TARGET" "$OLD"

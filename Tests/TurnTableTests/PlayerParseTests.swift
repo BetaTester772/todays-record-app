@@ -1,5 +1,5 @@
 import XCTest
-@testable import TodaysRecord
+@testable import TurnTable
 
 /// 상태 스크립트 결과 해석. 명세 4.5, 4.5.1.
 final class PlayerParseTests: XCTestCase {

@@ -621,14 +621,14 @@
   const NATIVE = window.__TR_NATIVE__ || null;
   let nativeArt = '';
   function postNative(msg) {
-    try { window.webkit.messageHandlers.todaysRecord.postMessage(msg); } catch (e) { /* not inside the app */ }
+    try { window.webkit.messageHandlers.turnTable.postMessage(msg); } catch (e) { /* not inside the app */ }
   }
   function initNative() {
     media.source = 'native'; media.state = 'stopped'; media.key = '';
     showIdleRecord();
   }
   if (NATIVE) {
-    window.TodaysRecord = {
+    window.TurnTable = {
       nowPlaying(d) { if (media.source === 'native') applyNowPlaying(d); },
       setOptions(o) {
         if (!o) return;
@@ -1714,7 +1714,7 @@
 
   // The crowd lives in crowd.js and sees the page through this: live values as getters, plus drawing helpers.
   // Without the file (or in an old Wallpaper Engine copy) the page simply has no crowd.
-  if (window.TodaysRecordCrowd) crowd = window.TodaysRecordCrowd({
+  if (window.TurnTableCrowd) crowd = window.TurnTableCrowd({
     get ctx() { return ctx; }, get W() { return W; }, get H() { return H; }, inset, media, opts, NATIVE,
     get shown() { return shown; }, get cue() { return cue; }, get recOff() { return recOff; }, get spinVel() { return spinVel; },
     sceneColors,
@@ -1724,7 +1724,7 @@
 
   // Sounds (sound.js) only read the turntable's state: the needle's height and place, the motor, the record's lift.
   // Only the primary screen plays them, so several displays don't double up.
-  if (window.TodaysRecordSound) sound = window.TodaysRecordSound({
+  if (window.TurnTableSound) sound = window.TurnTableSound({
     opts, get role() { return NATIVE ? NATIVE.role : 'primary'; },
     get arm() {
       const fr = stylusFr(), outLift = cue && cue.out && cue.outOff ? cue.outOff.lift : 0;

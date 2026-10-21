@@ -1,5 +1,5 @@
 import XCTest
-@testable import TodaysRecord
+@testable import TurnTable
 
 /// iTunes 검색 결과에서 앨범 고르기. 명세 4.6.
 final class ITunesSearchTests: XCTestCase {

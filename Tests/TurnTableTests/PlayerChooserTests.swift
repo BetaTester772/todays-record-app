@@ -1,5 +1,5 @@
 import XCTest
-@testable import TodaysRecord
+@testable import TurnTable
 
 /// 명세 4.5.2 보여줄 플레이어 고르기.
 final class PlayerChooserTests: XCTestCase {

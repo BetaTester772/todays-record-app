@@ -1,5 +1,5 @@
 import XCTest
-@testable import TodaysRecord
+@testable import TurnTable
 
 /// Spotify 알림 값으로 바로 반영하기. 명세 4.5.1.
 final class SpotifyNotificationTests: XCTestCase {

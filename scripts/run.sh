@@ -6,7 +6,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 if [ "${NO_INSTALL:-0}" = "1" ]; then
-  pkill -x TodaysRecord 2>/dev/null || true
+  pkill -x TurnTable 2>/dev/null || true
+  pkill -x TodaysRecord 2>/dev/null || true   # 0.7.x까지의 실행 파일 이름
   "$ROOT/scripts/bundle.sh"
   APP="$ROOT/build/TurnTable.app"
 else
@@ -15,4 +16,4 @@ else
 fi
 
 # 표준 출력을 터미널에서 보려고 open 대신 실행 파일을 직접 띄운다. Ctrl+C로 종료.
-exec "$APP/Contents/MacOS/TodaysRecord" "$@"
+exec "$APP/Contents/MacOS/TurnTable" "$@"

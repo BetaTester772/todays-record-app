@@ -271,7 +271,7 @@ final class Settings {
         defaults.set(hex, forKey: slot.rawValue)
     }
 
-    /// `TodaysRecord.setOptions`로 보내는 값. 명세 5장.
+    /// `TurnTable.setOptions`로 보내는 값. 명세 5장.
     var webOptions: [String: Any] {
         [
             "position": position.rawValue,
