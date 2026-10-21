@@ -35,7 +35,7 @@ Apple Music 또는 Spotify에서 재생 중인 곡을 레코드 턴테이블 그
 - AppleScript와 네트워크 요청은 메인 스레드 밖에서 실행한다.
 - 로그는 `os.Logger`(subsystem `com.todaysrecord`)로 남긴다.
 - 사용자에게 보이는 문구(화면, 메뉴, 권한 설명)는 영어로, 짧고 쉬운 말로 쓴다. 곡·앨범·아티스트 이름은 그대로 둔다. (2026-10-20 사용자 요청으로 한국어에서 변경)
-- 앱 이름은 **TurnTable**(2026-10-21 사용자 요청으로 바꿈). 사용자에게 보이는 곳(화면, README, 릴리스 노트)에는 옛 이름을 쓰지 않는다. 앱 파일은 `TurnTable.app`, 배포 zip은 `TurnTable-<버전>.zip`. 번들 ID `com.todaysrecord.app`, 실행 파일·SwiftPM 이름 `TodaysRecord`, 저장소 이름은 그대로 둔다(설정·권한·업데이트가 이어지게).
+- 앱 이름은 **TurnTable**(2026-10-21 사용자 요청으로 바꿈). 사용자에게 보이는 곳(화면, README, 릴리스 노트)에는 옛 이름을 쓰지 않는다. 앱 파일은 `TurnTable.app`, 실행 파일·SwiftPM·JS 브리지 이름도 `TurnTable`(0.8.0), 배포 zip은 `TurnTable-<버전>.zip`과 `.sha256`만 올린다. 번들 ID `com.todaysrecord.app`(로그 subsystem·큐 이름·캐시 폴더가 따름), 서명 인증서, 저장소 이름은 아직 그대로다. 바꾸면 기존 앱의 업데이트와 권한이 끊기므로 사용자와 정한 뒤 설정 옮기기와 함께 바꾼다.
 
 ## index.html 수정 규칙
 

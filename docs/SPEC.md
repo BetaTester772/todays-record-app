@@ -1,6 +1,6 @@
 # TurnTable — macOS 앱 명세서
 
-버전 0.27 · 2026-10-21 (0.2: LP 면 나누기, iTunes 검색 국가 대체 · 0.3: 음량 노브, 면 램프 · 0.4: 색 섞기 전환, 곡 안 위치 이동 · 0.5: 화면 문구 영어 · 0.6: 긴 이름 흐르기 · 0.7: 메뉴 막대·Dock 피하기 · 0.8: 오늘 들은 곡 수만, 노란 강조색 피하기 · 0.9: M2 설정 메뉴, 창문 빛, 잔상 · 0.10: 판 색 고르기, 시간대 색감 · 0.11: 배경색, 선 색 고르기 · 0.12: 그레인 세기 · 0.13: M4 절전, 여러 화면, 그리기 최적화 · 0.14: Spotify 지원 · 0.15: 설정 창, 화면별 켜기, 앱 아이콘 · 0.16: 배포 zip, README · 0.17: M5 뺌 · 0.18: 긴 앨범 LP 세트 · 0.19: 면 바꾸기 동작 · 0.20: 자연스러운 움직임, 글자 색 · 0.21: 앱 안 업데이트, 배포 인증서 · 0.22: 업데이트 설치 자리, 실패 이유, 응용 프로그램 폴더로 옮기기 · 0.23: 컬러 바이닐, 톤암·받침판 색, 색 설정 정리, 이 Mac에 설치 · 0.24: 모여드는 사람들(crowd.js), 받침 높이, 캐릭터 포즈, Characters 탭 · 0.25: 이름을 TurnTable로 · 0.26: 싱글은 7인치 판 · 0.27: Spotify 알림 값 바로 반영, KR 스토어 묻지 않음, 앨범 곡 목록 저장)
+버전 0.28 · 2026-10-21 (0.2: LP 면 나누기, iTunes 검색 국가 대체 · 0.3: 음량 노브, 면 램프 · 0.4: 색 섞기 전환, 곡 안 위치 이동 · 0.5: 화면 문구 영어 · 0.6: 긴 이름 흐르기 · 0.7: 메뉴 막대·Dock 피하기 · 0.8: 오늘 들은 곡 수만, 노란 강조색 피하기 · 0.9: M2 설정 메뉴, 창문 빛, 잔상 · 0.10: 판 색 고르기, 시간대 색감 · 0.11: 배경색, 선 색 고르기 · 0.12: 그레인 세기 · 0.13: M4 절전, 여러 화면, 그리기 최적화 · 0.14: Spotify 지원 · 0.15: 설정 창, 화면별 켜기, 앱 아이콘 · 0.16: 배포 zip, README · 0.17: M5 뺌 · 0.18: 긴 앨범 LP 세트 · 0.19: 면 바꾸기 동작 · 0.20: 자연스러운 움직임, 글자 색 · 0.21: 앱 안 업데이트, 배포 인증서 · 0.22: 업데이트 설치 자리, 실패 이유, 응용 프로그램 폴더로 옮기기 · 0.23: 컬러 바이닐, 톤암·받침판 색, 색 설정 정리, 이 Mac에 설치 · 0.24: 모여드는 사람들(crowd.js), 받침 높이, 캐릭터 포즈, Characters 탭 · 0.25: 이름을 TurnTable로 · 0.26: 싱글은 7인치 판 · 0.27: Spotify 알림 값 바로 반영, KR 스토어 묻지 않음, 앨범 곡 목록 저장 · 0.28: 코드·릴리스 이름 TurnTable로 통일)
 
 ## 1. 개요
 
@@ -39,7 +39,7 @@ Apple Music 또는 Spotify에서 지금 재생 중인 곡을 레코드 턴테이
 
 ```
 Package.swift
-Sources/TodaysRecord/
+Sources/TurnTable/
 ├─ main.swift              NSApplication 시작, 실행 인자 처리
 ├─ AppDelegate.swift       구성 요소 생성과 연결
 ├─ StatusMenu.swift        메뉴 막대 아이콘과 메뉴
@@ -65,7 +65,7 @@ Resources/
 ├─ sound.js                레코드 소리 (6장 29). 없으면 소리 없이 그대로 동작
 ├─ Info.plist              번들 정보
 └─ AppIcon.icns            앱 아이콘 (scripts/make-icon.swift로 만든다)
-Tests/TodaysRecordTests/    고르기 규칙, 상태 해석, 곡 위치 단위 테스트 (`swift test`)
+Tests/TurnTableTests/       고르기 규칙, 상태 해석, 곡 위치 단위 테스트 (`swift test`)
 scripts/
 ├─ bundle.sh               .app 번들 조립과 애드혹 서명
 ├─ run.sh                  빌드 후 실행
@@ -104,7 +104,7 @@ scripts/
 - 화면 식별자(`NSScreenNumber`)마다 창과 웹뷰를 하나씩 둔다. 화면 설정이 바뀌면 새 화면에는 창을 만들고, 빠진 화면의 창은 닫고, 남은 창은 크기와 여백을 맞춘다. 주 화면이 바뀌어 역할(primary/mirror)이 달라진 창은 역할이 문서 시작 때 정해지므로 닫고 다시 만든다. `--windowed`에서는 주 화면에 하나만 띄운다.
 - `NSApplication.didChangeScreenParametersNotification`을 받으면 창을 다시 만들거나 크기를 맞춘다.
 - 띄우는 화면이 여럿이면 primary 하나만 `role = primary`, 나머지는 `mirror`. 기록 저장은 primary만 한다(6장).
-- 화면마다 `frame`과 `visibleFrame`의 차이로 메뉴 막대와 Dock이 덮는 가장자리(top, right, bottom, left, 포인트)를 구해 `TodaysRecord.setInsets`로 보낸다. 웹뷰가 준비될 때와 화면 설정이 바뀔 때(Dock 위치·크기 변경 포함) 보낸다. `--windowed`에서는 0이다.
+- 화면마다 `frame`과 `visibleFrame`의 차이로 메뉴 막대와 Dock이 덮는 가장자리(top, right, bottom, left, 포인트)를 구해 `TurnTable.setInsets`로 보낸다. 웹뷰가 준비될 때와 화면 설정이 바뀔 때(Dock 위치·크기 변경 포함) 보낸다. `--windowed`에서는 0이다.
 
 ### 4.4 웹 화면 (`RecordWebView`)
 
@@ -114,7 +114,7 @@ scripts/
   ```js
   window.__TR_NATIVE__ = { role: "primary", screen: "<화면 식별자>" };
   ```
-- `WKScriptMessageHandler` 이름은 `todaysRecord`.
+- `WKScriptMessageHandler` 이름은 `turnTable`.
 - 투명 배경일 때 웹뷰 배경도 투명해야 한다 (`underPageBackgroundColor = .clear`, 필요하면 `setValue(false, forKey: "drawsBackground")`).
 - 다른 주소로의 이동은 막는다 (`WKNavigationDelegate`에서 파일 주소 외 취소).
 - 웹 콘텐츠 프로세스가 죽으면(`webViewWebContentProcessDidTerminate`) 다시 불러온다.
@@ -190,13 +190,13 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
 - 2순위(커버가 없거나 실패): iTunes Search API `https://itunes.apple.com/search?term=<아티스트 앨범>&entity=album&limit=5&country=<국가>`에서 앨범 이름이 같은 결과(없으면 첫 결과)의 `artworkUrl100`에서 `100x100bb`를 `600x600bb`로 바꿔 받는다. 국가 기본값 `US`, 설정(`artworkCountry`)으로 변경 가능.
 - 앨범 찾기는 먼저 `entity=song`, `term=<아티스트 제목>`으로 하고(스트리밍 곡의 앨범은 앨범 검색에 잘 걸리지 않음), 못 찾으면 위의 앨범 검색을 쓴다. 앨범 이름과 곡 제목이 같은 결과를 먼저 고른다. 앨범 이름은 대소문자와, iTunes가 싱글·EP 이름 끝에 붙이는 ` - Single`, ` - EP`를 무시하고 비교한다(Spotify 앨범 이름에는 붙지 않는다. 2026-10 확인: `アイドル` ↔ `アイドル - Single`).
 - 2026-10 확인 결과 `country=KR`은 search, lookup 모두 결과가 0건이다(한국 iTunes Store는 음악을 팔지 않음). 그래서 `KR`은 묻지 않고(설정이 `KR`이어도 `US`만 찾는다), 다른 설정 국가로 찾지 못하면 `US`로 한 번 더 찾는다. 2026-10-21 측정: 새 앨범으로 바뀔 때 0.52~0.66초가 줄어 1.4~2.0초에서 0.52~0.72초가 됐다. 찾은 앨범의 `collectionId`로 `lookup?id=<id>&entity=song`을 불러 곡 목록과 길이(`trackTimeMillis`)도 얻는다(4.5의 (3)).
-- PNG/JPEG 바이트를 base64 data URL로 바꿔 `TodaysRecord.art(dataURL, version)`으로 보낸다. 같은 커버를 다시 보내지 않는다.
+- PNG/JPEG 바이트를 base64 data URL로 바꿔 `TurnTable.art(dataURL, version)`으로 보낸다. 같은 커버를 다시 보내지 않는다.
 
 ### 4.6.1 시스템 음량 (`SystemVolume`)
 
 - CoreAudio 공개 API로 기본 출력 장치의 음량(`kAudioHardwareServiceDeviceProperty_VirtualMainVolume`, 0~1)과 음소거(`kAudioDevicePropertyMute`)를 읽는다.
 - 속성 알림(`AudioObjectAddPropertyListenerBlock`)으로 바뀔 때마다 바로 받는다. 기본 출력 장치가 바뀌면 새 장치에 다시 붙는다. 주기적으로 묻지 않는다.
-- 값이 바뀌면 `TodaysRecord.setVolume({level, muted})`로 보낸다. 장치에 음량 조절이 없으면 `level`을 빼고 보낸다. `--demo`에서도 보낸다.
+- 값이 바뀌면 `TurnTable.setVolume({level, muted})`로 보낸다. 장치에 음량 조절이 없으면 `level`을 빼고 보낸다. `--demo`에서도 보낸다.
 
 ### 4.7 절전 (`PowerWatcher`)
 
@@ -248,13 +248,14 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
 
 - 설정 `autoUpdateCheck`(기본 켜짐)면 앱 시작 10초 뒤와, 그 뒤 마지막 확인에서 24시간이 지날 때마다 `https://api.github.com/repos/soysaucecrab/todays-record-app/releases/latest`를 확인한다(메인 스레드 밖, 마지막 확인 시각은 `lastUpdateCheck`). 설정 창 General의 **Check Now**로 바로 확인할 수도 있다.
 - 태그(`v0.4.0`)를 숫자 단위로 지금 버전(`CFBundleShortVersionString`)과 비교해, 새 버전이면 메뉴에 “Update to v0.4.0…”, 설정 창에 업데이트 버튼을 보인다.
-- 누르면 확인 창(Update / Later / Release Notes)을 띄우고, Update면: 릴리스의 `TurnTable-<버전>.zip`과 `TurnTable-<버전>.sha256`(없으면 옛 이름 `TodaysRecord-<버전>.zip`과 `.zip.sha256`)을 받아 SHA-256을 맞춰 보고 → `ditto`로 풀고 → 번들 ID가 같은지, 서명이 정상인지 확인하고 → **지금 앱이 인증서로 서명돼 있으면 새 앱도 같은 designated requirement(같은 인증서)를 만족하는지** 확인한 뒤(`SecStaticCodeCheckValidity`) → 설치할 자리에 바꿔 넣고 → 지금 앱이 끝나면 새 앱을 연다.
+- 누르면 확인 창(Update / Later / Release Notes)을 띄우고, Update면: 릴리스의 `TurnTable-<버전>.zip`과 `TurnTable-<버전>.sha256`을 받아 SHA-256을 맞춰 보고 → `ditto`로 풀고 → 번들 ID가 같은지, 서명이 정상인지 확인하고 → **지금 앱이 인증서로 서명돼 있으면 새 앱도 같은 designated requirement(같은 인증서)를 만족하는지** 확인한 뒤(`SecStaticCodeCheckValidity`) → 설치할 자리에 바꿔 넣고 → 지금 앱이 끝나면 새 앱을 연다.
 - 설치할 자리: 지금 앱 자리에 쓸 수 있고 App Translocation(경로에 `/AppTranslocation/`, 다운로드한 앱을 옮기지 않고 열면 macOS가 읽기 전용 임시 자리에서 실행함) 중이 아니면 지금 자리(`FileManager.replaceItemAt`로 원자적으로 바꿈). 아니면 `/Applications/TurnTable.app`. 옛 이름 앱(`TodaysRecord.app`)은 같은 폴더에 `TurnTable.app`으로 설치하고 옛 앱은 휴지통으로 보낸다. 그 자리에 쓸 권한이 없으면 `NSAppleScript`의 `do shell script … with administrator privileges`로 macOS 관리자 암호 창을 띄워 `rm -rf` 후 `ditto --noqtn`으로 넣는다. 암호 창에서 취소하면(-128) 취소로 본다.
 - 어느 단계든 실패하면 아무것도 바꾸지 않고, 실패 이유(받기 실패, 체크섬 다름, 서명 다름, 쓸 권한 없음 등)를 알림 창으로 보여 준다(Open Download Page / OK). 릴리스 페이지를 말없이 열지 않는다.
 - 앱 시작 때 App Translocation 중이거나 `~/Downloads` 안에서 실행 중이면 “Move TurnTable to the Applications folder?”(Move to Applications / Not Now)를 묻는다. 옮기면 `/Applications`에 넣고(필요하면 관리자 암호), 원래 자리의 앱은 휴지통으로 보낸 뒤(Translocation이면 원본을 모르므로 그대로 둠) 새 자리에서 다시 연다.
-- **이름 바꾸기(0.25, TurnTable).** 화면에 보이는 이름(`CFBundleName`, `CFBundleDisplayName`, 메뉴·창·알림 문구)과 앱 파일 이름을 TurnTable로 바꿨다. 번들 ID, 실행 파일 이름(`TodaysRecord`), UserDefaults 영역, 저장소 이름은 그대로다.
-  - 릴리스에는 `TurnTable-<버전>.zip`과 `TurnTable-<버전>.sha256`, 그리고 0.4.x 앱용 `TodaysRecord-<버전>.zip`과 `.zip.sha256`(안의 앱 폴더 이름만 `TodaysRecord.app`, 같은 서명)을 함께 올린다. 0.4.x 업데이트 코드는 `TodaysRecord-`로 시작하는 zip과 처음 보이는 `.zip.sha256`을 쓰므로, 새 체크섬 파일 이름에는 `.zip`을 넣지 않는다.
+- **이름 바꾸기(0.25, TurnTable).** 화면에 보이는 이름(`CFBundleName`, `CFBundleDisplayName`, 메뉴·창·알림 문구)과 앱 파일 이름을 TurnTable로 바꿨다. 번들 ID, UserDefaults 영역, 로그 subsystem, 서명 인증서, 저장소 이름은 그대로다. 실행 파일·SwiftPM·JS 브리지 이름은 0.8.0에서 TurnTable로 바꿨다(아래).
+  - 0.7.2까지 릴리스에는 0.4.x 앱용 `TodaysRecord-<버전>.zip`과 `.zip.sha256`도 함께 올렸다(0.4.x 업데이트 코드는 `TodaysRecord-`로 시작하는 zip과 처음 보이는 `.zip.sha256`을 써서, 새 체크섬 파일 이름에는 `.zip`을 넣지 않았다). 0.6.0부터 0.7.1까지 이 zip의 다운로드가 0건이어서 0.8.0부터 뺐다. 0.4.x 앱은 한 번 직접 받아야 한다.
   - 앱이 시작할 때 자기 파일 이름이 `TodaysRecord.app`이고 그 폴더에 쓸 수 있으며 옆에 `TurnTable.app`이 없으면, `TurnTable.app`으로 이름을 바꾸고 새 자리에서 다시 연다. 다시 열린 앱은 로그인 항목이 켜져 있으면 새 위치로 다시 등록한다(`renamedApp` 표시). `scripts/install.sh`도 옛 앱을 지울 때 이 표시를 남긴다.
+- **코드·릴리스 이름 통일(0.8.0, 사용자 요청).** 실행 파일(`Contents/MacOS/TurnTable`, `CFBundleExecutable`), SwiftPM 패키지·대상(`TurnTable`, `TurnTableTests`, 폴더 `Sources/TurnTable`, `Tests/TurnTableTests`), JS 브리지(`window.TurnTable`, 메시지 이름 `turnTable`, `TurnTableSound`, `TurnTableCrowd`)를 TurnTable로 바꾸고, 릴리스 zip은 `TurnTable-<버전>.zip`과 `.sha256` 하나로 했다. 옛 업데이트 코드는 앱 번들을 통째로 바꾸고 `open`으로 다시 열어서 실행 파일 이름이 바뀌어도 업데이트된다. 스크립트는 0.7.x 실행 중인 앱(`TodaysRecord` 프로세스)도 끈다. 번들 ID(`com.todaysrecord.app`과 그것을 따르는 로그 subsystem, 큐 이름, 캐시 폴더), 서명 인증서, 저장소 이름은 나중에 정한다(바꾸면 기존 앱의 업데이트 서명 확인이 실패하고 권한을 다시 물으므로, 설정 옮기기와 함께 한다).
 - 앱이 직접 받은 파일에는 “인터넷에서 받음” 표시(quarantine)가 붙지 않아, 업데이트 뒤에는 “그래도 열기”가 다시 필요 없다(확인함).
 
 ### 4.9 (뺌) 시스템 배경화면 색 맞추기
@@ -269,18 +270,18 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
 
 | 호출 | 설명 |
 |---|---|
-| `TodaysRecord.nowPlaying(payload)` | 4.5의 JSON |
-| `TodaysRecord.art(dataURL, version)` | 앨범 커버 |
-| `TodaysRecord.setPaused(bool, {sound})` | 그리기 멈춤/재개. sound가 true면 그리기만 멈추고 소리는 계속(창이 가려졌을 때, 6장 29) |
-| `TodaysRecord.setOptions({position, transparent, windowLight, trail, fps})` | position: `"left"`, `"center"`, `"right"` · transparent: bool · windowLight: bool · trail: `"keep"` 또는 `"afterglow"` · grain: `"off"`, `"low"`, `"normal"`, `"high"`(기존 세기의 0, 0.45, 1, 1.45배) · sideChange: `"turn"`, `"swap"`, `"needle"`(6장 23) · albumChange: `"swap"`, `"slide"`(6장 28) · singles: `"seven"`, `"twelve"`(6장 30) · coloredVinyl: bool, vinylStyle: `"match"`·`"contrast"`, lineStyle: `"album"`·`"contrast"`(6장 21) · crowd: bool, crowdPace: 1·2·5·10(6장 25) · sound: `{on, volume(0~1), needle, motor, noise}`(6장 29) · riderPose: `"auto"`, `"sit"`, `"lean"`, `"cross"`, `"hug"`(6장 27) · hatColor: `"#RRGGBB"` 또는 `""`(기본 흰색) · recordColor, bgColor, lineColor, textColor: `"#RRGGBB"` 또는 `""`(앨범 색) · armColor, armBaseColor, spindleColor, knobColor, restColor: `"#RRGGBB"` 또는 `""`(기본 금속색) · shirtColor, pantsColor: `"#RRGGBB"` 또는 `""`(앨범 색) · fps: 30 또는 60(앱이 설정과 전원에 따라 정해 보낸다) |
-| `TodaysRecord.clearRecord()` | 지금 판의 선 지우기 |
-| `TodaysRecord.testSound()` | 바늘 내리는 소리를 한 번 들려준다(설정을 꺼 둬도). 6장 29 |
-| `TodaysRecord.setInsets({top, right, bottom, left})` | 메뉴 막대와 Dock이 덮는 화면 가장자리(4.3) |
-| `TodaysRecord.setVolume({level, muted})` | 시스템 음량. level: 0~1(모르면 생략), muted: bool (4.6.1) |
+| `TurnTable.nowPlaying(payload)` | 4.5의 JSON |
+| `TurnTable.art(dataURL, version)` | 앨범 커버 |
+| `TurnTable.setPaused(bool, {sound})` | 그리기 멈춤/재개. sound가 true면 그리기만 멈추고 소리는 계속(창이 가려졌을 때, 6장 29) |
+| `TurnTable.setOptions({position, transparent, windowLight, trail, fps})` | position: `"left"`, `"center"`, `"right"` · transparent: bool · windowLight: bool · trail: `"keep"` 또는 `"afterglow"` · grain: `"off"`, `"low"`, `"normal"`, `"high"`(기존 세기의 0, 0.45, 1, 1.45배) · sideChange: `"turn"`, `"swap"`, `"needle"`(6장 23) · albumChange: `"swap"`, `"slide"`(6장 28) · singles: `"seven"`, `"twelve"`(6장 30) · coloredVinyl: bool, vinylStyle: `"match"`·`"contrast"`, lineStyle: `"album"`·`"contrast"`(6장 21) · crowd: bool, crowdPace: 1·2·5·10(6장 25) · sound: `{on, volume(0~1), needle, motor, noise}`(6장 29) · riderPose: `"auto"`, `"sit"`, `"lean"`, `"cross"`, `"hug"`(6장 27) · hatColor: `"#RRGGBB"` 또는 `""`(기본 흰색) · recordColor, bgColor, lineColor, textColor: `"#RRGGBB"` 또는 `""`(앨범 색) · armColor, armBaseColor, spindleColor, knobColor, restColor: `"#RRGGBB"` 또는 `""`(기본 금속색) · shirtColor, pantsColor: `"#RRGGBB"` 또는 `""`(앨범 색) · fps: 30 또는 60(앱이 설정과 전원에 따라 정해 보낸다) |
+| `TurnTable.clearRecord()` | 지금 판의 선 지우기 |
+| `TurnTable.testSound()` | 바늘 내리는 소리를 한 번 들려준다(설정을 꺼 둬도). 6장 29 |
+| `TurnTable.setInsets({top, right, bottom, left})` | 메뉴 막대와 Dock이 덮는 화면 가장자리(4.3) |
+| `TurnTable.setVolume({level, muted})` | 시스템 음량. level: 0~1(모르면 생략), muted: bool (4.6.1) |
 
 ### JavaScript → Swift
 
-`window.webkit.messageHandlers.todaysRecord.postMessage(obj)`
+`window.webkit.messageHandlers.turnTable.postMessage(obj)`
 
 | type | 내용 |
 |---|---|
@@ -291,7 +292,7 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
 
 기존 동작(브라우저 미리보기, Wallpaper Engine, 로컬 도우미)은 그대로 둔다. 다음을 추가한다.
 
-1. **native 소스.** `window.__TR_NATIVE__`가 있으면 `media.source = 'native'`로 시작하고 미리보기 데이터를 쓰지 않는다. `TodaysRecord.nowPlaying`은 기존 `applyNowPlaying`을 재사용한다. 커버는 `TodaysRecord.art`로 받아 기존 `applyArt` 경로를 쓴다. 준비되면 `ready`를 보낸다.
+1. **native 소스.** `window.__TR_NATIVE__`가 있으면 `media.source = 'native'`로 시작하고 미리보기 데이터를 쓰지 않는다. `TurnTable.nowPlaying`은 기존 `applyNowPlaying`을 재사용한다. 커버는 `TurnTable.art`로 받아 기존 `applyArt` 경로를 쓴다. 준비되면 `ready`를 보낸다.
 2. **앱 실행 인자 `--demo`.** Swift가 `__TR_NATIVE__.demo = true`를 넣으면 미리보기 데이터로 동작한다.
 3. **멈춤.** `setPaused(true)`면 `requestAnimationFrame` 루프를 멈추고, false면 시간 차이를 건너뛰고 재개한다(멈춘 동안의 시간이 한꺼번에 흐르지 않게). 다만 멈춘 동안 같은 곡이 계속 재생됐으면, 재개할 때 그동안 재생된 만큼 판을 돌려 놓는다. 그러면 멈춘 자리와 지금 바늘 자리를 잇는 선이 직선이 아니라 그 시간 동안 그렸을 나선이 된다(사용자 요청: 다른 화면에서 돌아오면 선이 쭉 그어지던 문제).
 4. **프레임 제한.** `fps`가 30이면 프레임을 하나 걸러 그린다.
@@ -360,7 +361,7 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
     - 캐릭터 발 흔들기: 규칙적으로 보이지 않게, 서로 나누어떨어지지 않는 주기의 사인파 몇 개를 섞은 부드러운 값(`wander`)으로 속도(BPM 기준 85~110%)와 폭(0.2~1, 가끔 거의 쉼)이 천천히 바뀌고, 두 발은 정확히 반대로 움직이지 않고 조금씩 엇갈린다.
     - 판의 흔들림(워프): 판 중심이 아주 조금 어긋나 바늘이 한 바퀴에 한 번 안팎으로(판 반지름의 0.35%) 출렁이고, 판이 살짝 휘어 한 바퀴에 두 번 위아래로 움직인다. 회전 속도에 비례하고 바늘이 판 위에 있을 때만 보인다.
 
-25. **모여드는 사람들(`Resources/crowd.js`, 0.24 사용자 요청).** 쉬지 않고 오래 들을수록 작은 사람들이 하나씩 놀러 온다. 움직임 코드가 커서 `index.html`과 나눠 `crowd.js`에 두고, `index.html`은 `TodaysRecordCrowd(scene)`로 만들어 매 프레임 `update`, `draw`를 부른다. `scene`은 화면 상태(크기, 여백, 재생 상태, 판 회전, 판 바꾸기)와 그리기 도구를 읽기 전용으로 넘긴다. 파일이 없으면 사람 없이 그대로 동작한다.
+25. **모여드는 사람들(`Resources/crowd.js`, 0.24 사용자 요청).** 쉬지 않고 오래 들을수록 작은 사람들이 하나씩 놀러 온다. 움직임 코드가 커서 `index.html`과 나눠 `crowd.js`에 두고, `index.html`은 `TurnTableCrowd(scene)`로 만들어 매 프레임 `update`, `draw`를 부른다. `scene`은 화면 상태(크기, 여백, 재생 상태, 판 회전, 판 바꾸기)와 그리기 도구를 읽기 전용으로 넘긴다. 파일이 없으면 사람 없이 그대로 동작한다.
     - 오는 때: 재생 시간이 3~7분(랜덤)일 때 첫 사람, 그 뒤 한 명 올 때마다 3~5분(랜덤) 뒤 다음 사람. 최대 6명. 재생 중에도 사람마다 20~45분(랜덤) 머문 뒤 집에 가고(5분에 한 명까지), 1~3분 뒤 새 사람이 온다. 음악이 멈추거나 정지하면 30초~1분마다 한 명씩 손을 흔들고 화면 밖으로 걸어 나간다. 다시 재생하면 남아 있던 사람은 그대로 있고, 다음 사람은 3~5분(아무도 없으면 3~7분) 뒤에 온다. `crowdPace`(1·2·5·10배)는 사람들 시간 전체를 빠르게 한다: 오고 가는 시간, 걷기, 한 가지 일을 하는 시간, 작은 움직임, 효과. 춤 박자는 음악을 따르고, 판 위에서 뛰는 다리 빠르기는 판의 실제 속도를 따른다(사람들만의 시계 `crowd.clock`). Crowd를 끄면 모두 떠난다. 투명 배경에서는 그리지 않는다.
     - 자리: 책상 위, 받침 위, 받침 왼쪽 가장자리(걸터앉기)에서, 사람 몸 전체가 판, 노브·램프, 톤암과 그 받침, 바늘이 지나는 길, 곡 정보를 가리지 않는 곳만 쓴다. 레코드 위치(left·center·right), 화면 크기, 여백이 바뀌면 자리를 다시 계산하므로 배치마다 보이는 바닥에 선다. 옆으로 가깝고 위아래로 몸 높이보다 가까우면 겹친다고 보고 그런 자리는 고르지 않으며, 그래도 겹쳐 서 있으면 한 명이 옮겨 간다. 판을 가로지르는 길은 판 둘레로 돌아가되, 양쪽 길 중 화면 안에 더 많이 남는 쪽을 고르고 화면 밖으로 나가지 않게 한다. 받침 옆면 위에는 서지 않고, 책상에서 받침으로 갈 때는 화면에서 곧게 걸어 올라가 튀지 않는다.
     - 움직임은 여유롭게: 걸음은 천천히(초당 20u, u는 판 크기에 비례), 한 가지 일을 30초~1분 넘게 하고, 자리 옮기기는 드물다(사용자 요청).
@@ -374,7 +375,7 @@ Music과 Spotify의 재생 정보를 플레이어마다 다음 두 가지 방법
     - 톤암 그림자: 모든 부분의 그림자가 같은 빛 방향으로, 높이에 비례해 떨어진다(기둥은 바닥에서 꼭대기까지, 팔과 균형추는 기둥 높이, 헤드는 제 높이). 기둥, 팔, 균형추, 헤드 그림자를 한 도형으로 한 번에 칠해 겹친 곳이 진해지지 않게 한다.
 27. **캐릭터 포즈.** 바늘 위 캐릭터는 다리 늘어뜨리고 앉기(기본), 뒤로 기대기, 책상다리, 무릎 껴안기 중 하나로 앉는다. 설정 Pose가 Auto(기본)면 새 곡이 시작될 때 45% 확률로 다른 포즈로, 하나를 고르면 그 포즈로 0.5초에 걸쳐 바뀐다. 윗옷·바지·모자 색은 Characters 탭에서 고른다(`shirtColor`, `pantsColor`, `hatColor`). 박자에 맞춰 위아래로 튀던 동작은 뺐다(사용자 요청).
 28. **다른 앨범으로 바꿀 때(`albumChange`, 사용자 요청).** `swap`(기본, Swap Record)은 지금처럼 옛 판을 들어 오른쪽으로 빼고 새 판을 왼쪽에서 가져온다. `slide`(Slide Over)는 바늘이 쉬는 자리로 간 뒤, 두 판이 조금 떠오른 채로 옛 판은 왼쪽 위(약 28°)로 빠지며 돌던 힘이 남아 천천히 멈추고, 조금 뒤(약 0.6초) 새 판이 같은 왼쪽 위에서 더 낮은 길(약 14°)로 옛 판 위를 지나 들어와 내려앉는다(각 약 1.8초, 전체 4.2초). 빠지고 들어오는 거리는 화면 배치로 계산해 판(테두리, 그림자 포함)이 화면 왼쪽 끝 밖에서 시작하고 끝나, 화면 안에서 갑자기 생기거나 사라지지 않는다. 바늘은 새 판이 다 내려앉은 뒤 내려간다. 옛 판은 바꾸는 순간의 색, 라벨, 선을 그대로 지닌 채 그리고, 새 판은 처음부터 새 앨범 색으로 그린다(배경 색은 평소처럼 서서히 바뀜). 축(스핀들)은 판에 붙이지 않고 늘 플래터 가운데에 그린다. 판을 들어 옮기는 동안에는 판이 축 위로 지나가고, 판이 놓여 있으면 축이 판 구멍으로 올라와 보인다. 다른 앨범으로 바꿀 때(Swap Record, Slide Over)는 판이 들리면 축이 플래터 속으로 내려가고, 새 판이 완전히 내려앉은 뒤에야 판 구멍으로 천천히 올라온다. 판에는 축보다 조금 작은(축 반지름의 80%) 구멍을 뚫어 그 아래가 비쳐 보이게 한다(구멍은 판의 기울어진 면에, 축 밑면은 수평으로 그려서 같은 크기면 축 왼쪽 아래로 구멍이 삐져나왔다). 판이 들리면 축은 판 아래에 그려져 구멍 사이로만 보이며 내려가고(Swap Record는 판이 곧바로 옆으로 움직이므로 조금 먼저 내려가기 시작), 판이 위로 비켜나면 판에 가려진다. 판을 옮기는 동안과 새 판이 떠 있는 동안에도 판 아래에 그린다. 같은 판의 반대 면으로 돌릴 때(Lift & Turn)도 같다: 판이 떠오르면 축이 내려가고, 다 내려앉은 뒤 올라온다.
-29. **레코드 소리(`Resources/sound.js`, 사용자 요청).** 녹음 파일 없이 Web Audio로 만든 작은 소리를 음악 위에 얹는다. 기본 꺼짐, 설정 Sound 탭에서 켠다. `index.html`은 `TodaysRecordSound(scene)`으로 만들고 매 프레임 `update`를 부른다. 소리는 턴테이블 상태만 읽는다: 바늘 높이와 판 위인지, 모터가 향하는 속도, 판이 들렸는지.
+29. **레코드 소리(`Resources/sound.js`, 사용자 요청).** 녹음 파일 없이 Web Audio로 만든 작은 소리를 음악 위에 얹는다. 기본 꺼짐, 설정 Sound 탭에서 켠다. `index.html`은 `TurnTableSound(scene)`으로 만들고 매 프레임 `update`를 부른다. 소리는 턴테이블 상태만 읽는다: 바늘 높이와 판 위인지, 모터가 향하는 속도, 판이 들렸는지.
     - 바늘 내림(낮은 "툭" + 닿는 틱 + 짧은 치직), 바늘 들기(작은 틱), 판 들기(사각 바람 소리), 판 밀기(Slide Over·Swap Record에서 "스르륵", 펠트에 걸리는 떨림), 판 내려놓기(둔한 "툭"), 모터 시작·정지(스위치 딸깍 + 낮게 도는 소리가 올라갔다 사라짐 / 내려가며 사라짐), 표면 잡음(바늘이 판 위에서 재생 중일 때만 옅은 쉿 소리와 탁탁 튀는 소리, 6초 무작위 반복).
     - 앱을 처음 켤 때는 모터 소리를 내지 않는다(재생 중에 켜져도 조용히 시작). 일시정지·재개 때는 낸다.
     - 크기: Volume(0~1)을 1.6제곱해 쓰고, 압축기(-18dB, 4:1)를 거친다. Volume 50%에서 바늘 내림 최고치 약 -18dBFS, 표면 잡음 평균 약 -45dBFS(오프라인으로 렌더해 잼, 2026-10-21).
