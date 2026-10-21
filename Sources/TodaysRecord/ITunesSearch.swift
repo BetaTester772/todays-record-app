@@ -4,9 +4,10 @@ import Foundation
 /// 결과는 URLSession 스레드에서 돌려준다.
 enum ITunesSearch {
     static let countryKey = "artworkCountry"
-    static let defaultCountry = "KR"
-    /// KR 스토어는 음악 결과가 비어 있어서, 찾지 못하면 이 국가로 한 번 더 찾는다.
+    /// 설정 국가로 찾지 못하면 이 국가로 한 번 더 찾는다. 설정이 없으면 이 국가만 찾는다.
     static let fallbackCountry = "US"
+    /// 음악을 팔지 않아 search, lookup 모두 0건인 스토어(2026-10 확인). 묻지 않는다.
+    static let storesWithoutMusic: Set<String> = ["KR"]
 
     struct Album {
         let collectionID: Int
@@ -15,9 +16,15 @@ enum ITunesSearch {
         let country: String
     }
 
+    static func countries(setting: String?) -> [String] {
+        guard let country = setting?.uppercased(), country != fallbackCountry, !storesWithoutMusic.contains(country) else {
+            return [fallbackCountry]
+        }
+        return [country, fallbackCountry]
+    }
+
     static var countries: [String] {
-        let country = UserDefaults.standard.string(forKey: countryKey) ?? defaultCountry
-        return country.uppercased() == fallbackCountry ? [fallbackCountry] : [country, fallbackCountry]
+        countries(setting: UserDefaults.standard.string(forKey: countryKey))
     }
 
     struct Track {
